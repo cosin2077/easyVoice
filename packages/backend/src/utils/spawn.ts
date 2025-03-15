@@ -14,11 +14,11 @@ export function runEdgeTTS(params: TTSParams): Promise<{ audio: string; srt: str
       "--pitch",
       params.pitch,
       "--rate",
-      params.speed,
+      params.rate,
       "--write-media",
       params.output,
       "--write-subtitles",
-    ]);
+    ], { cwd: process.cwd() });
 
     proc.on("close", (code) => {
       if (code === 0) {

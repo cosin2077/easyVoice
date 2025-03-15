@@ -12,6 +12,7 @@ export interface TTSParams {
   name: string;
   text: string;
   voice: string;
+  rate: string;
   pitch: string;
   speed: string;
   output: string;
