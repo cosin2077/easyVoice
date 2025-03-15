@@ -1,0 +1,368 @@
+[
+  {
+    "Name": "en-AU-NatashaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-AU-WilliamNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-CA-ClaraNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-CA-LiamNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-GB-LibbyNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-GB-MaisieNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-GB-RyanNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-GB-SoniaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-GB-ThomasNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-HK-SamNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-HK-YanNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-IE-ConnorNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-IE-EmilyNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-IN-NeerjaExpressiveNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-IN-NeerjaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-IN-PrabhatNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-KE-AsiliaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-KE-ChilembaNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-NG-AbeoNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-NG-EzinneNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-NZ-MitchellNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-NZ-MollyNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-PH-JamesNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-PH-RosaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-SG-LunaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-SG-WayneNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-TZ-ElimuNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-TZ-ImaniNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-US-AnaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Cartoon", "Conversation"],
+    "VoicePersonalities": ["Cute"]
+  },
+  {
+    "Name": "en-US-AndrewMultilingualNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Warm", "Confident", "Authentic", "Honest"]
+  },
+  {
+    "Name": "en-US-AndrewNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Warm", "Confident", "Authentic", "Honest"]
+  },
+  {
+    "Name": "en-US-AriaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Positive", "Confident"]
+  },
+  {
+    "Name": "en-US-AvaMultilingualNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Expressive", "Caring", "Pleasant", "Friendly"]
+  },
+  {
+    "Name": "en-US-AvaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Expressive", "Caring", "Pleasant", "Friendly"]
+  },
+  {
+    "Name": "en-US-BrianMultilingualNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Approachable", "Casual", "Sincere"]
+  },
+  {
+    "Name": "en-US-BrianNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Approachable", "Casual", "Sincere"]
+  },
+  {
+    "Name": "en-US-ChristopherNeural",
+    "Gender": "Male",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Reliable", "Authority"]
+  },
+  {
+    "Name": "en-US-EmmaMultilingualNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Cheerful", "Clear", "Conversational"]
+  },
+  {
+    "Name": "en-US-EmmaNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Conversation", "Copilot"],
+    "VoicePersonalities": ["Cheerful", "Clear", "Conversational"]
+  },
+  {
+    "Name": "en-US-EricNeural",
+    "Gender": "Male",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Rational"]
+  },
+  {
+    "Name": "en-US-GuyNeural",
+    "Gender": "Male",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Passion"]
+  },
+  {
+    "Name": "en-US-JennyNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Considerate", "Comfort"]
+  },
+  {
+    "Name": "en-US-MichelleNeural",
+    "Gender": "Female",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Friendly", "Pleasant"]
+  },
+  {
+    "Name": "en-US-RogerNeural",
+    "Gender": "Male",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Lively"]
+  },
+  {
+    "Name": "en-US-SteffanNeural",
+    "Gender": "Male",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Rational"]
+  },
+  {
+    "Name": "en-ZA-LeahNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "en-ZA-LukeNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "zh-CN-XiaoxiaoNeural",
+    "Gender": "Female",
+    "ContentCategories": ["News", "Novel"],
+    "VoicePersonalities": ["Warm"]
+  },
+  {
+    "Name": "zh-CN-XiaoyiNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Cartoon", "Novel"],
+    "VoicePersonalities": ["Lively"]
+  },
+  {
+    "Name": "zh-CN-YunjianNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Sports", "Novel"],
+    "VoicePersonalities": ["Passion"]
+  },
+  {
+    "Name": "zh-CN-YunxiNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Novel"],
+    "VoicePersonalities": ["Lively", "Sunshine"]
+  },
+  {
+    "Name": "zh-CN-YunxiaNeural",
+    "Gender": "Male",
+    "ContentCategories": ["Cartoon", "Novel"],
+    "VoicePersonalities": ["Cute"]
+  },
+  {
+    "Name": "zh-CN-YunyangNeural",
+    "Gender": "Male",
+    "ContentCategories": ["News"],
+    "VoicePersonalities": ["Professional", "Reliable"]
+  },
+  {
+    "Name": "zh-CN-liaoning-XiaobeiNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Dialect"],
+    "VoicePersonalities": ["Humorous"]
+  },
+  {
+    "Name": "zh-CN-shaanxi-XiaoniNeural",
+    "Gender": "Female",
+    "ContentCategories": ["Dialect"],
+    "VoicePersonalities": ["Bright"]
+  },
+  {
+    "Name": "zh-HK-HiuGaaiNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "zh-HK-HiuMaanNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "zh-HK-WanLungNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "zh-TW-HsiaoChenNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "zh-TW-HsiaoYuNeural",
+    "Gender": "Female",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  },
+  {
+    "Name": "zh-TW-YunJheNeural",
+    "Gender": "Male",
+    "ContentCategories": ["General"],
+    "VoicePersonalities": ["Friendly", "Positive"]
+  }
+]
