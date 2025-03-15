@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { generateTTS, Segment } from "../services/tts.service";
+import { generateTTS } from "../services/tts.service";
 import { logger } from "../../utils/logger";
+import { Segment } from "../../types/tts";
 
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {

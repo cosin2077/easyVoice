@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import { logger } from "./logger";
-import { TTSParams } from "../api/services/tts.service";
+import { TTSParams } from "../types/tts";
+
 
 //TODO: Node.js implementation of edge-tts
 export function runEdgeTTS(params: TTSParams): Promise<{ audio: string; srt: string }> {

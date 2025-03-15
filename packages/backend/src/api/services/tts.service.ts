@@ -4,25 +4,8 @@ import { config } from "../../config";
 import { logger } from "../../utils/logger";
 import { genSegment } from "../../llm/prompt/generateSegment";
 import { getLangConfig } from "../../utils";
+import { Segment, TTSResult, TTSParams } from "../../types/tts";
 
-export interface Segment {
-  id: string;
-  text: string;
-}
-
-export interface TTSResult {
-  audio: string;
-  srt: string;
-}
-
-export interface TTSParams {
-  name: string;
-  text: string;
-  voice: string;
-  pitch: string;
-  speed: string;
-  output: string;
-}
 /**
  * 生成文本转语音(TTS)的音频和字幕
  * @param segment 输入的文本片段

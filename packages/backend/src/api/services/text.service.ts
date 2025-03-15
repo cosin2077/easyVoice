@@ -1,6 +1,5 @@
 // src/api/services/text.service.ts
 import { Jieba } from "@node-rs/jieba";
-import { Segment } from "./tts.service";
 
 const jieba = new Jieba()
 const TARGET_LENGTH = 2000;
