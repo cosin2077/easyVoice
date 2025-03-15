@@ -1,4 +1,3 @@
-import { VoiceConfig } from "../../types/voice";
 
 const cnTemplate = (voiceList: VoiceConfig[], text: string) => `
 我希望你根据以下声音配置和一段文字内容，为文字配音提供优化建议。任务包括：

@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { generateTTS } from "../services/tts.service";
 import { logger } from "../../utils/logger";
-import { Segment } from "../../types/tts";
 import path from "path";
 import fs from "fs/promises";
 import { ALLOWED_EXTENSIONS, AUDIO_DIR } from "../../config";

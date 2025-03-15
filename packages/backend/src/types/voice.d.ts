@@ -1,4 +1,4 @@
-export type VoiceConfig = {
+type VoiceConfig = {
   "Name": string,
   "Gender": string,
   "ContentCategories": string[],

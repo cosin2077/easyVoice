@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { logger } from './logger';
 
 // 定义响应数据的通用接口
-interface ResponseData<T> extends AxiosResponse {
+export interface ResponseData<T> extends AxiosResponse {
   code: number;
   data: T;
   message: string;

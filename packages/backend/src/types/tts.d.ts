@@ -1,14 +1,14 @@
-export interface Segment {
+interface Segment {
   id: string;
   text: string;
 }
 
-export interface TTSResult {
+interface TTSResult {
   audio: string;
   srt: string;
 }
 
-export interface TTSParams {
+interface TTSParams {
   name: string;
   text: string;
   voice: string;

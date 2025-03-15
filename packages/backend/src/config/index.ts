@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: [path.resolve(__dirname, '..', '..', '.env'), path.resolve(__dirname, '..', '..', '..', '..', '.env')] });
 
 export const config = {
   port: parseInt(process.env.PORT || "3000", 10),
@@ -10,3 +10,8 @@ export const config = {
 
 export const AUDIO_DIR = path.join(__dirname, '../../audio');
 export const ALLOWED_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg']);
+
+console.log(`process.env.OPENAI_BASE_URL:`, process.env.OPENAI_BASE_URL)
+console.log(`process.env.OPENAI_KEY:`, process.env.OPENAI_KEY)
+export const OPENAI_BASE_URL = 'baseURL'
+export const OPENAI_KEY = 'baseURL'

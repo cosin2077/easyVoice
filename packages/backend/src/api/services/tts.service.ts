@@ -3,7 +3,6 @@ import { config } from "../../config";
 import { logger } from "../../utils/logger";
 import { genSegment } from "../../llm/prompt/generateSegment";
 import { getLangConfig } from "../../utils";
-import { Segment, TTSResult, TTSParams } from "../../types/tts";
 import { fetcher } from "../../utils/request";
 
 const API_TIMEOUT = 10_000;
