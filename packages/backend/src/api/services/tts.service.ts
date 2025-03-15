@@ -1,10 +1,10 @@
 import { runEdgeTTS } from "../../utils/spawn";
-import axios from "axios";
 import { config } from "../../config";
 import { logger } from "../../utils/logger";
 import { genSegment } from "../../llm/prompt/generateSegment";
 import { getLangConfig } from "../../utils";
 import { Segment, TTSResult, TTSParams } from "../../types/tts";
+import { fetcher } from "../../utils/request";
 
 const API_TIMEOUT = 10_000;
 
@@ -72,7 +72,8 @@ function validateSegment(segment: Segment): void {
  */
 async function fetchTTSParams(prompt: string): Promise<any> {
   try {
-    const response = await axios.post(config.modelApiUrl, { prompt }, { timeout: API_TIMEOUT });
+
+    const response = await fetcher.post(config.modelApiUrl, { prompt }, { timeout: API_TIMEOUT })
     if (!response?.data?.choices?.[0]?.text) {
       throw new Error(ErrorMessages.INVALID_API_RESPONSE);
     }
