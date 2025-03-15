@@ -1,7 +1,6 @@
 import { franc } from 'franc';
 import { resolve } from 'path';
 import { readFile } from 'fs/promises';
-import { VoiceConfig } from '../types/voice';
 
 export async function getLangConfig(text: string) {
   let lang = franc(text)

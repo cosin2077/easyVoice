@@ -7,11 +7,11 @@ import { ALLOWED_EXTENSIONS, AUDIO_DIR } from "../../config";
 
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    const { text } = req.body;
-    if (!text) throw new Error("Text is required");
+    const { text, useLLM } = req.body;
+    if (!text?.trim()) throw new Error("Text is required");
 
     const segment: Segment = { id: `seg_${Date.now()}`, text };
-    const result = await generateTTS(segment);
+    const result = await generateTTS(segment, useLLM);
 
     res.json(result);
   } catch (error) {
@@ -26,13 +26,13 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
     if (!fileName || typeof fileName !== 'string') {
       throw new Error('Invalid file name');
     }
-    
+
     const fileExt = path.extname(fileName).toLowerCase();
     if (!ALLOWED_EXTENSIONS.has(fileExt)) {
       throw new Error('Invalid file type');
     }
-    
-    const safeFileName = path.basename(fileName); 
+
+    const safeFileName = path.basename(fileName);
     const filePath = path.join(AUDIO_DIR, safeFileName);
 
     await fs.access(filePath, fs.constants.R_OK);

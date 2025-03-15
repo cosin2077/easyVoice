@@ -4,6 +4,7 @@ import { logger } from "../../utils/logger";
 import { genSegment } from "../../llm/prompt/generateSegment";
 import { getLangConfig } from "../../utils";
 import { fetcher } from "../../utils/request";
+import { openai } from "../../utils/openai";
 
 const API_TIMEOUT = 10_000;
 
@@ -24,11 +25,14 @@ enum ErrorMessages {
  * @throws {Error} 当处理过程中发生错误时抛出具体错误
  * @returns {Promise<TTSResult>} 包含音频路径和字幕的Promise
  */
-export async function generateTTS(segment: Segment): Promise<TTSResult> {
+export async function generateTTS(segment: Segment, useLLM: boolean): Promise<TTSResult> {
   try {
     validateSegment(segment);
-
+    if (useLLM) {
+      
+    }
     const { lang, voiceList } = await getLangConfig(segment.text);
+    
     const prompt = genSegment(lang, voiceList, segment.text);
 
     const response = await fetchTTSParams(prompt);
@@ -72,8 +76,17 @@ function validateSegment(segment: Segment): void {
 async function fetchTTSParams(prompt: string): Promise<any> {
   try {
 
-    const response = await fetcher.post(config.modelApiUrl, { prompt }, { timeout: API_TIMEOUT })
-    if (!response?.data?.choices?.[0]?.text) {
+    const response = await openai.createChatCompletion({
+      messages: [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+
+    // const response = await fetcher.post(config.modelApiUrl, { prompt }, { timeout: API_TIMEOUT })
+    if (!response.choices[0].message.content) {
       throw new Error(ErrorMessages.INVALID_API_RESPONSE);
     }
     return response;

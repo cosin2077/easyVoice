@@ -11,7 +11,6 @@ export const config = {
 export const AUDIO_DIR = path.join(__dirname, '../../audio');
 export const ALLOWED_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg']);
 
-console.log(`process.env.OPENAI_BASE_URL:`, process.env.OPENAI_BASE_URL)
-console.log(`process.env.OPENAI_KEY:`, process.env.OPENAI_KEY)
-export const OPENAI_BASE_URL = 'baseURL'
-export const OPENAI_KEY = 'baseURL'
+export const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL
+export const OPENAI_KEY = process.env.OPENAI_KEY
+export const MODEL_NAME = process.env.MODEL_NAME

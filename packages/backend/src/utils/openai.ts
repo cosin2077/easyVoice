@@ -1,3 +1,4 @@
+import { MODEL_NAME, OPENAI_BASE_URL, OPENAI_KEY } from "../config";
 import { fetcher } from "./request";
 
 /**
@@ -5,17 +6,16 @@ import { fetcher } from "./request";
  * @param config OpenAI 配置
  * @returns OpenAI 工具函数集合
  */
-export function createOpenAIClient(config: OpenAIConfig) {
+export function createOpenAIClient() {
   const defaultConfig = {
-    baseURL: 'https://api.openai.com/v1',
-    model: 'gpt-3.5-turbo',
-    timeout: 30000,
-    ...config,
+    baseURL: OPENAI_BASE_URL,
+    model: MODEL_NAME,
+    timeout: 60000,
   };
 
   // 设置默认 headers
   const defaultHeaders = {
-    'Authorization': `Bearer ${defaultConfig.apiKey}`,
+    'Authorization': `Bearer ${OPENAI_KEY}`,
     'Content-Type': 'application/json',
   };
 
@@ -80,7 +80,7 @@ export function createOpenAIClient(config: OpenAIConfig) {
     getModels,
   };
 }
-
+export const openai = createOpenAIClient()
 // 使用示例
 // async function example() {
 //   // 创建客户端实例
