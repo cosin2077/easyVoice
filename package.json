@@ -1,0 +1,9 @@
+{
+  "name": "easy-voice",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  }
+}
