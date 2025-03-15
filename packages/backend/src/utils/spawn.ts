@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { logger } from "./logger";
 
 export interface TTSParams {
+  name: string;
   text: string;
   voice: string;
   pitch: string;

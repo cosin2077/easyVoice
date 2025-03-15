@@ -2,6 +2,8 @@ import { runEdgeTTS, TTSParams } from "../../utils/spawn";
 import axios from "axios";
 import { config } from "../../config";
 import { logger } from "../../utils/logger";
+import { genSegment } from "../../llm/prompt/generateSegment";
+import { getLangConfig } from "../../utils";
 
 export interface Segment {
   id: string;
@@ -9,10 +11,10 @@ export interface Segment {
 }
 
 export async function generateTTS(segment: Segment): Promise<{ audio: string; srt: string }> {
-  // 调用大模型获取参数
+  const { lang, voiceList } = await getLangConfig(segment.text)
+  const prompt = genSegment(lang, voiceList, segment.text)
   const { data } = await axios.post(config.modelApiUrl, {
-    prompt: `为这段文字推荐语音参数：${segment.text}`,
-    max_tokens: 50,
+    prompt,
   });
   const params: TTSParams = JSON.parse(data.choices[0].text);
 

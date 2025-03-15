@@ -1,13 +1,15 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response, NextFunction, Application } from "express";
 import { errorHandler } from "./middleware/error.middleware";
 import ttsRoutes from "./api/routes/tts.route";
 import { logger } from "./utils/logger";
 import path from "path";
+import cors from 'cors';
 
 export function createApp(): Application {
   const app = express();
 
   // 中间件
+  app.use(cors());
   app.use(express.json());
   app.use(express.static(path.join(__dirname, "../../dist"))); // 前端静态文件
 

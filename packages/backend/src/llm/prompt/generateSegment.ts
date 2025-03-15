@@ -1,3 +1,5 @@
+import { VoiceConfig } from "../../utils";
+
 const template =
   `
 我希望你根据以下声音配置和一段文字内容，为文字配音提供优化建议。任务包括：
@@ -46,7 +48,7 @@ const template =
 ### 待处理内容
 
 `
-const cnTemplate = (voiceList: string[], text: string) => `
+const cnTemplate = (voiceList: VoiceConfig[], text: string) => `
 我希望你根据以下声音配置和一段文字内容，为文字配音提供优化建议。任务包括：
 1. 将文字按场景、角色、旁白分割。
 2. 根据角色的性格、对话语气，从声音配置中推荐合适的“Name”。
@@ -78,7 +80,7 @@ ${voiceList}
 ### 待处理内容
 ${text}
 `
-const engTemplate = (voiceList: string[], text: string) => `
+const engTemplate = (voiceList: VoiceConfig[], text: string) => `
 I hope you can provide optimization suggestions for text dubbing based on the following sound configuration and a paragraph of text content. Tasks include:
 1. Divide the text by scene, role, and narration.
 2. Recommend a suitable "Name" from the sound configuration based on the character's personality and dialogue tone.
@@ -110,7 +112,7 @@ ${voiceList}
 ### Content to be processed
 ${text}
 `
-export async function genSegment(lang = 'cn', voiceList: string[], text: string) {
+export async function genSegment(lang = 'cn', voiceList: VoiceConfig[], text: string) {
   switch (lang) {
     case 'cn':
       return cnTemplate(voiceList, text);
