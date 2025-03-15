@@ -1,53 +1,5 @@
-import { VoiceConfig } from "../../utils";
+import { VoiceConfig } from "../../types/voice";
 
-const template =
-  `
-我希望你根据以下声音配置和一段文字内容，为文字配音提供优化建议。任务包括：
-1. 将文字按场景、角色、旁白分割。
-2. 根据角色的性格、对话语气，从声音配置中推荐合适的“Name”。
-3. 为每段推荐合理的“rate”（语速）、“volume”（音量）、“pitch”（音调）参数。
-4. 返回结果为 JSON 格式。
-
-### 声音配置
-[
-  {"Name": "zh-CN-XiaoxiaoNeural", "Gender": "Female", "ContentCategories": ["News", "Novel"], "VoicePersonalities": ["Warm"]},
-  {"Name": "zh-CN-XiaoyiNeural", "Gender": "Female", "ContentCategories": ["Cartoon", "Novel"], "VoicePersonalities": ["Lively"]},
-  {"Name": "zh-CN-YunjianNeural", "Gender": "Male", "ContentCategories": ["Sports", "Novel"], "VoicePersonalities": ["Passion"]},
-  {"Name": "zh-CN-YunxiNeural", "Gender": "Male", "ContentCategories": ["Novel"], "VoicePersonalities": ["Lively", "Sunshine"]},
-  {"Name": "zh-CN-YunxiaNeural", "Gender": "Male", "ContentCategories": ["Cartoon", "Novel"], "VoicePersonalities": ["Cute"]},
-  {"Name": "zh-CN-YunyangNeural", "Gender": "Male", "ContentCategories": ["News"], "VoicePersonalities": ["Professional", "Reliable"]},
-  {"Name": "zh-CN-liaoning-XiaobeiNeural", "Gender": "Female", "ContentCategories": ["Dialect"], "VoicePersonalities": ["Humorous"]},
-  {"Name": "zh-CN-shaanxi-XiaoniNeural", "Gender": "Female", "ContentCategories": ["Dialect"], "VoicePersonalities": ["Bright"]},
-  {"Name": "zh-HK-HiuGaaiNeural", "Gender": "Female", "ContentCategories": ["General"], "VoicePersonalities": ["Friendly", "Positive"]},
-  {"Name": "zh-HK-HiuMaanNeural", "Gender": "Female", "ContentCategories": ["General"], "VoicePersonalities": ["Friendly", "Positive"]},
-  {"Name": "zh-HK-WanLungNeural", "Gender": "Male", "ContentCategories": ["General"], "VoicePersonalities": ["Friendly", "Positive"]},
-  {"Name": "zh-TW-HsiaoChenNeural", "Gender": "Female", "ContentCategories": ["General"], "VoicePersonalities": ["Friendly", "Positive"]},
-  {"Name": "zh-TW-HsiaoYuNeural", "Gender": "Female", "ContentCategories": ["General"], "VoicePersonalities": ["Friendly", "Positive"]},
-  {"Name": "zh-TW-YunJheNeural", "Gender": "Male", "ContentCategories": ["General"], "VoicePersonalities": ["Friendly", "Positive"]}
-]
-
-### 参数说明
-- name: 声音配置中的 Name 字段，区分旁白和角色。
-- rate: 语速调整，百分比形式，默认 +0%（正常），如 "+50%"（加快 50%），"-20%"（减慢 20%）。
-- volume: 音量调整，百分比形式，默认 +0%（正常），如 "+20%"（增 20%），"-10%"（减 10%）。
-- pitch: 音调调整，默认 +0Hz（正常），如 "+10Hz"（提高 10 赫兹），"-5Hz"（降低 5 赫兹）。
-
-### 输出格式
-[
-  {
-    "name": "specific voice",
-    "charactor": "角色名或narration",
-    "rate": "语速",
-    "volume": "音量",
-    "pitch": "音调",
-    "segment": "文本段落"
-  },
-  ...
-]
-
-### 待处理内容
-
-`
 const cnTemplate = (voiceList: VoiceConfig[], text: string) => `
 我希望你根据以下声音配置和一段文字内容，为文字配音提供优化建议。任务包括：
 1. 将文字按场景、角色、旁白分割。
