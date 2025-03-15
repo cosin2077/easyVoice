@@ -1,3 +1,4 @@
+import { message } from 'antd';
 import axios from "axios";
 
 const api = axios.create({
@@ -8,14 +9,27 @@ const api = axios.create({
 export interface GenerateRequest {
   text: string;
 }
+export interface TaskRequest {
+  id: string;
+}
+export interface TaskResponse {
+  success: string;
+  url: string;
+  progress: number;
+  message?: string;
+}
 
 export interface GenerateResponse {
   audio: string;
   srt?: string;
+  id: string;
 }
 
 export const generateTTS = (data: GenerateRequest) =>
   api.post<GenerateResponse>("/generate", data);
+
+export const getProgress = (data: TaskRequest) =>
+  api.post<TaskResponse>(`/task/${data.id}`);
 
 export const downloadFile = (file: string) =>
   `${api.defaults.baseURL}/download/${file}`;
