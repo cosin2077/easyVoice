@@ -1,242 +1,235 @@
 <template>
   <div class="about-container">
-    <!-- 页面标题 -->
-    <div class="about-header">
-      <h1>关于 EasyVoice</h1>
-      <div class="divider"></div>
-    </div>
+    <!-- Header Section -->
+    <header class="header">
+      <h1 class="title">关于 EasyVoice</h1>
+      <p class="subtitle">智能小说转语音解决方案</p>
+    </header>
 
-    <!-- 项目介绍 -->
-    <div class="about-content">
-      <div class="project-info">
+    <!-- Intro Section -->
+    <section class="intro">
+      <div class="intro-content">
+        <el-icon :size="40" class="intro-icon"><ChatDotRound /></el-icon>
         <h2>项目简介</h2>
-        <p>EasyVoice 是一个开源的智能小说转语音解决方案，旨在帮助用户轻松将文本内容转换为高质量的语音输出。</p>
-        <p>本项目利用先进的语音合成技术，结合人工智能，为用户提供自然流畅的语音体验，特别适合将小说、文章等长篇内容转换为有声读物。</p>
-        
-        <h3>核心功能</h3>
-        <ul>
-          <li><strong>文本转语音：</strong>支持将大型文本文件一键转换为语音</li>
-          <li><strong>多语言支持：</strong>支持中文、英文等多种语言</li>
-          <li><strong>角色配音：</strong>提供多种声音特性，适合不同角色配音需求</li>
-          <li><strong>自定义设置：</strong>可调整语速、音调等参数</li>
-          <li><strong>AI 推荐：</strong>支持通过 AI 智能推荐最适合的语音配置</li>
-          <li><strong>试听功能：</strong>生成前可试听语音效果</li>
-        </ul>
-
-        <h3>技术实现</h3>
-        <p>EasyVoice 采用现代化的技术栈构建：</p>
-        <ul>
-          <li><strong>前端：</strong>Vue 3 + TypeScript + Element Plus</li>
-          <li><strong>后端：</strong>Node.js + Express + TypeScript</li>
-          <li><strong>语音合成：</strong>Microsoft Azure TTS + OpenAI</li>
-          <li><strong>部署：</strong>Docker + Docker Compose</li>
-        </ul>
+        <p>
+          EasyVoice
+          是一个开源工具，致力于将文本轻松转换为自然流畅的语音输出，特别适合小说和长篇文章的有声化需求。
+        </p>
       </div>
+    </section>
 
-      <div class="author-info">
-        <h2>关于作者</h2>
-        <p>EasyVoice 由热爱开源和语音技术的开发者创建，致力于为用户提供简单易用的语音转换工具。</p>
-        
-        <div class="github-link">
-          <a href="https://github.com/cosin2077" target="_blank" class="github-button">
-            <el-icon><svg t="1624271791085" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2653" width="24" height="24"><path d="M512 42.666667A464.64 464.64 0 0 0 42.666667 502.186667 460.373333 460.373333 0 0 0 363.52 938.666667c23.466667 4.266667 32-9.813333 32-22.186667v-78.08c-130.56 27.733333-158.293333-61.44-158.293333-61.44a122.026667 122.026667 0 0 0-52.053334-67.413333c-42.666667-28.16 3.413333-27.733333 3.413334-27.733334a98.56 98.56 0 0 1 71.68 47.36 101.12 101.12 0 0 0 136.533333 37.973334 99.413333 99.413333 0 0 1 29.866667-61.44c-104.106667-11.52-213.333333-50.773333-213.333334-226.986667a177.066667 177.066667 0 0 1 47.36-124.16 161.28 161.28 0 0 1 4.693334-121.173333s39.68-12.373333 128 46.933333a455.68 455.68 0 0 1 234.666666 0c89.6-59.306667 128-46.933333 128-46.933333a161.28 161.28 0 0 1 4.693334 121.173333A177.066667 177.066667 0 0 1 810.666667 477.866667c0 176.64-110.08 215.466667-213.333334 226.986666a106.666667 106.666667 0 0 1 32 85.333334v125.866666c0 14.933333 8.533333 26.88 32 22.186667A460.8 460.8 0 0 0 981.333333 502.186667 464.64 464.64 0 0 0 512 42.666667" fill="currentColor" p-id="2654"></path></svg></el-icon>
-            <span>访问作者 GitHub</span>
-          </a>
-        </div>
+    <!-- Features Section -->
+    <section class="features">
+      <h2 class="section-title">核心功能</h2>
+      <el-row :gutter="20" class="feature-list">
+        <el-col :xs="24" :sm="12" :md="8">
+          <div class="feature-item">
+            <el-icon :size="30"><Reading /></el-icon>
+            <h3>文本转语音</h3>
+            <p>一键将大型文本转换为语音</p>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="8">
+          <div class="feature-item">
+            <el-icon :size="30"><Microphone /></el-icon>
+            <h3>角色配音</h3>
+            <p>多种声音特性，赋予角色独特个性</p>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="8">
+          <div class="feature-item">
+            <el-icon :size="30"><Setting /></el-icon>
+            <h3>自定义设置</h3>
+            <p>自由调整语速与音调</p>
+          </div>
+        </el-col>
+      </el-row>
+    </section>
 
-        <div class="project-github-link">
-          <a href="https://github.com/cosin2077/easyVoice" target="_blank" class="github-button">
-            <el-icon><svg t="1624271791085" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2653" width="24" height="24"><path d="M512 42.666667A464.64 464.64 0 0 0 42.666667 502.186667 460.373333 460.373333 0 0 0 363.52 938.666667c23.466667 4.266667 32-9.813333 32-22.186667v-78.08c-130.56 27.733333-158.293333-61.44-158.293333-61.44a122.026667 122.026667 0 0 0-52.053334-67.413333c-42.666667-28.16 3.413333-27.733333 3.413334-27.733334a98.56 98.56 0 0 1 71.68 47.36 101.12 101.12 0 0 0 136.533333 37.973334 99.413333 99.413333 0 0 1 29.866667-61.44c-104.106667-11.52-213.333333-50.773333-213.333334-226.986667a177.066667 177.066667 0 0 1 47.36-124.16 161.28 161.28 0 0 1 4.693334-121.173333s39.68-12.373333 128 46.933333a455.68 455.68 0 0 1 234.666666 0c89.6-59.306667 128-46.933333 128-46.933333a161.28 161.28 0 0 1 4.693334 121.173333A177.066667 177.066667 0 0 1 810.666667 477.866667c0 176.64-110.08 215.466667-213.333334 226.986666a106.666667 106.666667 0 0 1 32 85.333334v125.866666c0 14.933333 8.533333 26.88 32 22.186667A460.8 460.8 0 0 0 981.333333 502.186667 464.64 464.64 0 0 0 512 42.666667" fill="currentColor" p-id="2654"></path></svg></el-icon>
-            <span>访问项目 GitHub</span>
-          </a>
+    <!-- Team Section -->
+    <section class="team">
+      <h2 class="section-title">关于</h2>
+      <div class="team-content">
+        <el-icon :size="40" class="team-icon"><User /></el-icon>
+        <p>
+          EasyVoice
+          是一个实验性的项目，旨在提供简单高效的语音转换体验。
+        </p>
+        <p>喜欢我就给我Star吧</p>
+        <div class="links">
+          <el-button round plain @click="goToAuthorGitHub">
+            <el-icon><Github /></el-icon> cosinco2077
+          </el-button>
+          <el-button type="primary" round plain @click="goToProjectGitHub">
+            <el-icon><Github /></el-icon> EasyVoice
+          </el-button>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
-<script setup lang="ts">
-import { onMounted } from 'vue';
+<script setup>
+import {
+  ChatDotRound,
+  Reading,
+  Microphone,
+  Setting,
+  User,
+} from "@element-plus/icons-vue";
+import {
+  Github,
+  FileText,
+  Users,
+  Ear,
+  Settings,
+  Sparkles,
+  Home,
+  Mic,
+  Info,
+  Mail,
+} from "lucide-vue-next";
 
-onMounted(() => {
-  // 添加页面加载动画效果
-  document.querySelector('.about-container')?.classList.add('loaded');
-});
+const goToAuthorGitHub = () => {
+  window.open("https://github.com/cosin2077", "_blank");
+};
+
+const goToProjectGitHub = () => {
+  window.open("https://github.com/cosin2077/easyVoice", "_blank");
+};
 </script>
 
 <style scoped>
 .about-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 3rem 2rem;
-  color: #2c3e50;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 0 20px;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #333;
 }
 
-.about-container.loaded {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.about-header {
+/* Header */
+.header {
   text-align: center;
-  margin-bottom: 3rem;
+  padding: 60px 0;
 }
-
-.about-header h1 {
-  font-size: 2.8rem;
+.title {
+  font-size: 48px;
   font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(90deg, #0071e3, #34aadc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
+  margin-bottom: 10px;
+  color: #1a1a1a;
+}
+.subtitle {
+  font-size: 20px;
+  color: #666;
 }
 
-.divider {
-  height: 4px;
-  width: 80px;
-  margin: 0 auto;
-  background: linear-gradient(90deg, #0071e3, #34aadc);
-  border-radius: 2px;
+/* Intro */
+.intro {
+  max-width: 1200px;
+  margin: 0 auto 60px;
 }
-
-.about-content {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 3rem;
-  background: #f5f5f7;
+.intro-content {
+  background: rgba(255, 255, 255, 0.8);
   border-radius: 16px;
-  padding: 2.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 30px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+.intro-icon {
+  color: #007aff;
+  margin-bottom: 20px;
+}
+.intro-content h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  color: #1a1a1a;
+}
+.intro-content p {
+  font-size: 16px;
+  color: #666;
 }
 
-.project-info h2,
-.author-info h2 {
-  font-size: 2rem;
+/* Features */
+.features {
+  max-width: 1200px;
+  margin: 0 auto 60px;
+}
+.section-title {
+  font-size: 32px;
   font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: #1d1d1f;
-  letter-spacing: -0.2px;
+  text-align: center;
+  margin-bottom: 40px;
+  color: #1a1a1a;
 }
-
-.project-info h3 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 2rem 0 1rem;
-  color: #1d1d1f;
+.feature-list {
+  text-align: center;
 }
-
-.project-info p,
-.author-info p {
-  font-size: 1.1rem;
-  line-height: 1.7;
-  margin-bottom: 1.5rem;
-  color: #4b5563;
-}
-
-.project-info ul {
-  padding-left: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.project-info li {
-  margin-bottom: 0.8rem;
-  line-height: 1.6;
-  color: #4b5563;
-  position: relative;
-}
-
-.project-info li::before {
-  content: '';
-  position: absolute;
-  left: -1.2rem;
-  top: 0.5rem;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #0071e3;
-}
-
-.github-link,
-.project-github-link {
-  margin-top: 2rem;
-}
-
-.github-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background-color: #f3f4f6;
+.feature-item {
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 12px;
-  color: #4b5563;
-  text-decoration: none;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: transform 0.3s ease;
+}
+.feature-item:hover {
+  transform: translateY(-5px);
+}
+.feature-item .el-icon {
+  color: #007aff;
+  margin-bottom: 10px;
+}
+.feature-item h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+  color: #1a1a1a;
+}
+.feature-item p {
+  font-size: 14px;
+  color: #666;
 }
 
-.github-button:hover {
-  background-color: #e5e7eb;
-  color: #0071e3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+/* Team */
+.team {
+  max-width: 1200px;
+  margin: 0 auto 60px;
+}
+.team-content {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  padding: 30px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+.team-icon {
+  color: #007aff;
+  margin-bottom: 20px;
+}
+.team-content p {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 20px;
+}
+.links .el-button {
+  margin: 0 10px;
 }
 
-/* 响应式布局 */
-@media (max-width: 992px) {
-  .about-content {
-    grid-template-columns: 1fr;
-  }
-  
-  .about-header h1 {
-    font-size: 2.4rem;
-  }
-}
-
+/* Responsive Design */
 @media (max-width: 768px) {
-  .about-container {
-    padding: 2rem 1.5rem;
+  .title {
+    font-size: 36px;
   }
-  
-  .about-header h1 {
-    font-size: 2rem;
+  .subtitle {
+    font-size: 16px;
   }
-  
-  .project-info h2,
-  .author-info h2 {
-    font-size: 1.8rem;
+  .section-title {
+    font-size: 24px;
   }
-  
-  .project-info h3 {
-    font-size: 1.3rem;
+  .intro-content {
+    padding: 20px;
   }
-  
-  .about-content {
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .about-container {
-    padding: 1.5rem 1rem;
-  }
-  
-  .about-header h1 {
-    font-size: 1.8rem;
-  }
-  
-  .project-info h2,
-  .author-info h2 {
-    font-size: 1.5rem;
-  }
-  
-  .about-content {
-    padding: 1.2rem;
-    gap: 2rem;
+  .feature-item {
+    margin-bottom: 15px;
   }
 }
 </style>
