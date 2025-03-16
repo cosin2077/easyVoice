@@ -117,18 +117,3 @@ export const fetcher = {
       ...config,
     }),
 };
-
-// 使用示例
-/*
-async function fetchData() {
-  try {
-    const userList = await fetcher.get<User[]>('/users', { page: 1, size: 10 });
-    logger.info('User list fetched:', userList.data);
-
-    const createResult = await fetcher.post<string>('/users', { name: 'John' }, { logError: false });
-    logger.info('User created:', createResult.data);
-  } catch (error) {
-    logger.error('Data fetch failed:', error);
-  }
-}
-*/
