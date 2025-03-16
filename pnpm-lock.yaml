@@ -62,6 +62,9 @@ importers:
 
   packages/frontend:
     dependencies:
+      '@element-plus/icons-vue':
+        specifier: ^2.3.1
+        version: 2.3.1(vue@3.5.13(typescript@5.7.3))
       axios:
         specifier: ^1.8.3
         version: 1.8.3
