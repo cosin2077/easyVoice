@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小说转语音 - Edge TTS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 自定义苹果风格的微调 */
+    .apple-shadow {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .apple-transition {
+      transition: all 0.3s ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased flex items-center justify-center min-h-screen">
+  <div class="w-full max-w-2xl mx-auto p-6">
+    <!-- 主容器 -->
+    <div class="bg-white rounded-3xl apple-shadow p-6">
+      <!-- 标题 -->
+      <h1 class="text-2xl font-semibold text-gray-800 mb-6 text-center">小说转语音</h1>
+
+      <!-- 输入区域 -->
+      <div class="mb-6">
+        <textarea 
+          id="textInput" 
+          class="w-full h-40 p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-300 apple-transition resize-none placeholder-gray-400" 
+          placeholder="输入小说文本，或拖拽上传 TXT 文件..."
+        ></textarea>
+        <div 
+          class="mt-2 text-center text-gray-500 text-sm py-2 border-dashed border-2 border-gray-300 rounded-xl apple-transition hover:border-blue-300"
+          id="dropZone"
+        >
+          拖拽 TXT 文件到此处上传
+        </div>
+      </div>
+
+      <!-- 试听区域 -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between">
+          <label class="text-gray-700 font-medium">试听小段文本</label>
+          <button 
+            id="previewBtn" 
+            class="text-blue-500 hover:text-blue-600 apple-transition text-sm font-medium"
+          >
+            试听
+          </button>
+        </div>
+        <audio id="previewAudio" controls class="w-full mt-2 hidden"></audio>
+      </div>
+
+      <!-- 语音选择 -->
+      <div class="mb-6">
+        <label class="text-gray-700 font-medium">选择语音</label>
+        <select 
+          id="voiceSelect" 
+          class="w-full mt-2 p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-300 apple-transition"
+        >
+          <option value="zh-CN-Xiaoxiao">中文 - 小小 (女声)</option>
+          <option value="zh-CN-Yunxi">中文 - 云熙 (男声)</option>
+          <option value="en-US-Aria">英文 - Aria (女声)</option>
+        </select>
+      </div>
+
+      <!-- 大模型配置 -->
+      <div class="mb-6">
+        <label class="text-gray-700 font-medium">或使用大模型选择语音</label>
+        <input 
+          type="text" 
+          id="openaiBaseUrl" 
+          class="w-full mt-2 p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-300 apple-transition placeholder-gray-400" 
+          placeholder="OPENAI_BASE_URL"
+        >
+        <input 
+          type="text" 
+          id="openaiKey" 
+          class="w-full mt-2 p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-300 apple-transition placeholder-gray-400" 
+          placeholder="OPENAI_KEY"
+        >
+        <input 
+          type="text" 
+          id="openaiModel" 
+          class="w-full mt-2 p-3 bg-gray-50 rounded-xl border-none focus:ring-2 focus:ring-blue-300 apple-transition placeholder-gray-400" 
+          placeholder="Model (e.g., gpt-3.5-turbo)"
+        >
+      </div>
+
+      <!-- 生成按钮和进度 -->
+      <div class="mb-6">
+        <button 
+          id="generateBtn" 
+          class="w-full py-3 bg-blue-500 text-white rounded-xl apple-shadow apple-transition hover:bg-blue-600 focus:ring-2 focus:ring-blue-300"
+        >
+          生成语音
+        </button>
+        <div id="progressBar" class="w-full h-2 bg-gray-200 rounded-full mt-4 hidden">
+          <div id="progressFill" class="h-full bg-blue-500 rounded-full" style="width: 0%;"></div>
+        </div>
+        <p id="progressText" class="text-center text-sm text-gray-500 mt-2 hidden">处理中... 0%</p>
+      </div>
+
+      <!-- 下载链接 -->
+      <div id="downloadSection" class="text-center hidden">
+        <a 
+          id="downloadLink" 
+          href="#" 
+          class="text-blue-500 hover:text-blue-600 apple-transition font-medium"
+        >
+          下载音频文件
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 拖拽上传功能
+    const dropZone = document.getElementById('dropZone');
+    const textInput = document.getElementById('textInput');
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-blue-300');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-blue-300');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-blue-300');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'text/plain') {
+        const reader = new FileReader();
+        reader.onload = () => textInput.value = reader.result;
+        reader.readAsText(file);
+      }
+    });
+
+    // 试听功能（模拟）
+    const previewBtn = document.getElementById('previewBtn');
+    const previewAudio = document.getElementById('previewAudio');
+    previewBtn.addEventListener('click', () => {
+      const text = textInput.value.slice(0, 50); // 取前50字试听
+      if (text) {
+        previewAudio.src = `https://example.com/tts?text=${encodeURIComponent(text)}`; // 模拟音频URL
+        previewAudio.classList.remove('hidden');
+        previewAudio.play();
+      }
+    });
+
+    // 生成语音（模拟进度）
+    const generateBtn = document.getElementById('generateBtn');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const downloadSection = document.getElementById('downloadSection');
+    generateBtn.addEventListener('click', () => {
+      const text = textInput.value;
+      if (!text) return alert('请先输入文本或上传文件');
+
+      progressBar.classList.remove('hidden');
+      progressText.classList.remove('hidden');
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        progressFill.style.width = `${progress}%`;
+        progressText.textContent = `处理中... ${progress}%`;
+        if (progress >= 100) {
+          clearInterval(interval);
+          progressText.textContent = '生成完成！';
+          downloadSection.classList.remove('hidden');
+          document.getElementById('downloadLink').href = `https://example.com/download?text=${encodeURIComponent(text)}`; // 模拟下载链接
+        }
+      }, 500);
+    });
+  </script>
+</body>
+</html>
