@@ -56,7 +56,12 @@
 </template>
 
 <script setup lang="ts">
-// 无需额外的脚本逻辑
+import { onMounted } from 'vue';
+
+onMounted(() => {
+  // 添加页面加载动画效果
+  document.querySelector('.about-container')?.classList.add('loaded');
+});
 </script>
 
 <style scoped>
@@ -65,6 +70,14 @@
   margin: 0 auto;
   padding: 3rem 2rem;
   color: #2c3e50;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.about-container.loaded {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .about-header {
@@ -76,16 +89,17 @@
   font-size: 2.8rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  background: linear-gradient(90deg, #1a56db, #4f46e5);
+  background: linear-gradient(90deg, #0071e3, #34aadc);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
 }
 
 .divider {
   height: 4px;
   width: 80px;
   margin: 0 auto;
-  background: linear-gradient(90deg, #1a56db, #4f46e5);
+  background: linear-gradient(90deg, #0071e3, #34aadc);
   border-radius: 2px;
 }
 
@@ -93,6 +107,10 @@
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 3rem;
+  background: #f5f5f7;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .project-info h2,
@@ -100,14 +118,15 @@
   font-size: 2rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
-  color: #1a56db;
+  color: #1d1d1f;
+  letter-spacing: -0.2px;
 }
 
 .project-info h3 {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 2rem 0 1rem;
-  color: #2d3748;
+  color: #1d1d1f;
 }
 
 .project-info p,
@@ -127,6 +146,18 @@
   margin-bottom: 0.8rem;
   line-height: 1.6;
   color: #4b5563;
+  position: relative;
+}
+
+.project-info li::before {
+  content: '';
+  position: absolute;
+  left: -1.2rem;
+  top: 0.5rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0071e3;
 }
 
 .github-link,
@@ -140,16 +171,17 @@
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background-color: #f3f4f6;
-  border-radius: 8px;
+  border-radius: 12px;
   color: #4b5563;
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .github-button:hover {
   background-color: #e5e7eb;
-  color: #1a56db;
+  color: #0071e3;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
@@ -182,6 +214,10 @@
   .project-info h3 {
     font-size: 1.3rem;
   }
+  
+  .about-content {
+    padding: 1.5rem;
+  }
 }
 
 @media (max-width: 576px) {
@@ -196,6 +232,11 @@
   .project-info h2,
   .author-info h2 {
     font-size: 1.5rem;
+  }
+  
+  .about-content {
+    padding: 1.2rem;
+    gap: 2rem;
   }
 }
 </style>

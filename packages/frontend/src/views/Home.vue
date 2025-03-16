@@ -8,7 +8,7 @@
         <p class="description">将文本一键转换为自然流畅的语音，支持多种角色配音和自定义设置</p>
         <el-button type="primary" size="large" class="cta-button" @click="goToGenerate">立即体验</el-button>
         <div class="github-link">
-          <a href="https://github.com/cosin2077/easyVoice" target="_blank">
+          <a href="https://github.com/cosin2077/easyVoice" target="_blank" aria-label="GitHub 仓库">
             <el-icon><svg t="1624271791085" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2653" width="24" height="24"><path d="M512 42.666667A464.64 464.64 0 0 0 42.666667 502.186667 460.373333 460.373333 0 0 0 363.52 938.666667c23.466667 4.266667 32-9.813333 32-22.186667v-78.08c-130.56 27.733333-158.293333-61.44-158.293333-61.44a122.026667 122.026667 0 0 0-52.053334-67.413333c-42.666667-28.16 3.413333-27.733333 3.413334-27.733334a98.56 98.56 0 0 1 71.68 47.36 101.12 101.12 0 0 0 136.533333 37.973334 99.413333 99.413333 0 0 1 29.866667-61.44c-104.106667-11.52-213.333333-50.773333-213.333334-226.986667a177.066667 177.066667 0 0 1 47.36-124.16 161.28 161.28 0 0 1 4.693334-121.173333s39.68-12.373333 128 46.933333a455.68 455.68 0 0 1 234.666666 0c89.6-59.306667 128-46.933333 128-46.933333a161.28 161.28 0 0 1 4.693334 121.173333A177.066667 177.066667 0 0 1 810.666667 477.866667c0 176.64-110.08 215.466667-213.333334 226.986666a106.666667 106.666667 0 0 1 32 85.333334v125.866666c0 14.933333 8.533333 26.88 32 22.186667A460.8 460.8 0 0 0 981.333333 502.186667 464.64 464.64 0 0 0 512 42.666667" fill="currentColor" p-id="2654"></path></svg></el-icon>
             <span>GitHub</span>
           </a>
@@ -82,12 +82,18 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { onMounted } from 'vue';
 
 const router = useRouter();
 
 const goToGenerate = () => {
   router.push('/novel-to-audio');
 };
+
+onMounted(() => {
+  // 添加页面加载动画效果
+  document.querySelector('.home-container')?.classList.add('loaded');
+});
 </script>
 
 <style scoped>
@@ -95,6 +101,14 @@ const goToGenerate = () => {
   max-width: 100%;
   overflow-x: hidden;
   color: #2c3e50;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.home-container.loaded {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* 英雄区域样式 */
@@ -102,31 +116,38 @@ const goToGenerate = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4rem 10%;
+  padding: 3rem 8%;
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
   min-height: 80vh;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 30px 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .hero-content {
   flex: 1;
   max-width: 600px;
+  z-index: 2;
 }
 
 .title {
   font-size: 4rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  background: linear-gradient(90deg, #1a56db, #4f46e5);
+  background: linear-gradient(90deg, #0071e3, #34aadc);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   line-height: 1.2;
+  letter-spacing: -0.5px;
 }
 
 .subtitle {
   font-size: 1.8rem;
   font-weight: 600;
   margin-bottom: 1.5rem;
-  color: #4b5563;
+  color: #1d1d1f;
+  letter-spacing: -0.2px;
 }
 
 .description {
@@ -141,11 +162,16 @@ const goToGenerate = () => {
   font-size: 1.1rem;
   font-weight: 500;
   transition: all 0.3s ease;
+  border-radius: 12px;
+  background: #0071e3;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.2);
 }
 
 .cta-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+  background: #0077ed;
 }
 
 .github-link {
@@ -159,11 +185,14 @@ const goToGenerate = () => {
   color: #4b5563;
   text-decoration: none;
   font-size: 1rem;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
 }
 
 .github-link a:hover {
-  color: #1a56db;
+  color: #0071e3;
+  background: rgba(0, 113, 227, 0.05);
 }
 
 .hero-image {
@@ -172,12 +201,14 @@ const goToGenerate = () => {
   justify-content: center;
   align-items: center;
   max-width: 500px;
+  z-index: 1;
 }
 
 .hero-image img {
   max-width: 100%;
   height: auto;
   animation: float 6s ease-in-out infinite;
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
 }
 
 @keyframes float {
@@ -196,6 +227,7 @@ const goToGenerate = () => {
 .features-section {
   padding: 5rem 10%;
   background-color: #fff;
+  position: relative;
 }
 
 .section-title {
@@ -203,78 +235,83 @@ const goToGenerate = () => {
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 3rem;
-  color: #1a56db;
+  color: #1d1d1f;
+  letter-spacing: -0.5px;
 }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2.5rem;
 }
 
 .feature-card {
-  background: #ffffff;
-  border-radius: 8px;
+  background: #f5f5f7;
+  border-radius: 16px;
   padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
 }
 
 .feature-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
 .feature-icon {
   font-size: 2.5rem;
   margin-bottom: 1.5rem;
-  color: #1a56db;
+  color: #0071e3;
+  background: rgba(0, 113, 227, 0.1);
+  padding: 1rem;
+  border-radius: 12px;
 }
 
 .feature-card h3 {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #2d3748;
+  color: #1d1d1f;
 }
 
 .feature-card p {
-  color: #6b7280;
+  font-size: 1rem;
   line-height: 1.6;
+  color: #6b7280;
 }
 
 /* 技术栈区域样式 */
 .tech-section {
   padding: 5rem 10%;
-  background-color: #f9fafb;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7eb 100%);
+  border-radius: 30px;
+  margin: 0 2rem;
 }
 
 .tech-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  max-width: 800px;
-  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
 }
 
 .tech-item {
   display: flex;
   align-items: center;
   gap: 1rem;
+  background: white;
   padding: 1.5rem;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   transition: all 0.3s ease;
 }
 
 .tech-item:hover {
-  transform: translateX(5px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .tech-icon {
@@ -282,132 +319,143 @@ const goToGenerate = () => {
 }
 
 .tech-name {
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 500;
-  color: #2d3748;
+  color: #1d1d1f;
 }
 
 /* 开始使用区域样式 */
 .get-started-section {
-  padding: 5rem 10%;
-  background: linear-gradient(135deg, #1a56db 0%, #4f46e5 100%);
-  color: white;
+  padding: 6rem 10%;
+  background: linear-gradient(90deg, #0071e3, #34aadc);
   text-align: center;
-}
-
-.get-started-content {
-  max-width: 700px;
-  margin: 0 auto;
+  color: white;
+  border-radius: 30px 30px 0 0;
+  margin-top: 4rem;
 }
 
 .get-started-content h2 {
-  font-size: 2.5rem;
+  font-size: 2.8rem;
   font-weight: 700;
   margin-bottom: 1.5rem;
+  letter-spacing: -0.5px;
 }
 
 .get-started-content p {
   font-size: 1.2rem;
-  margin-bottom: 2rem;
+  max-width: 600px;
+  margin: 0 auto 2rem;
   opacity: 0.9;
 }
 
 .get-started-content .el-button {
-  background-color: white;
-  color: #1a56db;
+  background: white;
+  color: #0071e3;
   border: none;
   padding: 0.75rem 2.5rem;
   font-size: 1.1rem;
   font-weight: 600;
+  border-radius: 12px;
   transition: all 0.3s ease;
 }
 
 .get-started-content .el-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
 /* 响应式布局 */
 @media (max-width: 1200px) {
   .hero-section {
-    padding: 3rem 5%;
+    padding: 3rem 8%;
   }
   
-  .features-section,
-  .tech-section,
-  .get-started-section {
-    padding: 4rem 5%;
+  .title {
+    font-size: 3.5rem;
+  }
+  
+  .subtitle {
+    font-size: 1.6rem;
   }
 }
 
 @media (max-width: 992px) {
-  .title {
-    font-size: 3rem;
-  }
-  
-  .subtitle {
-    font-size: 1.5rem;
-  }
-  
-  .section-title {
-    font-size: 2rem;
-  }
-}
-
-@media (max-width: 768px) {
   .hero-section {
     flex-direction: column;
     text-align: center;
-    gap: 3rem;
-    padding-top: 2rem;
-    min-height: auto;
+    padding-top: 3rem;
+    padding-bottom: 5rem;
   }
   
   .hero-content {
     max-width: 100%;
+    margin-bottom: 3rem;
+  }
+  
+  .title {
+    font-size: 3rem;
   }
   
   .github-link {
     justify-content: center;
+    display: flex;
   }
   
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .tech-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
   .features-grid {
     grid-template-columns: 1fr;
   }
   
-  .tech-item {
-    padding: 1rem;
+  .tech-list {
+    grid-template-columns: 1fr;
   }
-}
-
-@media (max-width: 576px) {
+  
   .title {
     font-size: 2.5rem;
   }
   
   .subtitle {
-    font-size: 1.2rem;
-  }
-  
-  .description {
-    font-size: 1rem;
-  }
-  
-  .section-title {
-    font-size: 1.8rem;
-    margin-bottom: 2rem;
-  }
-  
-  .feature-card {
-    padding: 1.5rem;
+    font-size: 1.4rem;
   }
   
   .get-started-content h2 {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .hero-section {
+    padding: 2rem 5%;
+  }
+  
+  .features-section,
+  .tech-section {
+    padding: 3rem 5%;
+  }
+  
+  .tech-section {
+    margin: 0 1rem;
+  }
+  
+  .title {
+    font-size: 2.2rem;
+  }
+  
+  .section-title {
     font-size: 2rem;
   }
   
-  .get-started-content p {
-    font-size: 1rem;
+  .get-started-content h2 {
+    font-size: 1.8rem;
   }
 }
 </style>
