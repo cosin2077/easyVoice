@@ -6,7 +6,7 @@ import NovelToAudio from '../views/NovelToAudio.vue'
 
 const routes = [
   { path: '/', component: HomeView },
-  { path: '/novel-to-audio', component: NovelToAudio },
+  // { path: '/novel-to-audio', component: NovelToAudio },
   { path: '/about', component: AboutView },
 ]
 

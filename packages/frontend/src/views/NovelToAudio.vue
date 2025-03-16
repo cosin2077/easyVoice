@@ -233,8 +233,8 @@
 import { ref, computed, onMounted } from "vue";
 import { useGenerationStore } from "@/stores/generation";
 import { generateTTS, downloadFile, getProgress } from "@/api/tts";
-import { UploadFilled, Download } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
+// import { UploadFilled, Download } from "@/components/ui/button";
+// import { ElMessage } from "@/components/ui/button";
 import type { VoiceConfig } from "@/types";
 
 // 状态管理
