@@ -1,4 +1,3 @@
-import { message } from 'antd';
 import axios from "axios";
 
 const api = axios.create({
@@ -8,6 +7,13 @@ const api = axios.create({
 
 export interface GenerateRequest {
   text: string;
+  voice?: string;
+  rate?: string;
+  pitch?: string;
+  useLLM?: boolean;
+  openaiBaseUrl?: string;
+  openaiKey?: string;
+  openaiModel?: string;
 }
 export interface TaskRequest {
   id: string;
