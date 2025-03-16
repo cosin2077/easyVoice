@@ -233,7 +233,6 @@
 import { ref, computed, onMounted } from "vue";
 import { useGenerationStore } from "@/stores/generation";
 import { generateTTS, downloadFile, getProgress } from "@/api/tts";
-import { asyncSleep } from "@/utils";
 import { UploadFilled, Download } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import type { VoiceConfig } from "@/types";

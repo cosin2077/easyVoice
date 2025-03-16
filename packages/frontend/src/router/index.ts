@@ -5,7 +5,7 @@ import AboutView from '../views/About.vue'
 import NovelToAudio from '../views/NovelToAudio.vue'
 
 const routes = [
-  { path: '/', component: NovelToAudio },
+  { path: '/', component: HomeView },
   { path: '/novel-to-audio', component: NovelToAudio },
   { path: '/about', component: AboutView },
 ]
