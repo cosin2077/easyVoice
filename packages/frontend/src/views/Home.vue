@@ -115,7 +115,7 @@ const triggerConfettiAndGo = () => {
   confettiActive.value = !confettiActive.value;
   setTimeout(() => {
     goToGenerate();
-  }, 800);
+  }, 400);
 };
 </script>
 

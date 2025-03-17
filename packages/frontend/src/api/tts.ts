@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
@@ -32,12 +32,13 @@ export interface GenerateResponse {
 }
 export type Voice = {
   "Name": string;
+  "cnName"?: string;
   "Gender": string;
   "ContentCategories": string[];
   "VoicePersonalities": string[];
 }
 export const getVoiceList = () =>
-  api.get<Voice[]>("/voiceList");
+  api.get<AxiosResponse<Voice[]>>("/voiceList");
 
 export const generateTTS = (data: GenerateRequest) =>
   api.post<GenerateResponse>("/generate", data);

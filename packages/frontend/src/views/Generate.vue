@@ -87,7 +87,7 @@
                   placeholder="选择性别"
                   @change="filterVoices"
                 >
-                  <el-option label="全部" value="" />
+                  <el-option label="全部" value="All" />
                   <el-option label="男性" value="Male" />
                   <el-option label="女性" value="Female" />
                 </el-select>
@@ -102,14 +102,20 @@
                   <el-option
                     v-for="voice in filteredVoices"
                     :key="voice.Name"
-                    :label="voice.Name"
+                    :label="voice.cnName"
                     :value="voice.Name"
                   >
                     <div class="voice-option">
-                      <span>{{ voice.Name }}</span>
-                      <span class="voice-personality">{{
+                      <span>{{ voice.cnName || voice.Name }}</span>
+                      <Sparkles
+                        :size="16"
+                        :stroke-width="1.25"
+                        style="margin-left: 10px; color: red"
+                        v-if="voice.Name === 'zh-CN-YunxiNeural'"
+                      />
+                      <!-- <span class="voice-personality">{{
                         voice.VoicePersonalities.join(", ")
-                      }}</span>
+                      }}</span> -->
                     </div>
                   </el-option>
                 </el-select>
@@ -239,9 +245,11 @@ import {
   getVoiceList,
   type Voice,
 } from "@/api/tts";
+import { Sparkles } from "lucide-vue-next";
 import { UploadFilled, Download } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { defaultVoiceList } from "@/constants/voice";
+import { mapZHVoiceName } from "@/utils";
 
 // 状态管理
 const store = useGenerationStore();
@@ -255,8 +263,8 @@ const progressStatus = ref("准备中...");
 // 语音设置
 const voiceMode = ref("preset");
 const selectedLanguage = ref("zh-CN");
-const selectedGender = ref("");
-const selectedVoice = ref("zh-CN-XiaoxiaoNeural");
+const selectedGender = ref("All");
+const selectedVoice = ref("zh-CN-YunxiNeural");
 const rate = ref(0);
 const pitch = ref(0);
 
@@ -271,7 +279,8 @@ const previewAudioUrl = ref("");
 const previewLoading = ref(false);
 
 // 语音数据
-const voices = ref<Voice[]>(defaultVoiceList);
+const voiceList = ref<Voice[]>(defaultVoiceList);
+
 const languages = ref([
   { code: "zh-CN", name: "中文（简体）" },
   { code: "zh-TW", name: "中文（繁体）" },
@@ -280,17 +289,29 @@ const languages = ref([
   { code: "en-GB", name: "英语（英国）" },
   { code: "en-AU", name: "英语（澳大利亚）" },
   { code: "en-CA", name: "英语（加拿大）" },
-  { code: "en-IN", name: "英语（印度）" },
 ]);
 
+const betterShowCN = (voiceList: Voice[]) => {
+  if (selectedLanguage?.value?.includes("zh-")) {
+    return voiceList.map((voice) => {
+      return {
+        ...voice,
+        cnName: mapZHVoiceName(voice.Name) ?? voice.Name,
+      };
+    });
+  }
+  return voiceList;
+};
 // 过滤后的语音列表
 const filteredVoices = computed(() => {
-  return voices.value.filter((voice) => {
-    const matchLanguage = voice.Name.startsWith(selectedLanguage.value);
-    const matchGender =
-      !selectedGender.value || voice.Gender === selectedGender.value;
-    return matchLanguage && matchGender;
-  });
+  return betterShowCN(
+    voiceList.value.filter((voice) => {
+      const matchLanguage = voice.Name.startsWith(selectedLanguage.value);
+      const matchGender =
+        selectedGender.value === "All" || voice.Gender === selectedGender.value;
+      return matchLanguage && matchGender;
+    })
+  );
 });
 
 // 是否可以生成语音
@@ -326,11 +347,10 @@ const formatPitch = (val: number) => {
 // 加载语音数据
 onMounted(async () => {
   try {
-    // 这里应该从后端获取语音列表，暂时使用模拟数据
     const response = await getVoiceList();
-    voices.value = response.data;
+    voiceList.value = response?.data?.data;
   } catch (error) {
-    console.error("Failed to load voices:", error);
+    console.error("Failed to load voiceList:", error);
   }
 });
 
@@ -572,7 +592,8 @@ const downloadAudio = () => {
 
 .voice-option {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
 }
 
 .voice-personality {
