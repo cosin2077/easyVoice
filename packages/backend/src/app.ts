@@ -13,14 +13,8 @@ export function createApp(): Application {
   app.use(express.json());
   app.use(express.static(path.join(__dirname, "../../dist")));
 
-  // app.use((req: Request, res: Response, next: NextFunction) => {
-  //   logger.info(`${req.method} ${req.path}`);
-  //   next();
-  // });
-
   app.use(requestLoggerMiddleware);
   app.use("/api", ttsRoutes);
-
   app.use(errorHandler);
 
   return app;

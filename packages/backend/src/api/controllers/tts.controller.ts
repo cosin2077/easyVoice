@@ -7,9 +7,9 @@ import { ALLOWED_EXTENSIONS, AUDIO_DIR } from "../../config";
 
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    const { text, useLLM } = req.body;
+    const { text, pitch, voice, rate, useLLM } = req.body;
     if (!text?.trim()) throw new Error("Text is required");
-
+    logger.info(`generateAudio body: `, req.body)
     const segment: Segment = { id: `seg_${Date.now()}`, text };
     const result = await generateTTS(segment, useLLM);
 
