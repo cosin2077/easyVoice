@@ -232,10 +232,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useGenerationStore } from "@/stores/generation";
-import { generateTTS, downloadFile, getProgress, getVoices } from "@/api/tts";
+import {
+  generateTTS,
+  downloadFile,
+  getProgress,
+  getVoiceList,
+  type Voice,
+} from "@/api/tts";
 import { UploadFilled, Download } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import type { VoiceConfig } from "@/types";
+import { defaultVoiceList } from "@/constants/voice";
 
 // 状态管理
 const store = useGenerationStore();
@@ -265,7 +271,7 @@ const previewAudioUrl = ref("");
 const previewLoading = ref(false);
 
 // 语音数据
-const voices = ref<VoiceConfig[]>([]);
+const voices = ref<Voice[]>(defaultVoiceList);
 const languages = ref([
   { code: "zh-CN", name: "中文（简体）" },
   { code: "zh-TW", name: "中文（繁体）" },
@@ -321,37 +327,10 @@ const formatPitch = (val: number) => {
 onMounted(async () => {
   try {
     // 这里应该从后端获取语音列表，暂时使用模拟数据
-    const response = await getVoices();
-    voices.value = await response.json();
+    const response = await getVoiceList();
+    voices.value = response.data;
   } catch (error) {
     console.error("Failed to load voices:", error);
-    // 使用一些默认语音作为备选
-    voices.value = [
-      {
-        Name: "zh-CN-XiaoxiaoNeural",
-        Gender: "Female",
-        ContentCategories: ["News", "Novel"],
-        VoicePersonalities: ["Warm"],
-      },
-      {
-        Name: "zh-CN-YunyangNeural",
-        Gender: "Male",
-        ContentCategories: ["News"],
-        VoicePersonalities: ["Professional", "Reliable"],
-      },
-      {
-        Name: "en-US-AriaNeural",
-        Gender: "Female",
-        ContentCategories: ["News", "Novel"],
-        VoicePersonalities: ["Positive", "Confident"],
-      },
-      {
-        Name: "en-US-GuyNeural",
-        Gender: "Male",
-        ContentCategories: ["News", "Novel"],
-        VoicePersonalities: ["Passion"],
-      },
-    ];
   }
 });
 

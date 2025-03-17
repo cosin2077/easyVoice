@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { generateAudio, downloadAudio, getVoices } from "../controllers/tts.controller";
+import { generateAudio, downloadAudio, getVoiceList } from "../controllers/tts.controller";
 import { validateGenerate } from "../../schema/generate";
 
 const router = Router();
 
-router.get("/voices", getVoices);
+router.get("/voiceList", getVoiceList);
 router.post("/generate", validateGenerate, generateAudio);
 router.get("/download/:file", downloadAudio);
 

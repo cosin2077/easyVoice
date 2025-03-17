@@ -60,7 +60,7 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
   }
 }
 
-export async function getVoices(req: Request, res: Response, next: NextFunction) {
+export async function getVoiceList(req: Request, res: Response, next: NextFunction) {
   try {
     const voices = require('../../llm/prompt/voice.json')
     res.json({
@@ -69,7 +69,7 @@ export async function getVoices(req: Request, res: Response, next: NextFunction)
     })
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err)
-    logger.error(`getVoices Error: ${errorMessage}`);
+    logger.error(`getVoiceList Error: ${errorMessage}`);
     res.status(500).json({
       msg: errorMessage,
       success: false,
