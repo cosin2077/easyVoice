@@ -24,9 +24,21 @@
   <meta property="og:image" content="/assets/og-image.jpg" />
 
   <!-- Favicon 与 PWA 支持 -->
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
-  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+  <!-- 16x16 和 32x32 的小图标（一些浏览器使用） -->
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+
+  <!-- Apple设备（iOS）的图标 -->
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+
+  <!-- Android Chrome（高分辨率图标） -->
+  <link rel="icon" type="image/png" sizes="192x192" href="favicon/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="favicon/android-chrome-512x512.png">
+
+  <!-- Web Manifest（用于PWA，渐进式Web应用） -->
+  <link rel="manifest" href="favicon/site.webmanifest">
 
   <!-- 预加载关键资源 -->
   <link rel="preload" href="/src/main.ts" as="script" />
