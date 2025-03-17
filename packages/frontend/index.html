@@ -1,13 +1,65 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + Vue + TS</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+<head>
+  <!-- 字符编码与兼容性 -->
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- SEO 优化 -->
+  <title>EasyVoice - Intelligent Text-to-Speech Solution</title>
+  <meta name="description"
+    content="EasyVoice: Convert your novels and large texts into natural, fluent speech with multi-role voice options and customizable settings." />
+  <meta name="keywords" content="text-to-speech, novel conversion, multi-role voice, TTS, EasyVoice" />
+  <meta name="author" content="EasyVoice Team" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Open Graph 协议（社交媒体分享优化） -->
+  <meta property="og:title" content="EasyVoice - Intelligent Text-to-Speech Solution" />
+  <meta property="og:description"
+    content="Transform your text into professional-grade speech effortlessly with EasyVoice." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://easyvoice.ioplus.tech" />
+  <meta property="og:image" content="/assets/og-image.jpg" />
+
+  <!-- Favicon 与 PWA 支持 -->
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- 预加载关键资源 -->
+  <link rel="preload" href="/src/main.ts" as="script" />
+
+  <!-- 样式文件（假设后续会有全局样式） -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+
+  <!-- 性能优化：DNS 预解析（假设可能用到外部服务） -->
+  <link rel="dns-prefetch" href="https://github.com" />
+  <!-- Google Tag Manager -->
+  <script>(function (w, d, s, l, i) {
+      w[l] = w[l] || []; w[l].push({
+        'gtm.start':
+          new Date().getTime(), event: 'gtm.js'
+      }); var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+          'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', 'GTM-N9XL8J8H');</script>
+  <!-- End Google Tag Manager -->
+</head>
+
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N9XL8J8H" height="0" width="0"
+      style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
+  <!--[if lt IE 9]>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <![endif]-->
+</body>
+
 </html>
