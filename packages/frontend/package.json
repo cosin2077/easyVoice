@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "test": "jest"
+    "test": "vitest"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -26,19 +26,17 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
-    "@vue/vue3-jest": "^29.2.6",
     "autoprefixer": "^10.4.21",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
+    "jsdom": "^26.0.0",
     "less": "^4.2.2",
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
     "typescript": "~5.7.2",
     "vite": "^6.2.0",
+    "vitest": "^3.0.8",
     "vue-tsc": "^2.2.4"
   }
 }

@@ -58,3 +58,20 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
     });
   }
 }
+
+export async function getVoices(req: Request, res: Response, next: NextFunction) {
+  try {
+    const voices = require('../../llm/prompt/voice.json')
+    res.json({
+      data: voices,
+      success: true,
+    })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    logger.error(`getVoices Error: ${errorMessage}`);
+    res.status(500).json({
+      msg: errorMessage,
+      success: false,
+    })
+  }
+}

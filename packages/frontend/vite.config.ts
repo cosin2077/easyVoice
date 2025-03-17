@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from 'vitest/config';
 import vue from "@vitejs/plugin-vue";
 import path from "path";
 export default defineConfig({
@@ -20,5 +20,9 @@ export default defineConfig({
   },
   build: {
     outDir: "./dist", // 输出到根目录 dist，与后端共享
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true, // 全局 test/expect
   },
 });

@@ -232,7 +232,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { useGenerationStore } from "@/stores/generation";
-import { generateTTS, downloadFile, getProgress } from "@/api/tts";
+import { generateTTS, downloadFile, getProgress, getVoices } from "@/api/tts";
 import { UploadFilled, Download } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import type { VoiceConfig } from "@/types";
@@ -321,7 +321,7 @@ const formatPitch = (val: number) => {
 onMounted(async () => {
   try {
     // 这里应该从后端获取语音列表，暂时使用模拟数据
-    const response = await fetch("/api/voices");
+    const response = await getVoices();
     voices.value = await response.json();
   } catch (error) {
     console.error("Failed to load voices:", error);
@@ -557,14 +557,16 @@ const downloadAudio = () => {
   padding: 0.5rem 0;
 }
 
-.input-card, .settings-card {
+.input-card,
+.settings-card {
   height: 100%;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   transition: all 0.3s ease;
 }
 
-.input-card:hover, .settings-card:hover {
+.input-card:hover,
+.settings-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
@@ -584,7 +586,8 @@ const downloadAudio = () => {
   justify-content: center;
 }
 
-.voice-selector, .ai-settings {
+.voice-selector,
+.ai-settings {
   margin-bottom: 1.5rem;
 }
 
@@ -650,7 +653,7 @@ const downloadAudio = () => {
   .header h1 {
     font-size: 2.2rem;
   }
-  
+
   .subtitle {
     font-size: 1rem;
   }
@@ -661,22 +664,22 @@ const downloadAudio = () => {
     display: flex;
     flex-direction: column;
   }
-  
+
   .el-col {
     width: 100% !important;
     max-width: 100%;
     flex: 0 0 100%;
     margin-bottom: 1.5rem;
   }
-  
+
   .header {
     margin-bottom: 1.5rem;
   }
-  
+
   .header h1 {
     font-size: 1.8rem;
   }
-  
+
   .action-area {
     margin-top: 1rem;
   }
@@ -686,26 +689,26 @@ const downloadAudio = () => {
   .novel-to-audio-container {
     padding: 1rem 0.75rem;
   }
-  
+
   .header h1 {
     font-size: 1.5rem;
   }
-  
+
   .subtitle {
     font-size: 0.9rem;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .voice-mode-selector .el-radio-group {
     width: 100%;
     display: flex;
   }
-  
+
   .voice-mode-selector .el-radio-button {
     flex: 1;
   }

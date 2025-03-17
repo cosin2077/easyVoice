@@ -51,10 +51,7 @@
       <h2 class="section-title">关于</h2>
       <div class="team-content">
         <el-icon :size="40" class="team-icon"><User /></el-icon>
-        <p>
-          EasyVoice
-          是一个实验性的项目，旨在提供简单高效的语音转换体验。
-        </p>
+        <p>EasyVoice 是一个实验性的项目，旨在提供简单高效的语音转换体验。</p>
         <p>喜欢我就给我Star吧</p>
         <div class="links">
           <el-button round plain @click="goToAuthorGitHub">
@@ -77,18 +74,7 @@ import {
   Setting,
   User,
 } from "@element-plus/icons-vue";
-import {
-  Github,
-  FileText,
-  Users,
-  Ear,
-  Settings,
-  Sparkles,
-  Home,
-  Mic,
-  Info,
-  Mail,
-} from "lucide-vue-next";
+import { Github } from "lucide-vue-next";
 
 const goToAuthorGitHub = () => {
   window.open("https://github.com/cosin2077", "_blank");

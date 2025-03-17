@@ -30,6 +30,14 @@ export interface GenerateResponse {
   srt?: string;
   id: string;
 }
+export type Voices = {
+  "Name": string;
+  "Gender": string;
+  "ContentCategories": string[];
+  "VoicePersonalities": string[];
+}
+export const getVoices = () =>
+  api.get<Voices[]>("/voices");
 
 export const generateTTS = (data: GenerateRequest) =>
   api.post<GenerateResponse>("/generate", data);
