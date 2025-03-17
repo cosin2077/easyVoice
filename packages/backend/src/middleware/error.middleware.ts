@@ -31,10 +31,9 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
   });
 
   res.status(500).json({
-    error: {
-      message: err.message,
-      ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {})
-    }
+    success: false,
+    message: err.message,
+    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {})
   });
 
   // next(err);
