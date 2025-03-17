@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { generateAudio, downloadAudio, getVoiceList } from "../controllers/tts.controller";
-import { validateGenerate } from "../../schema/generate";
+import { validateGenerate } from "../schema/generate";
 
 const router = Router();
 

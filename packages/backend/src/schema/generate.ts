@@ -5,6 +5,7 @@ export const generateSchema = z.object({
   text: z.string(),
   pitch: z.string(),
   voice: z.string(),
+  volume: z.string(),
   rate: z.string(),
   useLLM: z.boolean().default(false)
 })

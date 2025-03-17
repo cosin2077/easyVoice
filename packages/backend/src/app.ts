@@ -1,6 +1,6 @@
 import express, { Request, Response, NextFunction, Application } from "express";
 import { errorHandler } from "./middleware/error.middleware";
-import ttsRoutes from "./api/routes/tts.route";
+import ttsRoutes from "./routes/tts.route";
 import { logger } from "./utils/logger";
 import path from "path";
 import cors from 'cors';
@@ -11,7 +11,7 @@ export function createApp(): Application {
 
   app.use(cors());
   app.use(express.json());
-  app.use(express.static(path.join(__dirname, "../../dist")));
+  app.use(express.static(path.join(__dirname, "..", 'audio')));
 
   app.use(requestLoggerMiddleware);
   app.use("/api", ttsRoutes);

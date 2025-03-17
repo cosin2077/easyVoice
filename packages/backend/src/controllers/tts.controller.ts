@@ -1,18 +1,31 @@
 import { Request, Response, NextFunction } from "express";
 import { generateTTS } from "../services/tts.service";
-import { logger } from "../../utils/logger";
+import { logger } from "../utils/logger";
 import path from "path";
 import fs from "fs/promises";
-import { ALLOWED_EXTENSIONS, AUDIO_DIR } from "../../config";
+import { ALLOWED_EXTENSIONS, AUDIO_DIR } from "../config";
+import { Generate } from "../schema/generate";
 
-
+function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
+  const positivePercent = (value: string) => {
+    if (value === '0%') return '+0%'
+    return value
+  }
+  const positiveHz = (value: string) => {
+    if (value === '0Hz') return '+0Hz'
+    return value
+  }
+  return {
+    text: text.trim(), pitch: positiveHz(pitch), voice: positivePercent(voice), rate: positivePercent(rate), volume: positivePercent(volume), useLLM
+  }
+}
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    const { text, pitch, voice, rate, useLLM } = req.body;
+    const { text, pitch, volume, voice, rate, useLLM } = req.body;
     if (!text?.trim()) throw new Error("Text is required");
     logger.info(`generateAudio body: `, req.body)
-    const segment: Segment = { id: `seg_${Date.now()}`, text };
-    const result = await generateTTS(segment, useLLM);
+    const formattedBody = formatBody({ text, pitch, volume, voice, rate, useLLM })
+    const result = await generateTTS(formattedBody);
 
     res.json(result);
   } catch (error) {
@@ -62,7 +75,7 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
 
 export async function getVoiceList(req: Request, res: Response, next: NextFunction) {
   try {
-    const voices = require('../../llm/prompt/voice.json')
+    const voices = require('../llm/prompt/voice.json')
     res.json({
       data: voices,
       success: true,

@@ -124,17 +124,25 @@
               <el-form-item label="语速">
                 <el-slider
                   v-model="rate"
-                  :min="-50"
-                  :max="50"
+                  :min="-99"
+                  :max="99"
                   :format-tooltip="formatRate"
                 />
               </el-form-item>
 
+              <el-form-item label="音量">
+                <el-slider
+                  v-model="volume"
+                  :min="-99"
+                  :max="99"
+                  :format-tooltip="formatVolume"
+                />
+              </el-form-item>
               <el-form-item label="音调">
                 <el-slider
                   v-model="pitch"
-                  :min="-10"
-                  :max="10"
+                  :min="-99"
+                  :max="99"
                   :format-tooltip="formatPitch"
                 />
               </el-form-item>
@@ -189,7 +197,7 @@
             </el-button>
             <audio
               v-if="previewAudioUrl"
-              controls
+              controls="false"
               class="preview-audio"
               :src="previewAudioUrl"
             ></audio>
@@ -236,7 +244,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useGenerationStore } from "@/stores/generation";
 import {
   generateTTS,
@@ -248,7 +256,7 @@ import {
 import { Sparkles } from "lucide-vue-next";
 import { UploadFilled, Download } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import { defaultVoiceList } from "@/constants/voice";
+import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
 import { mapZHVoiceName } from "@/utils";
 
 // 状态管理
@@ -267,6 +275,7 @@ const selectedGender = ref("All");
 const selectedVoice = ref("zh-CN-YunxiNeural");
 const rate = ref(0);
 const pitch = ref(0);
+const volume = ref(0);
 
 // AI 设置
 const openaiBaseUrl = ref("");
@@ -274,9 +283,9 @@ const openaiKey = ref("");
 const openaiModel = ref("gpt-3.5-turbo");
 
 // 试听功能
-const previewText = ref("这是一段测试文本，用于试听语音效果。");
 const previewAudioUrl = ref("");
 const previewLoading = ref(false);
+const previewText = ref("这是一段测试文本，用于试听语音效果。");
 
 // 语音数据
 const voiceList = ref<Voice[]>(defaultVoiceList);
@@ -338,12 +347,22 @@ const canPreview = computed(() => {
 const formatRate = (val: number) => {
   return val > 0 ? `+${val}%` : `${val}%`;
 };
+const formatVolume = (val: number) => {
+  return val >= 0 ? `+${val}%` : `${val}%`;
+};
 
 // 格式化音调显示
 const formatPitch = (val: number) => {
-  return val > 0 ? `+${val}Hz` : `${val}Hz`;
+  return val >= 0 ? `+${val}Hz` : `${val}Hz`;
 };
-
+watch(selectedLanguage, (value) => {
+  const matchLang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(value)?.[1];
+  console.log(`matchLang:`, matchLang);
+  if (matchLang && matchLang in previewTextSelect) {
+    previewText.value =
+      previewTextSelect[matchLang as keyof typeof previewTextSelect];
+  }
+});
 // 加载语音数据
 onMounted(async () => {
   try {
@@ -376,6 +395,8 @@ const filterVoices = () => {
   );
   if (!isCurrentVoiceValid && filteredVoices.value.length > 0) {
     selectedVoice.value = filteredVoices.value[0].Name;
+  } else {
+    selectedVoice.value = "";
   }
 };
 
@@ -394,6 +415,7 @@ const previewAudio = async () => {
       params.voice = selectedVoice.value;
       params.rate = `${rate.value > 0 ? "+" : ""}${rate.value}%`;
       params.pitch = `${pitch.value > 0 ? "+" : ""}${pitch.value}Hz`;
+      params.volume = `${volume.value > 0 ? "+" : ""}${volume.value}%`;
     } else {
       params.useLLM = true;
       params.openaiBaseUrl = openaiBaseUrl.value;
@@ -402,7 +424,7 @@ const previewAudio = async () => {
     }
 
     const { data } = await generateTTS(params);
-    previewAudioUrl.value = downloadFile(data.audio);
+    previewAudioUrl.value = data.audio;
   } catch (error) {
     console.error("Preview failed:", error);
     ElMessage.error("试听失败，请稍后重试");
@@ -427,8 +449,9 @@ const generateAudio = async () => {
 
     if (voiceMode.value === "preset") {
       params.voice = selectedVoice.value;
-      params.rate = `${rate.value > 0 ? "+" : ""}${rate.value}%`;
-      params.pitch = `${pitch.value > 0 ? "+" : ""}${pitch.value}Hz`;
+      params.rate = `${rate.value >= 0 ? "+" : ""}${rate.value}%`;
+      params.pitch = `${pitch.value >= 0 ? "+" : ""}${pitch.value}Hz`;
+      params.volume = `${volume.value >= 0 ? "+" : ""}${volume.value}%`;
     } else {
       params.useLLM = true;
       params.openaiBaseUrl = openaiBaseUrl.value;

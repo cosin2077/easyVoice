@@ -2,9 +2,10 @@
 import { Jieba } from "@node-rs/jieba";
 
 const jieba = new Jieba()
-const TARGET_LENGTH = 2000;
-// 分割函数
-export function splitNovel(text: string, targetLength = TARGET_LENGTH) {
+const TARGET_LENGTH = 200;
+// 中文分割函数
+export function splitText(text: string, targetLength = TARGET_LENGTH) {
+  if (text.length < targetLength) return { length: 1, segments: [text] };
   const segments: string[] = [];
   let currentSegment = "";
   let sentences = text.split(/([。！？])/); // 按句号、感叹号、问号分割，并保留标点
@@ -50,5 +51,5 @@ export function splitNovel(text: string, targetLength = TARGET_LENGTH) {
     }
   }
 
-  return finalSegments;
+  return { length: finalSegments.length, segments: finalSegments };
 }

@@ -9,11 +9,10 @@ interface TTSResult {
 }
 
 interface TTSParams {
-  name: string;
   text: string;
   voice: string;
+  volume: string;
   rate: string;
   pitch: string;
-  speed: string;
   output: string;
 }
