@@ -23,6 +23,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    globals: true, // 全局 test/expect
+    globals: true,
   },
 });

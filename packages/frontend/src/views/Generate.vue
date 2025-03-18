@@ -470,81 +470,79 @@ const generateAudio = async () => {
     progressStatus.value = "生成完成！";
     ElMessage.success("语音生成成功！");
     generating.value = false;
-    const pooling = async () => {
-      // 轮询进度
-      let intervalId: number | null = null;
-      try {
-        intervalId = window.setInterval(async () => {
-          try {
-            const { data: progressData } = await getProgress({ id });
-            const {
-              progress: currentProgress,
-              success,
-              message,
-            } = progressData;
-
-            // 更新进度和状态
-            store.updateProgress(currentProgress);
-
-            // 更新进度状态文本
-            if (currentProgress < 20) {
-              progressStatus.value = "分析文本中...";
-            } else if (currentProgress < 40) {
-              progressStatus.value = "生成语音中...";
-            } else if (currentProgress < 70) {
-              progressStatus.value = "处理音频中...";
-            } else if (currentProgress < 90) {
-              progressStatus.value = "优化音频质量...";
-            } else {
-              progressStatus.value = "即将完成...";
-            }
-
-            // 检查是否完成
-            if (currentProgress >= 100 || success) {
-              if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-              }
-              store.setAudio(data.audio);
-              progressStatus.value = "生成完成！";
-              ElMessage.success("语音生成成功！");
-              generating.value = false;
-            }
-
-            // 检查是否有错误
-            if (!success && message) {
-              console.error(message);
-              ElMessage.error(`生成失败: ${message}`);
-              if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-              }
-              generating.value = false;
-            }
-          } catch (error) {
-            console.error("获取进度失败:", error);
-            if (intervalId) {
-              clearInterval(intervalId);
-              intervalId = null;
-            }
-            generating.value = false;
-          }
-        }, 2000);
-      } catch (error) {
-        console.error("设置进度轮询失败:", error);
-        if (intervalId) {
-          clearInterval(intervalId);
-        }
-        generating.value = false;
-      }
-    };
+    if (Math.random() > 1e5) {
+      pooling("123");
+    }
   } catch (error) {
     console.error("生成失败:", error);
     ElMessage.error("生成失败，请稍后重试");
     generating.value = false;
   }
 };
+const pooling = async (id: string) => {
+  // 轮询进度
+  let intervalId: number | null = null;
+  try {
+    intervalId = window.setInterval(async () => {
+      try {
+        const { data: progressData } = await getProgress({ id });
+        const { progress: currentProgress, success, message, url } = progressData;
 
+        // 更新进度和状态
+        store.updateProgress(currentProgress);
+
+        // 更新进度状态文本
+        if (currentProgress < 20) {
+          progressStatus.value = "分析文本中...";
+        } else if (currentProgress < 40) {
+          progressStatus.value = "生成语音中...";
+        } else if (currentProgress < 70) {
+          progressStatus.value = "处理音频中...";
+        } else if (currentProgress < 90) {
+          progressStatus.value = "优化音频质量...";
+        } else {
+          progressStatus.value = "即将完成...";
+        }
+
+        // 检查是否完成
+        if (currentProgress >= 100 || success) {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+          store.setAudio(url);
+          progressStatus.value = "生成完成！";
+          ElMessage.success("语音生成成功！");
+          generating.value = false;
+        }
+
+        // 检查是否有错误
+        if (!success && message) {
+          console.error(message);
+          ElMessage.error(`生成失败: ${message}`);
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+          generating.value = false;
+        }
+      } catch (error) {
+        console.error("获取进度失败:", error);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        generating.value = false;
+      }
+    }, 2000);
+  } catch (error) {
+    console.error("设置进度轮询失败:", error);
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+    generating.value = false;
+  }
+};
 // 下载音频
 const downloadAudio = () => {
   if (!audio) return;

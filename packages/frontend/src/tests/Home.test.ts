@@ -1,4 +1,4 @@
-// tests/Home.test.ts
+import { test, expect } from 'vitest'
 import { mount } from "@vue/test-utils";
 import Home from "@/views/Home.vue";
 
@@ -8,5 +8,5 @@ test("renders correctly", () => {
 });
 
 test("voices api ok", () => {
-  
+
 })

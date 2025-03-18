@@ -5,7 +5,7 @@ import { logger } from "./utils/logger";
 import path from "path";
 import cors from 'cors';
 import { requestLoggerMiddleware } from "./middleware/info.middleware";
-import { AUDIO_DIR } from "./config";
+import { AUDIO_DIR , PUBLIC_DIR} from "./config";
 
 export function createApp(): Application {
   const app = express();
@@ -13,6 +13,7 @@ export function createApp(): Application {
   app.use(cors());
   app.use(express.json());
   app.use(express.static(AUDIO_DIR));
+  app.use(express.static(PUBLIC_DIR));
 
   app.use(requestLoggerMiddleware);
   app.use("/api", ttsRoutes);
