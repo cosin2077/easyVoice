@@ -1,33 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-:: 检查 Python 是否安装
-python --version >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo Python 未安装，请手动安装 Python（https://www.python.org/downloads/）
-    pause
-    exit /b 1
-) else (
-    for /f "tokens=*" %%i in ('python --version') do set PYTHON_VER=%%i
-    echo !PYTHON_VER! 已安装
-)
-
-:: 检查 pip 是否安装
-pip --version >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo pip 未安装，正在安装...
-    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-    python get-pip.py
-    del get-pip.py
-) else (
-    for /f "tokens=*" %%i in ('pip --version') do set PIP_VER=%%i
-    echo !PIP_VER! 已安装
-)
-
-:: 安装 edge-tts
-echo 正在安装 edge-tts...
-pip install edge-tts
-
 :: 检查 Node.js 是否安装
 node -v >nul 2>&1
 if %ERRORLEVEL% neq 0 (
