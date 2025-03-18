@@ -1,12 +1,12 @@
 import { runEdgeTTS } from "../utils/spawn";
-import { AUDIO_DIR, config } from "../config";
+import { AUDIO_DIR, config, STATIC_DOMAIN } from "../config";
 import { logger } from "../utils/logger";
 import { genSegment } from "../llm/prompt/generateSegment";
 import { ensureDir, generateId, getLangConfig } from "../utils";
 import { fetcher } from "../utils/request";
 import { openai } from "../utils/openai";
 import { splitText } from "./text.service";
-import { generateSingleVoice } from "./edge-tts.service";
+import { generateSingleVoice, handleSRT } from "./edge-tts.service";
 import { Generate } from "../schema/generate";
 import path from "path";
 import fs from "fs/promises";
@@ -43,8 +43,12 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
       if (length <= 1) {
         const output = path.resolve(AUDIO_DIR, segment.id)
         result = await generateSingleVoice({ text: segments[0], pitch, voice, rate, volume, output })
-        result.audio = `http://localhost:3000/${segment.id}`
-        result.file = segment.id
+        await handleSRT(output)
+        result = {
+          audio: `${STATIC_DOMAIN}/${segment.id}`,
+          file: segment.id,
+          srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
+        }
       } else {
         const fileList = []
         const tmpDirName = segment.id.replace('.mp3', '')
@@ -78,9 +82,9 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
         const outputFile = path.resolve(AUDIO_DIR, segment.id)
         await concatMp3Files({ inputDir: tmpDirPath, outputFile })
         result = {
-          audio: `http://localhost:3000/${segment.id}`,
+          audio: `${STATIC_DOMAIN}/${segment.id}`,
           file: `${segment.id}`,
-          srt: ''
+          srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
         }
       }
     } else {

@@ -2,7 +2,7 @@
   "name": "easy-voice",
   "private": true,
   "scripts": {
-    "dev:root": "pnpm -r dev",
+    "dev:root": "MODE=dev pnpm -r dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test"
   },

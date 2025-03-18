@@ -4,6 +4,7 @@ import { logger } from "./logger";
 //TODO: Node.js implementation of edge-tts
 export function runEdgeTTS(params: TTSParams): Promise<{ audio: string; srt: string; success: boolean }> {
   return new Promise((resolve, reject) => {
+    const srt = params.output.replace('.mp3', '.srt')
     logger.info(`run with : edge-tts --text ${params.text.slice(0, 10) + '...'} --voice ${params.voice}  --volume=${params.volume} --pitch=${params.pitch} --rate=${params.rate} --write-media ${params.output}`)
     const child = spawn("edge-tts", [
       "--text",
@@ -15,6 +16,8 @@ export function runEdgeTTS(params: TTSParams): Promise<{ audio: string; srt: str
       `--rate=${params.rate}`,
       "--write-media",
       params.output,
+      "--write-sub",
+      srt
     ], { cwd: process.cwd() });
 
     let stdout = '';
@@ -33,7 +36,7 @@ export function runEdgeTTS(params: TTSParams): Promise<{ audio: string; srt: str
     child.on('close', (code) => {
       if (code === 0) {
         console.log(`Voice file generated successfully: ${params.output}`);
-        resolve({ success: true, audio: params.output, srt: '' });
+        resolve({ success: true, audio: params.output, srt });
       } else {
         reject({
           success: false,

@@ -13,10 +13,10 @@ export function createApp(): Application {
   app.use(express.json());
   app.use(express.static(AUDIO_DIR));
   app.use(express.static(PUBLIC_DIR));
-  app.use(history())
 
   app.use(requestLoggerMiddleware);
   app.use("/api", ttsRoutes);
+  app.use(history())
   app.use(errorHandler);
 
   return app;

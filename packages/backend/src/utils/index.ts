@@ -77,3 +77,12 @@ export function generateId(voice: string, text: string) {
 function safeFileName(fileName: string) {
   return fileName.replace(/[/\\?%*:|"<>\r\n\s]/g, '-');
 }
+
+export async function fileExist(path: string) {
+  try {
+    await fs.access(path, fs.constants.F_OK);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
