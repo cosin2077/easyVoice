@@ -4,6 +4,7 @@
     <header class="header">
       <h1 class="title">EasyVoice</h1>
       <p class="subtitle">智能小说转语音解决方案</p>
+      <HomeAudio />
       <div class="header-actions">
         <el-button type="primary" round @click="triggerConfettiAndGo">
           <Sparkles class="icon" /> 立即体验
@@ -83,7 +84,7 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-
+import HomeAudio from "@/components/HomeAudio.vue";
 import {
   BookOpen,
   Github,

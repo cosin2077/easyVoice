@@ -1,9 +1,8 @@
 import { runEdgeTTS } from "../utils/spawn";
-import { AUDIO_DIR, config, STATIC_DOMAIN } from "../config";
+import { AUDIO_DIR, STATIC_DOMAIN } from "../config";
 import { logger } from "../utils/logger";
 import { genSegment } from "../llm/prompt/generateSegment";
 import { ensureDir, generateId, getLangConfig } from "../utils";
-import { fetcher } from "../utils/request";
 import { openai } from "../utils/openai";
 import { splitText } from "./text.service";
 import { generateSingleVoice, handleSRT } from "./edge-tts.service";

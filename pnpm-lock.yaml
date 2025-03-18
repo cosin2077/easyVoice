@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
 
   packages/backend:
     dependencies:
