@@ -22,7 +22,7 @@
           <el-input
             v-model="text"
             type="textarea"
-            placeholder="请输入或粘贴小说文本"
+            placeholder="请输入或粘贴文本"
             :rows="12"
             resize="none"
           />

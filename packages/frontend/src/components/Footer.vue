@@ -20,9 +20,8 @@
       >
         GitHub Issues
       </el-link>
-      与我们联系。
+      联系。
     </p>
-    <p>© 2025 EasyVoice. 保留所有权利。</p>
   </footer>
 </template>
 
