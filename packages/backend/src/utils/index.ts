@@ -32,19 +32,39 @@ export async function ensureDir(path: string) {
     }
   }
 }
-export async function safeRunWithRetry(fn: () => {}) {
-  for (let retry = 0; retry < 3; retry++) {
+export async function safeRunWithRetry<T>(
+  fn: () => Promise<T>,
+  options: {
+    retries?: number;
+    baseDelayMs?: number;
+    onError?: (err: unknown, attempt: number) => void;
+  } = {}
+): Promise<T> {
+  const { retries = 3, baseDelayMs = 200, onError = defaultErrorHandler } = options;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
     try {
       return await fn();
     } catch (err) {
-      if ((err as Error)?.message?.includes('Invalid response status')) {
-        console.log(`safeRunWithRetry run ${fn.name} error:`, (err as Error).message);
+      onError(err, attempt + 1);
+      if (attempt < retries - 1) {
+        await asyncSleep(baseDelayMs * (attempt + 1));
       } else {
-        console.log(err)
-        console.log(`safeRunWithRetry run ${fn.name} error:`, (err as Error).message);
+        throw err;
       }
-      await asyncSleep(200 * (retry + 1));
     }
+  }
+  throw new Error('Unexpected execution flow'); // 理论上不会到达这里
+}
+
+// 默认错误处理器
+function defaultErrorHandler(err: unknown, attempt: number): void {
+  const message = err instanceof Error ? err.message : String(err);
+  const fnName = (err as any)?.fn?.name || 'anonymous';
+  if (message.includes('Invalid response status')) {
+    console.log(`Attempt ${attempt} failed for ${fnName}: ${message}`);
+  } else {
+    console.error(`Attempt ${attempt} failed for ${fnName}:`, err);
   }
 }
 export async function asyncSleep(delay = 200) {
