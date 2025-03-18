@@ -29,6 +29,7 @@ export interface GenerateResponse {
   audio: string;
   file: string;
   srt?: string;
+  size?: number;
   id: string;
 }
 export type Voice = {

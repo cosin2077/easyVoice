@@ -221,7 +221,7 @@
       </el-button>
 
       <!-- 进度条 -->
-      <div v-if="generating || progress > 0" class="progress-container">
+      <!-- <div v-if="generating || progress > 0" class="progress-container">
         <el-progress
           :percentage="progress"
           :status="progress >= 100 ? 'success' : ''"
@@ -232,39 +232,25 @@
           </template>
         </el-progress>
         <div class="progress-status">{{ progressStatus }}</div>
-      </div>
-      <!-- 下载区域 -->
-      <div v-if="store.audio" class="download-area">
-        <el-button type="success" size="large" @click="downloadAudio">
-          <el-icon><download /></el-icon>
-          下载
-          <span>{{ store.file }}</span>
-        </el-button>
-      </div>
+      </div> -->
     </div>
+    <!-- 下载区域 -->
+    <DownloadList />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useGenerationStore } from "@/stores/generation";
-import {
-  generateTTS,
-  downloadFile,
-  getProgress,
-  getVoiceList,
-  type Voice,
-} from "@/api/tts";
+import { generateTTS, getProgress, getVoiceList, type Voice } from "@/api/tts";
 import { Sparkles } from "lucide-vue-next";
-import { UploadFilled, Download, Service } from "@element-plus/icons-vue";
+import { UploadFilled, Service } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
 import { mapZHVoiceName } from "@/utils";
-// import AudioPlayer  from "@/components/AudioPlayer.vue";
+import DownloadList from "@/components/DownloadList.vue";
 // 状态管理
 const store = useGenerationStore();
-const { progress, audio, file } = store;
-
 // 文本输入
 const text = ref("");
 const generating = ref(false);
@@ -467,9 +453,16 @@ const generateAudio = async () => {
       params.openaiModel = openaiModel.value;
     }
     const { data } = await generateTTS(params);
-    console.log(data.audio);
-    store.setAudio(data.audio);
-    store.setFile(data.file);
+    console.log(`generateTTS:`, data);
+    const audioItem = {
+      audio: data.audio,
+      file: data.file,
+      size: data.size,
+      isDownloading: false,
+      progress: 0,
+    };
+    const newAudioList = [...store.audioList, audioItem];
+    store.updateAudioList(newAudioList);
     progressStatus.value = "生成完成！";
     ElMessage.success("语音生成成功！");
     generating.value = false;
@@ -550,19 +543,6 @@ const pooling = async (id: string) => {
     }
     generating.value = false;
   }
-};
-// 下载音频
-const downloadAudio = () => {
-  console.log("store.file: ", store.file);
-  if (!store.file) return;
-  console.log("file: ", store.file);
-  const url = downloadFile(store.file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `novel_audio_${Date.now()}.mp3`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 };
 </script>
 
