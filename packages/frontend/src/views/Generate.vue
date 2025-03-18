@@ -192,6 +192,7 @@
               @click="previewAudio"
               :disabled="!canPreview || previewLoading"
               :loading="previewLoading"
+              :icon="Service"
             >
               试听
             </el-button>
@@ -236,7 +237,8 @@
       <div v-if="store.audio" class="download-area">
         <el-button type="success" size="large" @click="downloadAudio">
           <el-icon><download /></el-icon>
-          下载语音文件
+          下载
+          <span>{{ store.file }}</span>
         </el-button>
       </div>
     </div>
@@ -254,14 +256,14 @@ import {
   type Voice,
 } from "@/api/tts";
 import { Sparkles } from "lucide-vue-next";
-import { UploadFilled, Download } from "@element-plus/icons-vue";
+import { UploadFilled, Download, Service } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
 import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
 import { mapZHVoiceName } from "@/utils";
-
+// import AudioPlayer  from "@/components/AudioPlayer.vue";
 // 状态管理
 const store = useGenerationStore();
-const { progress, audio } = store;
+const { progress, audio, file } = store;
 
 // 文本输入
 const text = ref("");
@@ -467,6 +469,7 @@ const generateAudio = async () => {
     const { data } = await generateTTS(params);
     console.log(data.audio);
     store.setAudio(data.audio);
+    store.setFile(data.file);
     progressStatus.value = "生成完成！";
     ElMessage.success("语音生成成功！");
     generating.value = false;
@@ -486,7 +489,12 @@ const pooling = async (id: string) => {
     intervalId = window.setInterval(async () => {
       try {
         const { data: progressData } = await getProgress({ id });
-        const { progress: currentProgress, success, message, url } = progressData;
+        const {
+          progress: currentProgress,
+          success,
+          message,
+          url,
+        } = progressData;
 
         // 更新进度和状态
         store.updateProgress(currentProgress);
@@ -545,9 +553,10 @@ const pooling = async (id: string) => {
 };
 // 下载音频
 const downloadAudio = () => {
-  if (!audio) return;
-  console.log("audio: ", audio);
-  const url = downloadFile(audio);
+  console.log("store.file: ", store.file);
+  if (!store.file) return;
+  console.log("file: ", store.file);
+  const url = downloadFile(store.file);
   const link = document.createElement("a");
   link.href = url;
   link.download = `novel_audio_${Date.now()}.mp3`;

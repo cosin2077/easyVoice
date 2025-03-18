@@ -45,12 +45,13 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
     }
 
     const safeFileName = path.basename(fileName);
+    const encodedFileName = encodeURIComponent(safeFileName);
     const filePath = path.join(AUDIO_DIR, safeFileName);
 
     await fs.access(filePath, fs.constants.R_OK);
 
     res.setHeader('Content-Type', `audio/${fileExt.slice(1)}`);
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedFileName}"`);
 
     res.download(filePath, safeFileName, (err) => {
       if (err) { throw err; }

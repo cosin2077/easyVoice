@@ -27,6 +27,7 @@ export interface TaskResponse {
 
 export interface GenerateResponse {
   audio: string;
+  file: string;
   srt?: string;
   id: string;
 }
@@ -47,4 +48,4 @@ export const getProgress = (data: TaskRequest) =>
   api.post<TaskResponse>(`/task/${data.id}`);
 
 export const downloadFile = (file: string) =>
-  `${file}`;
+  `${api.defaults.baseURL}/download/${file}`;

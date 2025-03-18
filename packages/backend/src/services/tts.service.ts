@@ -34,7 +34,7 @@ enum ErrorMessages {
  */
 export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: Generate): Promise<TTSResult> {
   try {
-    const segment: Segment = { id: generateId(voice,text), text };
+    const segment: Segment = { id: generateId(voice, text), text };
     validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
     let result: TTSResult;
@@ -44,6 +44,7 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
         const output = path.resolve(AUDIO_DIR, segment.id)
         result = await generateSingleVoice({ text: segments[0], pitch, voice, rate, volume, output })
         result.audio = `http://localhost:3000/${segment.id}`
+        result.file = segment.id
       } else {
         const fileList = []
         const tmpDirName = segment.id.replace('.mp3', '')
@@ -74,10 +75,11 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
         } catch (error) {
           console.error('执行出错:', error);
         }
-        const outputFile = path.resolve(tmpDirPath, segment.id)
+        const outputFile = path.resolve(AUDIO_DIR, segment.id)
         await concatMp3Files({ inputDir: tmpDirPath, outputFile })
         result = {
-          audio: `http://localhost:3000/${tmpDirName}/${segment.id}`,
+          audio: `http://localhost:3000/${segment.id}`,
+          file: `${segment.id}`,
           srt: ''
         }
       }

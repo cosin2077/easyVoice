@@ -33,7 +33,7 @@ export function runEdgeTTS(params: TTSParams): Promise<{ audio: string; srt: str
     child.on('close', (code) => {
       if (code === 0) {
         console.log(`Voice file generated successfully: ${params.output}`);
-        resolve({ success: true, audio: params.output, srt: `${params.output}.srt` });
+        resolve({ success: true, audio: params.output, srt: '' });
       } else {
         reject({
           success: false,
