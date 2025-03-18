@@ -131,7 +131,6 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
       max_tokens: 500,
     });
 
-    // const response = await fetcher.post(config.modelApiUrl, { prompt }, { timeout: API_TIMEOUT })
     if (!response.choices[0].message.content) {
       throw new Error(ErrorMessages.INVALID_API_RESPONSE);
     }

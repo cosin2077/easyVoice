@@ -10,6 +10,7 @@
   "dependencies": {
     "@node-rs/jieba": "^2.0.1",
     "axios": "^1.8.3",
+    "connect-history-api-fallback": "^2.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -21,6 +22,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/connect-history-api-fallback": "^1.5.4",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/fluent-ffmpeg": "^2.1.27",
