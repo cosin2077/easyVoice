@@ -152,7 +152,7 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
  */
 function parseLLMResponse(response: any): TTSParams {
   try {
-    const params = JSON.parse(response.data.choices[0].text) as TTSParams;
+    const params = JSON.parse(response.choices[0].message.content) as TTSParams;
     if (!params || typeof params !== 'object') {
       throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT);
     }
