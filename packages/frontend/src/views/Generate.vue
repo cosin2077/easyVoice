@@ -196,7 +196,8 @@
               试听
             </el-button>
             <audio
-              v-if="previewAudioUrl"
+              ref="audioPlayer"
+              v-show="previewAudioUrl"
               controls="false"
               class="preview-audio"
               :src="previewAudioUrl"
@@ -232,6 +233,7 @@
         <div class="progress-status">{{ progressStatus }}</div>
       </div>
 
+      {{ audio }}
       <!-- 下载区域 -->
       <div v-if="audio" class="download-area">
         <el-button type="success" size="large" @click="downloadAudio">
@@ -286,6 +288,7 @@ const openaiModel = ref("gpt-3.5-turbo");
 const previewAudioUrl = ref("");
 const previewLoading = ref(false);
 const previewText = ref("这是一段测试文本，用于试听语音效果。");
+const audioPlayer = ref<HTMLAudioElement>();
 
 // 语音数据
 const voiceList = ref<Voice[]>(defaultVoiceList);
@@ -425,6 +428,11 @@ const previewAudio = async () => {
 
     const { data } = await generateTTS(params);
     previewAudioUrl.value = data.audio;
+
+    setTimeout(() => {
+      // Next tick to ensure the audio element is updated
+      (audioPlayer?.value as HTMLAudioElement).play();
+    });
   } catch (error) {
     console.error("Preview failed:", error);
     ElMessage.error("试听失败，请稍后重试");
@@ -460,70 +468,79 @@ const generateAudio = async () => {
     }
 
     const { data } = await generateTTS(params);
-    const { id } = data;
+    console.log(data.audio);
+    store.setAudio(data.audio);
+    progressStatus.value = "生成完成！";
+    ElMessage.success("语音生成成功！");
+    generating.value = false;
+    const pooling = async () => {
+      // 轮询进度
+      let intervalId: number | null = null;
+      try {
+        intervalId = window.setInterval(async () => {
+          try {
+            const { data: progressData } = await getProgress({ id });
+            const {
+              progress: currentProgress,
+              success,
+              message,
+            } = progressData;
 
-    // 轮询进度
-    let intervalId: number | null = null;
-    try {
-      intervalId = window.setInterval(async () => {
-        try {
-          const { data: progressData } = await getProgress({ id });
-          const { progress: currentProgress, success, message } = progressData;
+            // 更新进度和状态
+            store.updateProgress(currentProgress);
 
-          // 更新进度和状态
-          store.updateProgress(currentProgress);
+            // 更新进度状态文本
+            if (currentProgress < 20) {
+              progressStatus.value = "分析文本中...";
+            } else if (currentProgress < 40) {
+              progressStatus.value = "生成语音中...";
+            } else if (currentProgress < 70) {
+              progressStatus.value = "处理音频中...";
+            } else if (currentProgress < 90) {
+              progressStatus.value = "优化音频质量...";
+            } else {
+              progressStatus.value = "即将完成...";
+            }
 
-          // 更新进度状态文本
-          if (currentProgress < 20) {
-            progressStatus.value = "分析文本中...";
-          } else if (currentProgress < 40) {
-            progressStatus.value = "生成语音中...";
-          } else if (currentProgress < 70) {
-            progressStatus.value = "处理音频中...";
-          } else if (currentProgress < 90) {
-            progressStatus.value = "优化音频质量...";
-          } else {
-            progressStatus.value = "即将完成...";
-          }
+            // 检查是否完成
+            if (currentProgress >= 100 || success) {
+              if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+              }
+              store.setAudio(data.audio);
+              progressStatus.value = "生成完成！";
+              ElMessage.success("语音生成成功！");
+              generating.value = false;
+            }
 
-          // 检查是否完成
-          if (currentProgress >= 100 || success) {
+            // 检查是否有错误
+            if (!success && message) {
+              console.error(message);
+              ElMessage.error(`生成失败: ${message}`);
+              if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+              }
+              generating.value = false;
+            }
+          } catch (error) {
+            console.error("获取进度失败:", error);
             if (intervalId) {
               clearInterval(intervalId);
               intervalId = null;
             }
-            store.setAudio(data.audio);
-            progressStatus.value = "生成完成！";
-            ElMessage.success("语音生成成功！");
             generating.value = false;
           }
-
-          // 检查是否有错误
-          if (!success && message) {
-            console.error(message);
-            ElMessage.error(`生成失败: ${message}`);
-            if (intervalId) {
-              clearInterval(intervalId);
-              intervalId = null;
-            }
-            generating.value = false;
-          }
-        } catch (error) {
-          console.error("获取进度失败:", error);
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-          generating.value = false;
+        }, 2000);
+      } catch (error) {
+        console.error("设置进度轮询失败:", error);
+        if (intervalId) {
+          clearInterval(intervalId);
         }
-      }, 2000);
-    } catch (error) {
-      console.error("设置进度轮询失败:", error);
-      if (intervalId) {
-        clearInterval(intervalId);
+        generating.value = false;
       }
-      generating.value = false;
-    }
+    };
   } catch (error) {
     console.error("生成失败:", error);
     ElMessage.error("生成失败，请稍后重试");

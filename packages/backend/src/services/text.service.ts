@@ -2,7 +2,7 @@
 import { Jieba } from "@node-rs/jieba";
 
 const jieba = new Jieba()
-const TARGET_LENGTH = 200;
+const TARGET_LENGTH = 500;
 // 中文分割函数
 export function splitText(text: string, targetLength = TARGET_LENGTH) {
   if (text.length < targetLength) return { length: 1, segments: [text] };

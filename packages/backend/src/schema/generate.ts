@@ -2,7 +2,7 @@ import { NextFunction, Response, Request } from 'express';
 import { z } from 'zod';
 
 export const generateSchema = z.object({
-  text: z.string(),
+  text: z.string().trim().min(1),
   pitch: z.string(),
   voice: z.string(),
   volume: z.string(),

@@ -2,7 +2,7 @@ import { runEdgeTTS } from "../utils/spawn";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { genSegment } from "../llm/prompt/generateSegment";
-import { ensureDir, getLangConfig } from "../utils";
+import { ensureDir, generateId, getLangConfig } from "../utils";
 import { fetcher } from "../utils/request";
 import { openai } from "../utils/openai";
 import { splitText } from "./text.service";
@@ -11,6 +11,7 @@ import { Generate } from "../schema/generate";
 import path from "path";
 import fs from "fs/promises";
 import ffmpeg from 'fluent-ffmpeg';
+import { MapLimitController } from "../controllers/concurrency.controller";
 
 const API_TIMEOUT = 10_000;
 
@@ -33,34 +34,50 @@ enum ErrorMessages {
  */
 export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: Generate): Promise<TTSResult> {
   try {
-    const segment: Segment = { id: `seg_${Date.now()}.mp3`, text };
+    const segment: Segment = { id: generateId(voice,text), text };
     validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
-    let result: TTSResult
+    let result: TTSResult;
     if (!useLLM) {
-      // no LLM
-      const { text, id } = segment
       const { length, segments } = splitText(text)
       if (length <= 1) {
-        const output = path.resolve(__dirname, '..', '..', 'audio', id)
-        result = await runEdgeTTS({ text: segments[0], pitch, voice, rate, volume, output })
-        result.audio = `http://localhost:3000/${id}`
+        const output = path.resolve(__dirname, '..', '..', 'audio', segment.id)
+        result = await generateSingleVoice({ text: segments[0], pitch, voice, rate, volume, output })
+        result.audio = `http://localhost:3000/${segment.id}`
       } else {
         const fileList = []
-        const tmpDirName = Math.random().toString().slice(0, 10)
+        const tmpDirName = segment.id.replace('.mp3', '')
         const tmpDirPath = path.resolve(__dirname, '..', '..', 'audio', tmpDirName)
         ensureDir(tmpDirPath)
+        const generateTasks = []
         for (let index = 0; index < segments.length; index++) {
           const segment = segments[index]
           const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
-          await runEdgeTTS({ text: segment, pitch, voice, rate, volume, output })
-          fileList.push(output)
+          const task = async () => {
+            await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
+            fileList.push(output)
+          }
+          generateTasks.push(task)
         }
-        const inputDir = tmpDirPath
-        const outputFile = path.resolve(tmpDirPath, 'final.mp3')
-        await concatMp3Files({ inputDir, outputFile })
+
+        try {
+          const controller = new MapLimitController(generateTasks, 5, () => {
+            console.log('Callback: generateSingleVoice tasks finished!');
+          });
+          const promise = controller.run();
+          const { results, cancelled } = await promise;
+          console.log('执行完成:', {
+            results,
+            cancelled,
+            completedCount: results.filter(r => r !== undefined).length
+          });
+        } catch (error) {
+          console.error('执行出错:', error);
+        }
+        const outputFile = path.resolve(tmpDirPath, segment.id)
+        await concatMp3Files({ inputDir: tmpDirPath, outputFile })
         result = {
-          audio: `http://localhost:3000/${tmpDirName}/final.mp3`,
+          audio: `http://localhost:3000/${tmpDirName}/${segment.id}`,
           srt: ''
         }
       }
@@ -144,7 +161,7 @@ function parseLLMResponse(response: any): TTSParams {
  * @throws {Error} 当结果无效时抛出错误
  */
 function validateTTSResult(result: TTSResult, segmentId: string): void {
-  if (!result?.audio || !result?.srt) {
+  if (!result?.audio) {
     throw new Error(`${ErrorMessages.INCOMPLETE_RESULT} for segment ${segmentId}`);
   }
 }

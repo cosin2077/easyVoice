@@ -22,11 +22,9 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
     const { text, pitch, volume, voice, rate, useLLM } = req.body;
-    if (!text?.trim()) throw new Error("Text is required");
     logger.info(`generateAudio body: `, req.body)
     const formattedBody = formatBody({ text, pitch, volume, voice, rate, useLLM })
     const result = await generateTTS(formattedBody);
-
     res.json(result);
   } catch (error) {
     next(error);

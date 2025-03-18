@@ -32,17 +32,24 @@ export async function ensureDir(path: string) {
     }
   }
 }
-export async function safeRun(fn: () => {}) {
+export async function safeRunWithRetry(fn: () => {}) {
   for (let retry = 0; retry < 3; retry++) {
     try {
       return await fn();
     } catch (err) {
       console.log(err)
-      console.log(`safeRun run ${fn.name} error:`, (err as Error).message);
-      await asyncSleep(1000);
+      console.log(`safeRunWithRetry run ${fn.name} error:`, (err as Error).message);
+      await asyncSleep(200 * (retry + 1));
     }
   }
 }
 export async function asyncSleep(delay = 200) {
   return new Promise((resolve) => setTimeout(resolve, delay));
+}
+export function generateId(voice: string, text: string) {
+  const now = Date.now()
+  return `${voice}-${safeFileName(text).slice(0, 10)}_${now}.mp3`
+}
+function safeFileName(fileName: string) {
+  return fileName.replace(/[/\\?%*:|"<>\r\n\s]/g, '-');
 }
