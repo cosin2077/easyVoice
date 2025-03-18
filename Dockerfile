@@ -1,5 +1,5 @@
 # 使用 Node.js LTS 作为基础镜像
-FROM node:18 AS builder
+FROM node:20 AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -8,8 +8,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages packages
 
-# 安装 pnpm
-RUN npm install -g pnpm
+RUN corepack enable
 
 # 安装依赖
 RUN pnpm install
@@ -27,12 +26,12 @@ RUN cd packages/backend && pnpm build || true
 RUN mkdir -p packages/backend/public && cp -r packages/frontend/dist/* packages/backend/public/
 
 # 最终运行镜像
-FROM node:18-slim
+FROM node:20-slim
 
 WORKDIR /app
 
 # 安装 pnpm
-RUN npm install -g pnpm
+RUN corepack enable
 
 # 只复制必要的文件
 COPY --from=builder /app/packages/backend /app

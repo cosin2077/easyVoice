@@ -66,7 +66,6 @@ import {
   Download,
   CircleCloseFilled,
   Delete,
-  Loading,
 } from "@element-plus/icons-vue";
 import type { Audio } from "../stores/generation";
 
