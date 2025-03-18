@@ -37,6 +37,7 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
     validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
     let result: TTSResult;
+    useLLM = true
     if (!useLLM) {
       const { length, segments } = splitText(text)
       if (length <= 1) {
@@ -132,8 +133,9 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
       ],
       temperature: 0.7,
       max_tokens: 500,
+      response_format: { type: "json_object" },
     });
-
+    console.log('response:', response)
     if (!response.choices[0].message.content) {
       throw new Error(ErrorMessages.INVALID_API_RESPONSE);
     }

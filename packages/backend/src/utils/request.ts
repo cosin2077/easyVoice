@@ -41,8 +41,8 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response: AxiosResponse<ResponseData<any>>) => {
     const { data } = response;
-    if (data.code !== 200) {
-      if (data.code === 401) {
+    if (data.status !== 200) {
+      if (data.status === 401) {
         logger.warn('Unauthorized request, redirecting to login');
         return Promise.reject(new Error('Unauthorized'));
       }

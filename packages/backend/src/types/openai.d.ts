@@ -17,6 +17,7 @@ interface ChatCompletionRequest {
   max_tokens?: number;
   top_p?: number;
   stream?: boolean;
+  response_format?: { type: string }
 }
 
 // Chat Completion 响应格式

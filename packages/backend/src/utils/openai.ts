@@ -52,6 +52,7 @@ export function createOpenAIClient() {
 
       return response.data;
     } catch (error) {
+      console.log(error)
       throw new Error(`Chat completion request failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
