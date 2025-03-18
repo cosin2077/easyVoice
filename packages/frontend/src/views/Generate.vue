@@ -2,7 +2,7 @@
   <div class="novel-to-audio-container">
     <!-- 顶部标题 -->
     <div class="header">
-      <h1>小说转语音</h1>
+      <h1>文本转语音</h1>
       <p class="subtitle">将您的文本一键转换为自然流畅的语音</p>
     </div>
 
@@ -233,9 +233,11 @@
         <div class="progress-status">{{ progressStatus }}</div>
       </div>
 
-      {{ audio }}
+      {{ store }}
+      {{ store.audio }}
+      {{ store.progress }}
       <!-- 下载区域 -->
-      <div v-if="audio" class="download-area">
+      <div v-if="store.audio" class="download-area">
         <el-button type="success" size="large" @click="downloadAudio">
           <el-icon><download /></el-icon>
           下载语音文件
@@ -466,7 +468,6 @@ const generateAudio = async () => {
       params.openaiKey = openaiKey.value;
       params.openaiModel = openaiModel.value;
     }
-
     const { data } = await generateTTS(params);
     console.log(data.audio);
     store.setAudio(data.audio);

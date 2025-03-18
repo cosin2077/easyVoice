@@ -47,4 +47,4 @@ export const getProgress = (data: TaskRequest) =>
   api.post<TaskResponse>(`/task/${data.id}`);
 
 export const downloadFile = (file: string) =>
-  `${api.defaults.baseURL}/download/${file}`;
+  `${file}`;
