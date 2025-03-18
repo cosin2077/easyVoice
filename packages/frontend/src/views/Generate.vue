@@ -59,7 +59,14 @@
           <div class="voice-mode-selector">
             <el-radio-group v-model="voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
-              <el-radio-button label="ai">AI 推荐</el-radio-button>
+              <el-radio-button label="ai">
+                AI 推荐
+                <Sparkles
+                  class="sparkles-icon"
+                  :size="24"
+                  :stroke-width="1.25"
+                />
+              </el-radio-button>
             </el-radio-group>
           </div>
 
@@ -608,7 +615,11 @@ const pooling = async (id: string) => {
   display: flex;
   justify-content: center;
 }
-
+.sparkles-icon {
+  position: absolute;
+  top: -8px;
+  right: 2px;
+}
 .voice-selector,
 .ai-settings {
   margin-bottom: 1.5rem;
