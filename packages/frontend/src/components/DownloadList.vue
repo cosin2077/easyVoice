@@ -1,45 +1,57 @@
-<!-- 下载区域 -->
 <template>
   <div
     v-if="store.audioList && store.audioList.length > 0"
     class="download-area"
   >
+    <!-- 下载列表标题 -->
+    <div class="download-header">
+      <span class="header-title">下载列表 ({{ store.audioList.length }})</span>
+    </div>
+
     <!-- 下载列表容器 -->
-    <div class="download-list">
+    <el-scrollbar class="download-list">
       <div
         v-for="(item, index) in store.audioList"
         :key="index"
         class="download-item"
+        :class="{ downloading: item.isDownloading }"
       >
-        <!-- 下载按钮和文件信息 -->
-        <el-button
-          type="success"
-          size="large"
-          @click="downloadAudio(item, index)"
-          :disabled="item.isDownloading"
-          :loading="item.isDownloading"
-        >
-          <el-icon>
-            <download v-if="!item.isDownloading" />
-            <loading v-else />
-          </el-icon>
-          <span>{{ item.isDownloading ? "下载中" : "下载" }}</span>
-        </el-button>
-        <span class="filename">{{ item.file }}</span>
-        <!-- 文件大小显示 -->
-        <span class="file-size">{{ formatFileSize(item.size || 0) }}</span>
-        <!-- 删除按钮 -->
-        <el-icon class="delete-icon" v-if="!item.isDownloading">
-          <CircleCloseFilled @click="removeDownloadItem(index)" />
-        </el-icon>
+        <!-- 文件信息 -->
+        <div class="file-info">
+          <span class="filename">{{ item.file }}</span>
+          <span class="file-size">{{ formatFileSize(item.size || 0) }}</span>
+        </div>
+
+        <!-- 操作区域 -->
+        <div class="actions">
+          <el-button
+            :type="item.isDownloading ? 'primary' : 'success'"
+            size="small"
+            round
+            @click="downloadAudio(item, index)"
+            :disabled="item.isDownloading"
+            :loading="item.isDownloading"
+            :icon="Download"
+          >
+            {{ item.isDownloading ? "下载中" : "下载" }}
+          </el-button>
+          <el-tooltip content="删除" placement="top" :disabled="item.isDownloading" effect="dark">
+            <el-icon class="delete-icon" @click="removeDownloadItem(item)">
+              <CircleCloseFilled />
+            </el-icon>
+          </el-tooltip>
+        </div>
       </div>
-    </div>
+    </el-scrollbar>
+
     <!-- 批量操作 -->
     <div class="batch-actions">
-      <el-button type="primary" size="small" @click="downloadAll">
+      <el-button type="primary" size="small" round @click="downloadAll">
+        <el-icon><Download /></el-icon>
         全部下载
       </el-button>
-      <el-button type="danger" size="small" @click="clearAll">
+      <el-button type="danger" size="small" round @click="clearAll">
+        <el-icon><Delete /></el-icon>
         清空列表
       </el-button>
     </div>
@@ -50,14 +62,18 @@
 import { downloadFile } from "@/api/tts";
 import { useGenerationStore } from "@/stores/generation";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Download, CircleCloseFilled } from "@element-plus/icons-vue";
+import {
+  Download,
+  CircleCloseFilled,
+  Delete,
+  Loading,
+} from "@element-plus/icons-vue";
 import type { Audio } from "../stores/generation";
+
 const store = useGenerationStore();
 
 const downloadAudio = (item: Audio, _: number) => {
-  console.log("store.file: ", item.file);
   if (!item.file) return;
-  console.log("file: ", item.file);
   item.isDownloading = true;
   const url = downloadFile(item.file);
   const link = document.createElement("a");
@@ -69,23 +85,23 @@ const downloadAudio = (item: Audio, _: number) => {
   ElMessage.success("下载成功！");
   setTimeout(() => {
     item.isDownloading = false;
-  }, 200);
+  }, 1200);
 };
 
-// 删除单个下载项
-const removeDownloadItem = (index: number) => {
+const removeDownloadItem = (item: Audio) => {
+  if (item.isDownloading) return;
+  // 确认删除操作
   ElMessageBox.confirm("确定删除该下载项吗？", "提示", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
     type: "warning",
   }).then(() => {
-    const newList = store.audioList.filter((_, i) => i !== index);
+    const newList = store.audioList.filter((audio) => audio !== item);
     store.updateAudioList(newList);
     ElMessage.success("已删除");
   });
 };
 
-// 格式化文件大小
 const formatFileSize = (bytes: number) => {
   if (!bytes) return "";
   if (bytes === 0) return "0 B";
@@ -95,7 +111,6 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
-// 下载全部
 const downloadAll = () => {
   store.audioList.forEach((item, index) => {
     if (!item.isDownloading) {
@@ -104,7 +119,6 @@ const downloadAll = () => {
   });
 };
 
-// 清空列表
 const clearAll = () => {
   ElMessageBox.confirm("确定清空下载列表吗？", "提示", {
     confirmButtonText: "确定",
@@ -116,53 +130,83 @@ const clearAll = () => {
   });
 };
 </script>
+
 <style scoped>
 .download-area {
-  padding: 20px;
-  background: #f5f7fa;
+  padding: 16px;
+  background: #ffffff;
   border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   margin-top: 20px;
 }
 
+.download-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
 .download-list {
-  max-height: 300px;
-  overflow-y: auto;
+  max-height: 320px;
+  margin: 12px 0;
 }
 
 .download-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #ebeef5;
+  padding: 12px 8px;
+  border-radius: 6px;
+  transition: all 0.3s;
 }
 
-.download-item:last-child {
-  border-bottom: none;
+.download-item:hover {
+  background: #f5f7fa;
+}
+
+.download-item.downloading {
+  background: #e6f7ff;
+}
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .filename {
-  margin-left: 10px;
-  max-width: 600px;
+  color: #606266;
+  font-size: 14px;
+  max-width: 400px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .file-size {
-  margin: 0 15px;
   color: #909399;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
-.download-progress {
-  flex: 1;
-  margin: 0 15px;
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .delete-icon {
-  cursor: pointer;
+  font-size: 18px;
   color: #909399;
-  margin-left: 10px;
+  cursor: pointer;
+  transition: color 0.3s;
 }
 
 .delete-icon:hover {
@@ -170,7 +214,10 @@ const clearAll = () => {
 }
 
 .batch-actions {
-  margin-top: 15px;
-  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
 }
 </style>
