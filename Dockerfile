@@ -33,8 +33,8 @@ WORKDIR /app
 RUN corepack enable
 
 # 只复制必要的文件
-COPY --from=builder /app/packages/backend /app
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/
+COPY --from=builder /app/packages/backend /app
 
 # 安装生产依赖
 RUN pnpm install --prod
