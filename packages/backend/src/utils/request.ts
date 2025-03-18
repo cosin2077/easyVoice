@@ -41,15 +41,15 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response: AxiosResponse<ResponseData<any>>) => {
     const { data } = response;
-    if (data.status !== 200) {
-      if (data.status === 401) {
+    if (response.status !== 200) {
+      if (response.status === 401) {
         logger.warn('Unauthorized request, redirecting to login');
         return Promise.reject(new Error('Unauthorized'));
       }
       return Promise.reject(new Error(data.message || 'Request failed'));
     }
     logger.info(`Request succeeded: ${response.config.url}`);
-    return data;
+    return response;
   },
   (error) => {
     const config = error.config as CustomConfig;

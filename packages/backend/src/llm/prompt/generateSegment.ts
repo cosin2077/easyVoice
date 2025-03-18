@@ -7,7 +7,7 @@ const cnTemplate = (voiceList: VoiceConfig[], text: string) => `
 4. 返回结果为 JSON 格式。
 
 ### 声音配置
-${voiceList}
+${JSON.stringify(voiceList, null, 2)}
 
 ### 参数说明
 - name: 声音配置中的 Name 字段，区分旁白和角色。
@@ -39,7 +39,7 @@ I hope you can provide optimization suggestions for text dubbing based on the fo
 4. The result is returned in JSON format.
 
 ### Sound configuration
-${voiceList}
+${JSON.stringify(voiceList, null, 2)}
 
 ### Parameter description
 - name: Name field in the sound configuration, distinguishing between narration and role.
@@ -67,9 +67,9 @@ export function genSegment(lang = 'cn', voiceList: VoiceConfig[], text: string) 
   switch (lang) {
     case 'zh':
     case 'cn':
-      return cnTemplate(voiceList, text);
+      return cnTemplate(voiceList.filter(voice => voice.Name.startsWith('zh')), text);
     case 'eng':
-      return engTemplate(voiceList, text);
+      return engTemplate(voiceList.filter(voice => voice.Name.startsWith('en')), text);
     default:
       throw new Error(`Unsupported language: ${lang}`);
   }
