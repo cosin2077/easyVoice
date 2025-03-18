@@ -232,10 +232,6 @@
         </el-progress>
         <div class="progress-status">{{ progressStatus }}</div>
       </div>
-
-      {{ store }}
-      {{ store.audio }}
-      {{ store.progress }}
       <!-- 下载区域 -->
       <div v-if="store.audio" class="download-area">
         <el-button type="success" size="large" @click="downloadAudio">

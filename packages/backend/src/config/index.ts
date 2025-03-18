@@ -8,7 +8,7 @@ export const config = {
   modelApiUrl: process.env.MODEL_API_URL || "https://api.example.com",
 };
 
-export const AUDIO_DIR = path.join(__dirname, '../../audio');
+export const AUDIO_DIR = path.join(__dirname, '..', '..', '..', '..', 'audio');
 export const ALLOWED_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg']);
 
 export const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL

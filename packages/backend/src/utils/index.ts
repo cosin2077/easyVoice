@@ -37,8 +37,12 @@ export async function safeRunWithRetry(fn: () => {}) {
     try {
       return await fn();
     } catch (err) {
-      console.log(err)
-      console.log(`safeRunWithRetry run ${fn.name} error:`, (err as Error).message);
+      if ((err as Error)?.message?.includes('Invalid response status')) {
+        console.log(`safeRunWithRetry run ${fn.name} error:`, (err as Error).message);
+      } else {
+        console.log(err)
+        console.log(`safeRunWithRetry run ${fn.name} error:`, (err as Error).message);
+      }
       await asyncSleep(200 * (retry + 1));
     }
   }

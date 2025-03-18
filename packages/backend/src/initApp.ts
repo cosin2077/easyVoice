@@ -1,7 +1,7 @@
 import path from "path";
 import { ensureDir } from "./utils";
+import { AUDIO_DIR } from "./config";
 
-const AUDIO_DIR = path.resolve(__dirname, '..', 'audio');
 
 export async function initApp() {
   // Prepare works like db, runtime configs...

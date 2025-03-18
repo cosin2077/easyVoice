@@ -1,5 +1,5 @@
 import { runEdgeTTS } from "../utils/spawn";
-import { config } from "../config";
+import { AUDIO_DIR, config } from "../config";
 import { logger } from "../utils/logger";
 import { genSegment } from "../llm/prompt/generateSegment";
 import { ensureDir, generateId, getLangConfig } from "../utils";
@@ -41,13 +41,13 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
     if (!useLLM) {
       const { length, segments } = splitText(text)
       if (length <= 1) {
-        const output = path.resolve(__dirname, '..', '..', 'audio', segment.id)
+        const output = path.resolve(AUDIO_DIR, segment.id)
         result = await generateSingleVoice({ text: segments[0], pitch, voice, rate, volume, output })
         result.audio = `http://localhost:3000/${segment.id}`
       } else {
         const fileList = []
         const tmpDirName = segment.id.replace('.mp3', '')
-        const tmpDirPath = path.resolve(__dirname, '..', '..', 'audio', tmpDirName)
+        const tmpDirPath = path.resolve(AUDIO_DIR, tmpDirName)
         ensureDir(tmpDirPath)
         const generateTasks = []
         for (let index = 0; index < segments.length; index++) {
