@@ -30,7 +30,6 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# 安装 pnpm
 RUN corepack enable
 
 # 只复制必要的文件
