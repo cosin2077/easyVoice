@@ -30,8 +30,13 @@
             round
             @click="playAudio(item, index)"
             :icon="item.isPlaying ? VideoPause : VideoPlay"
+            class="play-button"
           >
-            {{ item.isPlaying ? "播放中" : "播放" }}
+            <transition name="text-fade" mode="out-in">
+              <span :key="item.isPlaying ? 'playing' : 'play'">
+                {{ item.isPlaying ? "暂停" : "播放" }}
+              </span>
+            </transition>
           </el-button>
           <el-button
             :type="item.isDownloading ? 'primary' : 'success'"
@@ -76,6 +81,7 @@
 import { downloadFile } from "@/api/tts";
 import { useGenerationStore } from "@/stores/generation";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { watch } from "vue";
 import {
   Download,
   CircleCloseFilled,
@@ -97,6 +103,11 @@ const playAudio = async (item: Audio, _: number) => {
     await audio.play();
     item.isPlaying = true;
   }
+  watch(audio.isPlaying, (isPlaying) => {
+    if (isPlaying === false) {
+      item.isPlaying = false;
+    }
+  });
 };
 const downloadAudio = (item: Audio, _: number) => {
   if (!item.file) return;
@@ -104,14 +115,13 @@ const downloadAudio = (item: Audio, _: number) => {
   const url = downloadFile(item.file);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `novel_audio_${Date.now()}.mp3`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   ElMessage.success("下载成功！");
   setTimeout(() => {
     item.isDownloading = false;
-  }, 1200);
+  }, 200);
 };
 
 const removeDownloadItem = (item: Audio) => {
@@ -245,5 +255,35 @@ const clearAll = () => {
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid #f0f0f0;
+}
+/* 按钮样式优化 */
+.play-button {
+  transition: all 0.3s ease;
+  padding: 6px 16px; /* 稍微增加内边距 */
+}
+
+.play-button:hover {
+  transform: scale(1.05); /* 悬浮时轻微放大 */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* 添加阴影 */
+}
+
+.play-button:deep(.el-icon) {
+  transition: transform 0.2s ease; /* 图标动画 */
+}
+
+.play-button:hover:deep(.el-icon) {
+  transform: scale(1.1); /* 图标悬浮放大 */
+}
+
+/* 文字切换动画 */
+.text-fade-enter-active,
+.text-fade-leave-active {
+  transition: all 0.2s ease;
+}
+
+.text-fade-enter-from,
+.text-fade-leave-to {
+  opacity: 0;
+  transform: translateY(5px);
 }
 </style>
