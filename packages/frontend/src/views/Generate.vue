@@ -20,7 +20,7 @@
             </div>
           </template>
           <el-input
-            v-model="text"
+            v-model="audioConfig.inputText"
             type="textarea"
             placeholder="请输入或粘贴文本"
             :rows="12"
@@ -57,7 +57,7 @@
 
           <!-- 语音选择模式切换 -->
           <div class="voice-mode-selector">
-            <el-radio-group v-model="voiceMode" size="large">
+            <el-radio-group v-model="audioConfig.voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
               <el-tooltip
                 content="通过AI推荐不同的角色语音，即将推出，尽请期待！"
@@ -77,11 +77,11 @@
           </div>
 
           <!-- 预设语音选择 -->
-          <div v-if="voiceMode === 'preset'" class="voice-selector">
+          <div v-if="audioConfig.voiceMode === 'preset'" class="voice-selector">
             <el-form label-position="top">
               <el-form-item label="语言">
                 <el-select
-                  v-model="selectedLanguage"
+                  v-model="audioConfig.selectedLanguage"
                   placeholder="选择语言"
                   @change="filterVoices"
                 >
@@ -96,7 +96,7 @@
 
               <el-form-item label="性别">
                 <el-select
-                  v-model="selectedGender"
+                  v-model="audioConfig.selectedGender"
                   placeholder="选择性别"
                   @change="filterVoices"
                 >
@@ -108,7 +108,7 @@
 
               <el-form-item label="语音">
                 <el-select
-                  v-model="selectedVoice"
+                  v-model="audioConfig.selectedVoice"
                   placeholder="选择语音"
                   filterable
                 >
@@ -136,7 +136,7 @@
 
               <el-form-item label="语速">
                 <el-slider
-                  v-model="rate"
+                  v-model="audioConfig.rate"
                   :min="-99"
                   :max="99"
                   :format-tooltip="formatRate"
@@ -145,7 +145,7 @@
 
               <el-form-item label="音量">
                 <el-slider
-                  v-model="volume"
+                  v-model="audioConfig.volume"
                   :min="-99"
                   :max="99"
                   :format-tooltip="formatVolume"
@@ -153,7 +153,7 @@
               </el-form-item>
               <el-form-item label="音调">
                 <el-slider
-                  v-model="pitch"
+                  v-model="audioConfig.pitch"
                   :min="-99"
                   :max="99"
                   :format-tooltip="formatPitch"
@@ -167,14 +167,14 @@
             <el-form label-position="top">
               <el-form-item label="OpenAI API URL">
                 <el-input
-                  v-model="openaiBaseUrl"
+                  v-model="audioConfig.openaiBaseUrl"
                   placeholder="https://api.openai.com/v1"
                 />
               </el-form-item>
 
               <el-form-item label="API Key">
                 <el-input
-                  v-model="openaiKey"
+                  v-model="audioConfig.openaiKey"
                   type="password"
                   show-password
                   placeholder="sk-..."
@@ -182,7 +182,10 @@
               </el-form-item>
 
               <el-form-item label="模型">
-                <el-select v-model="openaiModel" placeholder="选择模型">
+                <el-select
+                  v-model="audioConfig.openaiModel"
+                  placeholder="选择模型"
+                >
                   <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo" />
                   <el-option label="gpt-4" value="gpt-4" />
                   <el-option label="gpt-4-turbo" value="gpt-4-turbo" />
@@ -195,7 +198,7 @@
           <div class="preview-section">
             <el-form-item label="试听文本">
               <el-input
-                v-model="previewText"
+                v-model="audioConfig.previewText"
                 placeholder="输入短文本进行试听"
                 :disabled="!canPreview"
               />
@@ -211,10 +214,10 @@
             </el-button>
             <audio
               ref="audioPlayer"
-              v-show="previewAudioUrl"
+              v-show="audioConfig.previewAudioUrl"
               controls="false"
               class="preview-audio"
-              :src="previewAudioUrl"
+              :src="audioConfig.previewAudioUrl"
             ></audio>
           </div>
         </el-card>
@@ -232,29 +235,15 @@
       >
         生成语音
       </el-button>
-
-      <!-- 进度条 -->
-      <!-- <div v-if="generating || progress > 0" class="progress-container">
-        <el-progress
-          :percentage="progress"
-          :status="progress >= 100 ? 'success' : ''"
-          :stroke-width="20"
-        >
-          <template #default="{ percentage }">
-            <span class="progress-text">{{ percentage.toFixed(0) }}%</span>
-          </template>
-        </el-progress>
-        <div class="progress-status">{{ progressStatus }}</div>
-      </div> -->
     </div>
-    <!-- 下载区域 -->
     <DownloadList />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { useGenerationStore } from "@/stores/generation";
+import { useAudioConfigStore, type AudioConfig } from "@/stores/audioConfig";
 import { generateTTS, getProgress, getVoiceList, type Voice } from "@/api/tts";
 import { Sparkles } from "lucide-vue-next";
 import { UploadFilled, Service } from "@element-plus/icons-vue";
@@ -263,33 +252,16 @@ import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
 import { mapZHVoiceName } from "@/utils";
 import DownloadList from "@/components/DownloadList.vue";
 // 状态管理
-const store = useGenerationStore();
-// 文本输入
-const text = ref("");
+const generationStore = useGenerationStore();
+const configStore = useAudioConfigStore();
+const { audioConfig } = configStore;
+
 const generating = ref(false);
 const progressStatus = ref("准备中...");
 
-// 语音设置
-const voiceMode = ref("preset");
-const selectedLanguage = ref("zh-CN");
-const selectedGender = ref("All");
-const selectedVoice = ref("zh-CN-YunxiNeural");
-const rate = ref(0);
-const pitch = ref(0);
-const volume = ref(0);
-
-// AI 设置
-const openaiBaseUrl = ref("");
-const openaiKey = ref("");
-const openaiModel = ref("gpt-3.5-turbo");
-
-// 试听功能
-const previewAudioUrl = ref("");
 const previewLoading = ref(false);
-const previewText = ref("这是一段测试文本，用于试听语音效果。");
 const audioPlayer = ref<HTMLAudioElement>();
 
-// 语音数据
 const voiceList = ref<Voice[]>(defaultVoiceList);
 
 const languages = ref([
@@ -302,8 +274,11 @@ const languages = ref([
   { code: "en-CA", name: "英语（加拿大）" },
 ]);
 
+const updateConfig = (prop: keyof AudioConfig, value: string) => {
+  configStore.updateConfig(prop, value);
+};
 const betterShowCN = (voiceList: Voice[]) => {
-  if (selectedLanguage?.value?.includes("zh-")) {
+  if (audioConfig.selectedLanguage?.includes("zh-")) {
     return voiceList.map((voice) => {
       return {
         ...voice,
@@ -317,9 +292,10 @@ const betterShowCN = (voiceList: Voice[]) => {
 const filteredVoices = computed(() => {
   return betterShowCN(
     voiceList.value.filter((voice) => {
-      const matchLanguage = voice.Name.startsWith(selectedLanguage.value);
+      const matchLanguage = voice.Name.startsWith(audioConfig.selectedLanguage);
       const matchGender =
-        selectedGender.value === "All" || voice.Gender === selectedGender.value;
+        audioConfig.selectedGender === "All" ||
+        voice.Gender === audioConfig.selectedGender;
       return matchLanguage && matchGender;
     })
   );
@@ -327,21 +303,31 @@ const filteredVoices = computed(() => {
 
 // 是否可以生成语音
 const canGenerate = computed(() => {
-  if (!text.value.trim()) return false;
+  const {
+    inputText,
+    voiceMode,
+    openaiBaseUrl,
+    openaiKey,
+    openaiModel,
+    selectedVoice,
+  } = audioConfig;
+  if (!inputText.trim()) return false;
 
-  if (voiceMode.value === "preset") {
-    return !!selectedVoice.value;
+  if (voiceMode === "preset") {
+    return !!selectedVoice;
   } else {
-    return !!openaiBaseUrl.value && !!openaiKey.value && !!openaiModel.value;
+    return !!openaiBaseUrl && !!openaiKey && !!openaiModel;
   }
 });
 
 // 是否可以试听
 const canPreview = computed(() => {
-  if (voiceMode.value === "preset") {
-    return !!selectedVoice.value;
+  const { voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } =
+    audioConfig;
+  if (voiceMode === "preset") {
+    return !!selectedVoice;
   } else {
-    return !!openaiBaseUrl.value && !!openaiKey.value && !!openaiModel.value;
+    return !!openaiBaseUrl && !!openaiKey && !!openaiModel;
   }
 });
 
@@ -357,12 +343,14 @@ const formatVolume = (val: number) => {
 const formatPitch = (val: number) => {
   return val >= 0 ? `+${val}Hz` : `${val}Hz`;
 };
-watch(selectedLanguage, (value) => {
+watch(audioConfig, (audioConfig) => {
+  const value = audioConfig.selectedLanguage;
   const matchLang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(value)?.[1];
-  console.log(`matchLang:`, matchLang);
   if (matchLang && matchLang in previewTextSelect) {
-    previewText.value =
-      previewTextSelect[matchLang as keyof typeof previewTextSelect];
+    updateConfig(
+      `previewText`,
+      previewTextSelect[matchLang as keyof typeof previewTextSelect]
+    );
   }
 });
 // 加载语音数据
@@ -379,54 +367,67 @@ onMounted(async () => {
 const handleFile = (file: any) => {
   const reader = new FileReader();
   reader.onload = (e) => {
-    text.value = e.target?.result as string;
+    updateConfig("inputText", e.target?.result as string);
   };
   reader.readAsText(file.raw);
 };
 
 // 清空文本
 const clearText = () => {
-  text.value = "";
+  updateConfig("inputText", "");
 };
 
 // 根据语言和性别过滤语音
 const filterVoices = () => {
-  // 如果当前选择的语音不在过滤后的列表中，重置选择
+  const { selectedVoice, selectedGender } = audioConfig;
   const isCurrentVoiceValid = filteredVoices.value.some(
-    (v) => v.Name === selectedVoice.value
+    (v) => v.Name === selectedVoice
   );
-  if (!isCurrentVoiceValid && filteredVoices.value.length > 0) {
-    selectedVoice.value = filteredVoices.value[0].Name;
+  if (
+    (!isCurrentVoiceValid && filteredVoices.value.length > 0) ||
+    selectedGender === "All"
+  ) {
+    updateConfig("selectedVoice", filteredVoices.value[0].Name);
   } else {
-    selectedVoice.value = "";
+    updateConfig("selectedVoice", "");
   }
 };
 
 // 试听功能
 const previewAudio = async () => {
-  if (!previewText.value.trim() || !canPreview.value) return;
-
+  const {
+    previewText,
+    selectedVoice,
+    rate,
+    pitch,
+    volume,
+    openaiBaseUrl,
+    openaiKey,
+    openaiModel,
+    voiceMode,
+  } = audioConfig;
+  if (!previewText.trim() || !canPreview.value) return;
   previewLoading.value = true;
   try {
     // 构建请求参数
     const params: any = {
-      text: previewText.value,
+      text: previewText,
     };
 
-    if (voiceMode.value === "preset") {
-      params.voice = selectedVoice.value;
-      params.rate = `${rate.value > 0 ? "+" : ""}${rate.value}%`;
-      params.pitch = `${pitch.value > 0 ? "+" : ""}${pitch.value}Hz`;
-      params.volume = `${volume.value > 0 ? "+" : ""}${volume.value}%`;
+    if (voiceMode === "preset") {
+      params.voice = selectedVoice;
+      params.rate = `${rate > 0 ? "+" : ""}${rate}%`;
+      params.pitch = `${pitch > 0 ? "+" : ""}${pitch}Hz`;
+      params.volume = `${volume > 0 ? "+" : ""}${volume}%`;
     } else {
       params.useLLM = true;
-      params.openaiBaseUrl = openaiBaseUrl.value;
-      params.openaiKey = openaiKey.value;
-      params.openaiModel = openaiModel.value;
+      params.openaiBaseUrl = openaiBaseUrl;
+      params.openaiKey = openaiKey;
+      params.openaiModel = openaiModel;
     }
 
     const { data } = await generateTTS(params);
-    previewAudioUrl.value = data.audio;
+    updateConfig("previewAudioUrl", data.audio);
 
     setTimeout(() => {
       // Next tick to ensure the audio element is updated
@@ -442,31 +443,39 @@ const previewAudio = async () => {
 
 // 生成音频
 const generateAudio = async () => {
-  if (!text.value.trim() || !canGenerate.value) return;
-
+  if (!audioConfig.inputText.trim() || !canGenerate.value) return;
+  const {
+    rate,
+    pitch,
+    volume,
+    openaiBaseUrl,
+    openaiKey,
+    openaiModel,
+    voiceMode,
+    selectedVoice,
+  } = audioConfig;
   generating.value = true;
-  store.updateProgress(0);
+  generationStore.updateProgress(0);
   progressStatus.value = "准备中...";
 
   try {
     // 构建请求参数
     const params: any = {
-      text: text.value,
+      text: audioConfig.inputText,
     };
 
-    if (voiceMode.value === "preset") {
-      params.voice = selectedVoice.value;
-      params.rate = `${rate.value >= 0 ? "+" : ""}${rate.value}%`;
-      params.pitch = `${pitch.value >= 0 ? "+" : ""}${pitch.value}Hz`;
-      params.volume = `${volume.value >= 0 ? "+" : ""}${volume.value}%`;
+    if (voiceMode === "preset") {
+      params.voice = selectedVoice;
+      params.rate = `${rate >= 0 ? "+" : ""}${rate}%`;
+      params.pitch = `${pitch >= 0 ? "+" : ""}${pitch}Hz`;
+      params.volume = `${volume >= 0 ? "+" : ""}${volume}%`;
     } else {
       params.useLLM = true;
-      params.openaiBaseUrl = openaiBaseUrl.value;
-      params.openaiKey = openaiKey.value;
-      params.openaiModel = openaiModel.value;
+      params.openaiBaseUrl = openaiBaseUrl;
+      params.openaiKey = openaiKey;
+      params.openaiModel = openaiModel;
     }
     const { data } = await generateTTS(params);
-    console.log(`generateTTS:`, data);
     const audioItem = {
       audio: data.audio,
       file: data.file,
@@ -475,8 +484,8 @@ const generateAudio = async () => {
       isPlaying: false,
       progress: 0,
     };
-    const newAudioList = [...store.audioList, audioItem];
-    store.updateAudioList(newAudioList);
+    const newAudioList = [...generationStore.audioList, audioItem];
+    generationStore.updateAudioList(newAudioList);
     progressStatus.value = "生成完成！";
     ElMessage.success("语音生成成功！");
     generating.value = false;
@@ -505,7 +514,7 @@ const pooling = async (id: string) => {
         } = progressData;
 
         // 更新进度和状态
-        store.updateProgress(currentProgress);
+        generationStore.updateProgress(currentProgress);
 
         // 更新进度状态文本
         if (currentProgress < 20) {
@@ -526,7 +535,7 @@ const pooling = async (id: string) => {
             clearInterval(intervalId);
             intervalId = null;
           }
-          store.setAudio(url);
+          generationStore.setAudio(url);
           progressStatus.value = "生成完成！";
           ElMessage.success("语音生成成功！");
           generating.value = false;

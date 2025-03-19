@@ -31,4 +31,4 @@ export const useGenerationStore = defineStore("generation", () => {
     audioList.value.push(...newAudioList);
   }
   return { audio, file, progress, setFile, setAudio, updateProgress, audioList, updateAudioList };
-});
+}, { persist: true });
