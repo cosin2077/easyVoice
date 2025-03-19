@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node dist/server.js",
-    "build": "tsc",
+    "build": "tsc && copyfiles -u 1 'src/**/*.{json,txt,yml}' dist/",
     "dev": "cross-env NODE_ENV=development tsx --watch src/server.ts",
     "test": "jest"
   },
@@ -28,6 +28,7 @@
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.10",
+    "copyfiles": "^2.4.1",
     "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.6",

@@ -36,7 +36,7 @@
       </div>
     </div>
     <!-- 声音名称展示区 -->
-    <div class="voice-display" v-if="currentVoice.voice">
+    <div class="voice-display" v-if="currentVoice?.voice">
       <transition name="voice-bubble" mode="out-in">
         <div class="voice-bubble-wrapper" :key="currentVoice.voice">
           <div

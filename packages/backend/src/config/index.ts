@@ -9,10 +9,11 @@ export const config = {
 
 export const AUDIO_DIR = path.join(__dirname, '..', '..', 'audio');
 export const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
+export const FRONT_DIST = path.join(__dirname, '..', '..', '..', 'frontend', 'dist');
 export const ALLOWED_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg']);
 
 export const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL
 export const OPENAI_KEY = process.env.OPENAI_KEY
 export const MODEL_NAME = process.env.MODEL_NAME
 
-export const STATIC_DOMAIN = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '/';
+export const STATIC_DOMAIN = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : '';
