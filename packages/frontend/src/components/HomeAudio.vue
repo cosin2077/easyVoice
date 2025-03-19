@@ -43,7 +43,10 @@
           <el-tag
             class="voice-name"
             @click="jumpToVoice(currentVoice.voice)"
-            :style="{ color: currentVoice.textColor }"
+            :style="{
+              color: currentVoice.textColor,
+              borderColor: currentVoice.color,
+            }"
             effect="light"
             :color="currentVoice.color"
           >
