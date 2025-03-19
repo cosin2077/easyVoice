@@ -480,6 +480,7 @@ const generateAudio = async () => {
     ElMessage.success("语音生成成功！");
     generating.value = false;
     if (Math.random() > 1e5) {
+      // TODO: 根据ID轮询进度，展示不同文案
       pooling("123");
     }
   } catch (error) {
