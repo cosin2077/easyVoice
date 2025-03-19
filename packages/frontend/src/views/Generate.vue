@@ -251,6 +251,7 @@ import { ElMessage } from "element-plus";
 import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
 import { mapZHVoiceName } from "@/utils";
 import DownloadList from "@/components/DownloadList.vue";
+import { AxiosError } from "axios";
 // 状态管理
 const generationStore = useGenerationStore();
 const configStore = useAudioConfigStore();
@@ -353,6 +354,13 @@ watch(audioConfig, (audioConfig) => {
     );
   }
 });
+const handle429 = (error: unknown) => {
+  if (error instanceof AxiosError) {
+    if (error.status === 429)
+      ElMessage.error("请求太快啦，小服务器扛不住！请稍后再试");
+    return true;
+  }
+};
 // 加载语音数据
 onMounted(async () => {
   try {
@@ -360,6 +368,7 @@ onMounted(async () => {
     voiceList.value = response?.data?.data;
   } catch (error) {
     console.error("Failed to load voiceList:", error);
+    const handled = handle429(error);
   }
 });
 
@@ -435,7 +444,10 @@ const previewAudio = async () => {
     });
   } catch (error) {
     console.error("Preview failed:", error);
-    ElMessage.error("试听失败，请稍后重试");
+    const handled = handle429(error);
+    if (!handled) {
+      ElMessage.error("试听失败，请稍后重试");
+    }
   } finally {
     previewLoading.value = false;
   }
@@ -495,7 +507,10 @@ const generateAudio = async () => {
     }
   } catch (error) {
     console.error("生成失败:", error);
-    ElMessage.error("生成失败，请稍后重试");
+    const handled = handle429(error);
+    if (!handled) {
+      ElMessage.error("生成失败，请稍后重试");
+    }
     generating.value = false;
   }
 };
