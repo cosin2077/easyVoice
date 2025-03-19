@@ -1,5 +1,5 @@
 # 使用 Node.js LTS 作为基础镜像
-FROM node:20 AS builder
+FROM node:20-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -17,15 +17,18 @@ RUN pnpm install
 RUN pnpm build
 
 # 最终运行镜像
-FROM node:20-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
 RUN corepack enable
 
 # 只复制必要的文件
-COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/
-COPY --from=builder /app/packages/backend /app
+COPY --from=builder \
+  /app/packages/backend/package.json \
+  /app/packages/backend/dist \
+  /app/packages/backend/public \
+  /app/
 
 # 安装生产依赖
 RUN pnpm install --prod
