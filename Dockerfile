@@ -19,17 +19,18 @@ RUN pnpm build
 # 最终运行镜像
 FROM node:20-alpine
 
+# 安装 FFmpeg
+RUN apk add --no-cache ffmpeg
+
 WORKDIR /app
 
 RUN corepack enable
 
 # 只复制必要的文件
-COPY --from=builder \
-  /app/packages/backend/package.json \
-  /app/packages/backend/dist \
-  /app/packages/backend/public \
-  /app/pnpm-lock.yaml \
-  /app/
+COPY --from=builder /app/packages/backend/package.json /app/package.json
+COPY --from=builder /app/packages/backend/dist /app/dist
+COPY --from=builder /app/packages/backend/public /app/public
+COPY --from=builder /app/pnpm-lock.yaml /app/pnpm-lock.yaml
 
 # 安装生产依赖
 RUN pnpm install --prod
