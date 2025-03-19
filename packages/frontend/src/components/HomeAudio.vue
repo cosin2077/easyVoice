@@ -59,16 +59,20 @@
 import Hero from "@/assets/hero.mp3";
 import { Refresh, VideoPause, CaretRight } from "@element-plus/icons-vue";
 import { ref, onMounted, onBeforeUnmount } from "vue";
+import zhCNYunyangNeural from "@/assets/avatar/zh-CN-YunyangNeural.png";
+import zhCNXiaoxiaoNeural from "@/assets/avatar/zh-CN-XiaoxiaoNeural.png";
+import zhCNYunxiNeural from "@/assets/avatar/zh-CN-YunxiNeural.png";
+import zhMale from "@/assets/avatar/zh-CN-standard-male.svg";
+import zhFemale from "@/assets/avatar/zh-CN-standard-female.svg";
 
 defineOptions({
   name: "AppleAudioPlayer",
 });
-const avatar =
-  "https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png";
+
 const audio = ref<HTMLAudioElement | null>(null);
 const isPlaying = ref(false);
 const currentTime = ref(0);
-const currentVoice = ref({ voice: "晓晓", avatar: avatar });
+const currentVoice = ref({ voice: "晓晓", avatar: zhCNXiaoxiaoNeural });
 const duration = ref(0);
 const progressPercent = ref(0);
 
@@ -78,7 +82,7 @@ const voiceSegments = [
     voice: "晓晓",
     start: 0,
     end: 3.816,
-    avatar,
+    avatar: zhCNXiaoxiaoNeural,
     color: "rgba(255, 107, 107, 0.3)",
     textColor: "#ff6b6b",
   },
@@ -86,7 +90,7 @@ const voiceSegments = [
     voice: "晓伊",
     start: 3.816,
     end: 8.88,
-    avatar,
+    avatar: zhFemale,
     color: "rgba(78, 205, 196, 0.3)",
     textColor: "#4ecdc4",
   },
@@ -94,7 +98,7 @@ const voiceSegments = [
     voice: "云健",
     start: 8.88,
     end: 14.4,
-    avatar,
+    avatar: zhMale,
     color: "rgba(69, 183, 209, 0.3)",
     textColor: "#45b7d1",
   },
@@ -102,7 +106,7 @@ const voiceSegments = [
     voice: "云希",
     start: 14.4,
     end: 19.28,
-    avatar,
+    avatar: zhCNYunxiNeural,
     color: "rgba(150, 201, 61, 0.3)",
     textColor: "#96c93d",
   },
@@ -110,15 +114,15 @@ const voiceSegments = [
     voice: "云夏",
     start: 19.28,
     end: 24.232,
-    avatar,
+    avatar: zhFemale,
     color: "rgba(247, 215, 148, 0.3)",
     textColor: "#f7d794",
   },
   {
-    voice: "云阳",
+    voice: "云扬",
     start: 24.232,
     end: Infinity,
-    avatar,
+    avatar: zhCNYunyangNeural,
     color: "rgba(119, 139, 235, 0.3)",
     textColor: "#778beb",
   },
@@ -214,7 +218,7 @@ const voiceColors = {
   云健: "#45b7d1",
   云希: "#96c93d",
   云夏: "#f7d794",
-  云阳: "#778beb",
+  云扬: "#778beb",
 };
 // 为不同声音分配颜色
 const getSegmentColor = (voice: string) => {

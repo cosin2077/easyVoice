@@ -37,7 +37,6 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
     validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
     let result: TTSResult;
-    useLLM = true
     if (!useLLM) {
       const { length, segments } = splitText(text)
       if (length <= 1) {

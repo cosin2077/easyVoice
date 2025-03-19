@@ -59,14 +59,20 @@
           <div class="voice-mode-selector">
             <el-radio-group v-model="voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
-              <el-radio-button label="ai">
-                AI 推荐
-                <Sparkles
-                  class="sparkles-icon"
-                  :size="24"
-                  :stroke-width="1.25"
-                />
-              </el-radio-button>
+              <el-tooltip
+                content="通过AI推荐不同的角色语音，即将推出，尽请期待！"
+                placement="top"
+                effect="light"
+              >
+                <el-radio-button label="ai" disabled>
+                  AI 推荐
+                  <Sparkles
+                    class="sparkles-icon"
+                    :size="24"
+                    :stroke-width="1.25"
+                  />
+                </el-radio-button>
+              </el-tooltip>
             </el-radio-group>
           </div>
 
@@ -745,7 +751,7 @@ const pooling = async (id: string) => {
   }
 
   .voice-mode-selector .el-radio-button {
-    flex: 1;
+    /* flex: 0.5; */
   }
 }
 </style>
