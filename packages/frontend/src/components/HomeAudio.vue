@@ -66,12 +66,7 @@
 
 <script setup lang="ts">
 import Hero from "@/assets/hero.mp3";
-import {
-  Refresh,
-  VideoPause,
-  CaretRight,
-  ChatLineRound,
-} from "@element-plus/icons-vue";
+import { VideoPause, CaretRight, ChatLineRound } from "@element-plus/icons-vue";
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import zhCNYunyangNeural from "@/assets/avatar/zh-CN-YunyangNeural.png";
 import zhCNXiaoxiaoNeural from "@/assets/avatar/zh-CN-XiaoxiaoNeural.png";
@@ -86,7 +81,7 @@ defineOptions({
 const audio = ref<HTMLAudioElement | null>(null);
 const isPlaying = ref(false);
 const currentTime = ref(0);
-const currentVoice = ref({ voice: "晓晓", avatar: zhCNXiaoxiaoNeural });
+const currentVoice = ref();
 const duration = ref(0);
 const progressPercent = ref(0);
 
@@ -234,9 +229,14 @@ const voiceColors = {
   云夏: "#f7d794",
   云扬: "#778beb",
 };
+type VoiceColor = keyof typeof voiceColors;
+
 // 为不同声音分配颜色
 const getSegmentColor = (voice: string) => {
-  return voiceColors[voice] || "#007aff";
+  if (voice in voiceColors) {
+    return voiceColors[voice as VoiceColor];
+  }
+  return "#007aff";
 };
 
 // 跳转到指定声音
@@ -340,10 +340,6 @@ defineExpose({
   margin-left: 2px;
   height: 20px;
   /* transition: transform 0.3s ease; */
-}
-
-.voice-bubble:hover .chat-line-round-icon {
-  /* transform: scale(1.2); */
 }
 
 /* 气泡动画 */
