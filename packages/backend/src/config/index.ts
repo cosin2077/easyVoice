@@ -9,7 +9,7 @@ export const config = {
 
 export const AUDIO_DIR = path.join(__dirname, '..', '..', 'audio');
 export const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
-export const FRONT_DIST = path.join(__dirname, '..', '..', '..', 'frontend', 'dist');
+// export const FRONT_DIST = path.join(__dirname, '..', '..', '..', 'frontend', 'dist');
 export const ALLOWED_EXTENSIONS = new Set(['.mp3', '.wav', '.ogg']);
 
 export const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL

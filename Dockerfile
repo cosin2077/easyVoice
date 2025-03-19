@@ -13,17 +13,8 @@ RUN corepack enable
 # 安装依赖
 RUN pnpm install
 
-# 构建 shared 包（如果需要）
-RUN cd packages/shared && pnpm build || true
-
-# 构建 frontend
-RUN cd packages/frontend && pnpm build
-
-# 构建 backend（如果需要）
-RUN cd packages/backend && pnpm build || true
-
-# 复制 frontend 构建输出到 backend 的 public 目录
-RUN mkdir -p packages/backend/public && cp -r packages/frontend/dist/* packages/backend/public/
+# 打包子项目
+RUN pnpm build
 
 # 最终运行镜像
 FROM node:20-slim
@@ -33,8 +24,8 @@ WORKDIR /app
 RUN corepack enable
 
 # 只复制必要的文件
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/
-COPY --from=builder /app/packages/backend /app
+COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml /app/
+COPY --from=builder /app/packages/backend /app/packages/backend
 
 # 安装生产依赖
 RUN pnpm install --prod

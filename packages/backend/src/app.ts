@@ -1,7 +1,7 @@
 import cors from 'cors';
 import express, { Application } from "express";
 import ttsRoutes from "./routes/tts.route";
-import { AUDIO_DIR, FRONT_DIST, PUBLIC_DIR } from "./config";
+import { AUDIO_DIR, PUBLIC_DIR } from "./config";
 import history from 'connect-history-api-fallback'
 import { errorHandler } from "./middleware/error.middleware";
 import { requestLoggerMiddleware } from "./middleware/info.middleware";
@@ -22,7 +22,7 @@ export function createApp(): Application {
 
   app.use(express.static(AUDIO_DIR));
   app.use(express.static(PUBLIC_DIR));
-  app.use(express.static(FRONT_DIST));
+  // app.use(express.static(FRONT_DIST));
   app.use(requestLoggerMiddleware);
   app.use("/api", ttsRoutes);
 
