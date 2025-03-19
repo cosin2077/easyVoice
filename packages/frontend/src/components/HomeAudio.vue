@@ -37,22 +37,27 @@
     </div>
     <!-- 声音名称展示区 -->
     <div class="voice-display" v-if="currentVoice.voice">
-      <transition name="voice-fade" mode="out-in">
-        <div class="voice-info" :key="currentVoice.voice">
-          <el-avatar :size="24" :src="currentVoice.avatar" />
-          <el-tag
-            class="voice-name"
-            @click="jumpToVoice(currentVoice.voice)"
-            :style="{
-              color: currentVoice.textColor,
-              borderColor: currentVoice.color,
-            }"
-            effect="light"
-            :color="currentVoice.color"
+      <transition name="voice-bubble" mode="out-in">
+        <div class="voice-bubble-wrapper" :key="currentVoice.voice">
+          <div
+            class="voice-bubble"
+            :style="{ backgroundColor: currentVoice.color }"
           >
-            {{ currentVoice.voice }}
-            <ChatLineRound size="12" class="chat-line-round-icon" />
-          </el-tag>
+            <el-avatar
+              :size="28"
+              :src="currentVoice.avatar"
+              class="bubble-avatar"
+            />
+            <span
+              class="voice-name"
+              @click="jumpToVoice(currentVoice.voice)"
+              :style="{ color: currentVoice.textColor }"
+            >
+              <span>{{ currentVoice.voice }}</span>
+              <ChatLineRound size="14" class="chat-line-round-icon" />
+            </span>
+            <!-- 气泡尾巴 -->
+          </div>
         </div>
       </transition>
     </div>
@@ -259,7 +264,7 @@ defineExpose({
 <style scoped>
 .audio-player {
   margin: 20px auto;
-  width: 280px;
+  width: 300px;
   padding: 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.8);
@@ -293,10 +298,65 @@ defineExpose({
 }
 
 .voice-display {
-  margin-top: 8px;
-  text-align: center;
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+.voice-bubble-wrapper {
+  position: relative;
+}
+.voice-bubble {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
 }
 
+.voice-bubble:hover {
+  transform: scale(1.05);
+}
+
+.bubble-avatar {
+  flex-shrink: 0;
+}
+.voice-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.chat-line-round-icon {
+  margin-left: 2px;
+  height: 20px;
+  /* transition: transform 0.3s ease; */
+}
+
+.voice-bubble:hover .chat-line-round-icon {
+  /* transform: scale(1.2); */
+}
+
+/* 气泡动画 */
+.voice-bubble-enter-active,
+.voice-bubble-leave-active {
+  transition: all 0.3s ease;
+}
+
+.voice-bubble-enter-from,
+.voice-bubble-leave-to {
+  opacity: 0;
+  transform: translateY(15px) scale(0.9);
+}
 .voice-info {
   display: flex;
   align-items: center;
@@ -355,7 +415,7 @@ defineExpose({
 }
 
 .progress-bar {
-  height: 6px;
+  height: 8px;
   /* background: #e0e0e0; */
   border-radius: 2px;
   cursor: pointer;
@@ -380,7 +440,7 @@ defineExpose({
   border-radius: 50%;
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-6px, -50%);
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
   opacity: 0;
   transition: opacity 0.2s ease;
