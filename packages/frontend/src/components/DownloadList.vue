@@ -25,6 +25,15 @@
         <!-- 操作区域 -->
         <div class="actions">
           <el-button
+            type="success"
+            size="small"
+            round
+            @click="playAudio(item, index)"
+            :icon="item.isPlaying ? VideoPause : VideoPlay"
+          >
+            {{ item.isPlaying ? "播放中" : "播放" }}
+          </el-button>
+          <el-button
             :type="item.isDownloading ? 'primary' : 'success'"
             size="small"
             round
@@ -35,7 +44,12 @@
           >
             {{ item.isDownloading ? "下载中" : "下载" }}
           </el-button>
-          <el-tooltip content="删除" placement="top" :disabled="item.isDownloading" effect="dark">
+          <el-tooltip
+            content="删除"
+            placement="top"
+            :disabled="item.isDownloading"
+            effect="dark"
+          >
             <el-icon class="delete-icon" @click="removeDownloadItem(item)">
               <CircleCloseFilled />
             </el-icon>
@@ -66,11 +80,24 @@ import {
   Download,
   CircleCloseFilled,
   Delete,
+  VideoPause,
+  VideoPlay,
 } from "@element-plus/icons-vue";
+import { useAudio } from "@/utils/index";
 import type { Audio } from "../stores/generation";
 
 const store = useGenerationStore();
 
+const playAudio = async (item: Audio, _: number) => {
+  const audio = useAudio(item.audio);
+  if (audio.isPlaying.value) {
+    audio.pause();
+    item.isPlaying = false;
+  } else {
+    await audio.play();
+    item.isPlaying = true;
+  }
+};
 const downloadAudio = (item: Audio, _: number) => {
   if (!item.file) return;
   item.isDownloading = true;

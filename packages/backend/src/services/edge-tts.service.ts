@@ -13,7 +13,7 @@ async function runEdgeTTS({ text, pitch, volume, voice, rate, output }: Omit<Gen
     pitch,
     rate,
     volume,
-    timeout: 30_000
+    timeout: 20_000
   })
   console.log(`run with nodejs edge-tts service...`)
   await tts.ttsPromise(text, output)

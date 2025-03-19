@@ -472,6 +472,7 @@ const generateAudio = async () => {
       file: data.file,
       size: data.size,
       isDownloading: false,
+      isPlaying: false,
       progress: 0,
     };
     const newAudioList = [...store.audioList, audioItem];

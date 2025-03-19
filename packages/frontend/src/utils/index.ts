@@ -26,3 +26,72 @@ export const mapZHVoiceName = (name: string): string | undefined => {
   }
   return undefined;
 };
+import { ref, type Ref } from 'vue';
+interface AudioController {
+  play: () => Promise<void>;
+  pause: () => void;
+  toggle: () => void;
+  destroy: () => void;
+  isPlaying: Ref<boolean>; // 暴露响应式的 isPlaying
+}
+
+const audioCache = new Map<string, AudioController>();
+
+export function useAudio(mp3Url: string): AudioController {
+  if (audioCache.has(mp3Url)) {
+    return audioCache.get(mp3Url)!;
+  }
+
+  const isPlaying = ref(false); // 使用 ref 使其响应式
+  let audio: HTMLAudioElement | null = null;
+
+  const initAudio = () => {
+    if (!audio) {
+      audio = new Audio(mp3Url);
+      audio.addEventListener('ended', () => {
+        isPlaying.value = false;
+      });
+    }
+  };
+
+  const play = async () => {
+    initAudio();
+    if (audio && !isPlaying.value) {
+      try {
+        await audio.play();
+        isPlaying.value = true;
+      } catch (error) {
+        console.error('Audio playback failed:', error);
+      }
+    }
+  };
+
+  const pause = () => {
+    if (audio && isPlaying.value) {
+      audio.pause();
+      isPlaying.value = false;
+    }
+  };
+
+  const toggle = () => {
+    if (isPlaying.value) {
+      pause();
+    } else {
+      play();
+    }
+  };
+
+  const destroy = () => {
+    if (audio) {
+      audio.pause();
+      audio.removeEventListener('ended', () => { });
+      audio = null;
+      isPlaying.value = false;
+      audioCache.delete(mp3Url);
+    }
+  };
+
+  const controller: AudioController = { play, pause, toggle, destroy, isPlaying };
+  audioCache.set(mp3Url, controller);
+  return controller;
+}
