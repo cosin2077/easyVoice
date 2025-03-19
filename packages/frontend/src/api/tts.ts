@@ -1,7 +1,7 @@
 import axios, { type AxiosResponse } from "axios";
 
 const DEV_URL = "http://localhost:3000/api";
-const PROD_URL = import.meta.env.VITE_API_URL;
+const PROD_URL = import.meta.env.VITE_API_URL || '/api';
 const baseURL = import.meta.env.MODE === 'development' ? DEV_URL : PROD_URL
 
 const api = axios.create({

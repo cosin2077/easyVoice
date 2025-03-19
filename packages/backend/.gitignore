@@ -22,5 +22,4 @@ audio
 *.njsproj
 *.sln
 *.sw?
-.env
 public

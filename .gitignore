@@ -3,5 +3,5 @@
 *.tmp
 **/node_modules/**
 **/dist/**
-**/.env
+.env
 **/audio
