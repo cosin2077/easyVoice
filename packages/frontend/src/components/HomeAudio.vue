@@ -51,6 +51,7 @@
             :color="currentVoice.color"
           >
             {{ currentVoice.voice }}
+            <ChatLineRound size="12" class="chat-line-round-icon" />
           </el-tag>
         </div>
       </transition>
@@ -60,7 +61,12 @@
 
 <script setup lang="ts">
 import Hero from "@/assets/hero.mp3";
-import { Refresh, VideoPause, CaretRight } from "@element-plus/icons-vue";
+import {
+  Refresh,
+  VideoPause,
+  CaretRight,
+  ChatLineRound,
+} from "@element-plus/icons-vue";
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import zhCNYunyangNeural from "@/assets/avatar/zh-CN-YunyangNeural.png";
 import zhCNXiaoxiaoNeural from "@/assets/avatar/zh-CN-XiaoxiaoNeural.png";
