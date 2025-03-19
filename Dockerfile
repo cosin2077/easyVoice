@@ -28,6 +28,7 @@ COPY --from=builder \
   /app/packages/backend/package.json \
   /app/packages/backend/dist \
   /app/packages/backend/public \
+  /app/pnpm-lock.yaml \
   /app/
 
 # 安装生产依赖
