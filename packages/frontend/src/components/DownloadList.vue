@@ -39,7 +39,7 @@
             </transition>
           </el-button>
           <el-button
-            :type="item.isDownloading ? 'primary' : 'success'"
+            type="primary"
             size="small"
             round
             @click="downloadAudio(item, index)"
