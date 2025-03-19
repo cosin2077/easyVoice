@@ -9,7 +9,7 @@
       <div class="progress-container">
         <div class="time current-time">{{ formatTime(currentTime) }}</div>
         <div class="progress-bar-container">
-          <div class="progress-bar" @click="seek" ref="progressBar">
+          <div class="progress-bar" @mousedown="seek" ref="progressBar">
             <!-- 添加分段颜色 -->
             <div class="progress-segments">
               <div
@@ -36,7 +36,7 @@
       </div>
     </div>
     <!-- 声音名称展示区 -->
-    <div class="voice-display">
+    <div class="voice-display" v-if="currentVoice.voice">
       <transition name="voice-fade" mode="out-in">
         <div class="voice-info" :key="currentVoice.voice">
           <el-avatar :size="24" :src="currentVoice.avatar" />
@@ -169,18 +169,33 @@ const updateProgress = () => {
   }
 };
 
+// 响应式引用需要添加
+const progressBar = ref<HTMLElement | null>(null);
+
+// 拖动进度条
 const seek = (event: MouseEvent) => {
-  if (!audio.value) return;
-  const progressBar = (event.target as HTMLElement).closest(".progress-bar");
-  if (!progressBar) return;
-  
-  // 获取进度条的边界信息
-  const rect = progressBar.getBoundingClientRect();
-  // 计算点击位置相对于进度条左边缘的偏移量
-  const offsetX = event.clientX - rect.left;
-  // 计算百分比
-  const percent = offsetX / rect.width;
-  audio.value.currentTime = percent * duration.value;
+  if (!audio.value || !progressBar.value) return;
+
+  const updatePosition = (e: MouseEvent) => {
+    const rect = progressBar.value!.getBoundingClientRect();
+    const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const percent = offsetX / rect.width;
+    progressPercent.value = percent * 100; // 实时更新进度百分比
+    audio.value!.currentTime = percent * duration.value;
+  };
+
+  // 初次点击更新
+  updatePosition(event);
+
+  // 添加鼠标移动和松开事件
+  const onMouseMove = (e: MouseEvent) => updatePosition(e);
+  const onMouseUp = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
 };
 
 // 计算分段样式
@@ -240,6 +255,9 @@ defineExpose({
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
   transition: all 0.3s ease;
+}
+.audio-player:hover {
+  transform: scale(1.1);
 }
 /* 新增样式 */
 .progress-segments {
@@ -334,11 +352,12 @@ defineExpose({
 .progress-filled {
   height: 100%;
   background: #007aff;
-  border-radius: 2px;
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
   position: absolute;
   top: 0;
   left: 0;
-  transition: width 0.1s ease;
+  /* transition: width 0.2s ease; */
 }
 
 .progress-thumb {
