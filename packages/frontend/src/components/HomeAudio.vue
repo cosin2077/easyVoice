@@ -6,7 +6,6 @@
         :icon="isPlaying ? VideoPause : CaretRight"
         @click="togglePlay"
       >
-        <VideoPause />
       </el-button>
       <div class="progress-container">
         <div class="time current-time">{{ formatTime(currentTime) }}</div>
@@ -29,91 +28,114 @@
     <div>{{ currentVoice }}</div>
   </div>
 </template>
-
-<script>
+<script setup lang="ts">
 import Hero from "@/assets/hero.mp3";
 import { Refresh, VideoPause, CaretRight } from "@element-plus/icons-vue";
-export default {
+import { ref, onMounted, onBeforeUnmount } from "vue";
+
+// 定义组件名称
+defineOptions({
   name: "AppleAudioPlayer",
-  components: {
-    Refresh,
-    VideoPause,
-    CaretRight,
-  },
-  data() {
-    return {
-      audio: null,
-      isPlaying: false,
-      isMuted: false,
-      currentTime: 0,
-      currentVoice: "晓晓",
-      duration: 0,
-      progressPercent: 0,
-    };
-  },
-  mounted() {
-    this.audio = new Audio(Hero);
+});
 
-    this.audio.addEventListener("timeupdate", this.updateProgress);
-    this.audio.addEventListener("loadedmetadata", () => {
-      this.duration = this.audio.duration;
-    });
-    this.audio.addEventListener("ended", () => {
-      this.isPlaying = false;
-    });
+// 响应式状态
+const audio = ref<HTMLAudioElement | null>(null);
+const isPlaying = ref(false);
+const isMuted = ref(false);
+const currentTime = ref(0);
+const currentVoice = ref("晓晓");
+const duration = ref(0);
+const progressPercent = ref(0);
 
-    // 预加载音频
-    this.audio.load();
-  },
-  beforeUnmount() {
-    this.audio.removeEventListener("timeupdate", this.updateProgress);
-    this.audio.pause();
-    this.audio = null;
-  },
-  methods: {
-    togglePlay() {
-      if (this.isPlaying) {
-        this.audio.pause();
-      } else {
-        this.audio.play();
-      }
-      this.isPlaying = !this.isPlaying;
-    },
-    toggleMute() {
-      this.isMuted = !this.isMuted;
-      this.audio.muted = this.isMuted;
-    },
-    updateProgress() {
-      this.currentTime = this.audio.currentTime;
-      this.progressPercent = (this.currentTime / this.duration) * 100 || 0;
-      if (this.currentTime > 3.816) {
-        this.currentVoice = "晓伊";
-      }
-      if (this.currentTime > 8.88) {
-        this.currentVoice = "云健";
-      }
-      if (this.currentTime > 14.40) {
-        this.currentVoice = "云希";
-      }
-      if (this.currentTime > 19.28) {
-        this.currentVoice = "云夏";
-      }
-      if (this.currentTime > 24.632) {
-        this.currentVoice = "云阳";
-      }
-    },
-    seek(event) {
-      const progressBar = this.$refs.progressBar;
-      const percent = event.offsetX / progressBar.offsetWidth;
-      this.audio.currentTime = percent * this.duration;
-    },
-    formatTime(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-    },
-  },
+// 初始化音频
+onMounted(() => {
+  audio.value = new Audio(Hero);
+
+  audio.value.addEventListener("timeupdate", updateProgress);
+  audio.value.addEventListener("loadedmetadata", () => {
+    duration.value = audio.value!.duration;
+  });
+  audio.value.addEventListener("ended", () => {
+    isPlaying.value = false;
+  });
+
+  // 预加载音频
+  audio.value.load();
+});
+
+// 清理事件监听
+onBeforeUnmount(() => {
+  if (audio.value) {
+    audio.value.removeEventListener("timeupdate", updateProgress);
+    audio.value.pause();
+    audio.value = null;
+  }
+});
+
+// 播放/暂停切换
+const togglePlay = () => {
+  if (!audio.value) return;
+  if (isPlaying.value) {
+    audio.value.pause();
+  } else {
+    audio.value.play();
+  }
+  isPlaying.value = !isPlaying.value;
 };
+
+// 静音切换
+const toggleMute = () => {
+  if (!audio.value) return;
+  isMuted.value = !isMuted.value;
+  audio.value.muted = isMuted.value;
+};
+
+// 更新进度
+const updateProgress = () => {
+  if (!audio.value) return;
+  currentTime.value = audio.value.currentTime;
+  progressPercent.value = (currentTime.value / duration.value) * 100 || 0;
+
+  if (currentTime.value > 3.816) {
+    currentVoice.value = "晓伊";
+  }
+  if (currentTime.value > 8.88) {
+    currentVoice.value = "云健";
+  }
+  if (currentTime.value > 14.4) {
+    currentVoice.value = "云希";
+  }
+  if (currentTime.value > 19.28) {
+    currentVoice.value = "云夏";
+  }
+  if (currentTime.value > 24.632) {
+    currentVoice.value = "云阳";
+  }
+};
+
+// 拖动进度条
+const seek = (event: MouseEvent) => {
+  if (!audio.value) return;
+  const progressBar = (event.target as HTMLElement).closest(".progress-bar");
+  if (!progressBar) return;
+  const percent = event.offsetX / progressBar.offsetWidth;
+  audio.value.currentTime = percent * duration.value;
+};
+
+// 格式化时间
+const formatTime = (seconds: number): string => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+};
+
+// 暴露给模板使用的变量和方法
+defineExpose({
+  togglePlay,
+  toggleMute,
+  seek,
+  formatTime,
+});
 </script>
 
 <style scoped>
