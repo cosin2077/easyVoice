@@ -11,7 +11,7 @@
 
 无论你是想听一本小说，还是为自己的创作配音，EasyVoice 都能成为你的得力助手！🚀
 
-你可以轻松的将 EasyVoice 部署到你的云服务器或者本地！
+**你可以轻松的将 EasyVoice 部署到你的云服务器或者本地！**
 
 ## 核心功能 🌟
 
@@ -36,22 +36,58 @@ EasyVoice 采用现代化的技术栈打造，稳定又高效：
 
 - **前端**：Vue 3 + TypeScript + Element Plus 🌐  
 - **后端**：Node.js + Express + TypeScript ⚡  
-- **语音合成**：Microsoft Azure TTS + OpenAI(OpenAI Compatible) 🎤  
+- **语音合成**：Microsoft Azure TTS + OpenAI(OpenAI Compatible) + ffmpeg 🎤  
 - **部署**：Node.js + Docker + Docker Compose 🐳  
 
 ## 快速开始 🚀
 
-1. 克隆仓库：  
+1. 通过 docker 运行
+
+```bash
+docker run -d \
+  --restart unless-stopped \
+  --name easyvoice \
+  -p 3000:3000 \
+  -v audio:/app/audio \
+  -e OPENAI_BASE_URL=https://api.openai.com/v1 \
+  -e OPENAI_KEY=your_openai_key_here \
+  -e MODEL_NAME=gpt-4o-mini \
+  cosin2077/easyvoice:latest
+```
+
+2. 直接运行项目
+
+```bash
+git clone git@github.com:cosin2077/easyVoice.git
+cd easyVoice
+pnpm i -r
+
+# 开发模式
+pnpm dev:root
+
+# 生产模式
+pnpm build:root
+pnpm start:root
+```
+
+## 快速开发 🚀
+
+1. 克隆仓库
+
 ```bash
 git clone https://github.com/cosin2077/easyVoice.git
 ```
-2. 安装依赖：  
+
+2. 安装依赖
+
 ```bash
 pnpm i -r
 ```
-3. 启动项目： 
+
+3. 启动项目
+
 ```bash
 pnpm dev:root
 ```
-4. 打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
 
+4. 打开浏览器，访问 `http://localhost:5173/`，开始体验吧！
