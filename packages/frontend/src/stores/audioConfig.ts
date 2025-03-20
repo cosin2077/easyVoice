@@ -17,22 +17,25 @@ export interface AudioConfig {
   previewAudioUrl: string;
 }
 
+// 默认配置常量
+const defaultConfig: AudioConfig = {
+  rate: 0,
+  volume: 0,
+  pitch: 0,
+  voiceMode: 'preset',
+  inputText: '',
+  selectedLanguage: 'zh-CN',
+  selectedGender: 'All',
+  selectedVoice: 'zh-CN-YunxiNeural',
+  previewText: '这是一段测试文本，用于试听语音效果。',
+  openaiBaseUrl: '',
+  openaiKey: '',
+  openaiModel: '',
+  previewAudioUrl: '',
+};
+
 export const useAudioConfigStore = defineStore('audioConfig', () => {
-  const audioConfig = reactive<AudioConfig>({
-    rate: 0,                          // 语速
-    volume: 0,                        // 音量/速率
-    pitch: 0,                         // 音调
-    voiceMode: 'preset',               // 语音模式，默认 preset
-    inputText: '',                     // 输入文本
-    selectedLanguage: 'zh-CN',         // 默认语言为中文
-    selectedGender: 'All',             // 默认性别为全部
-    selectedVoice: 'zh-CN-YunxiNeural',// 默认语音模型
-    previewText: '这是一段测试文本，用于试听语音效果。',
-    openaiBaseUrl: '',
-    openaiKey: '',
-    openaiModel: '',
-    previewAudioUrl: '',
-  });
+  const audioConfig = reactive<AudioConfig>({ ...defaultConfig });
 
   function updateConfig<K extends keyof AudioConfig>(prop: K, value: AudioConfig[K]) {
     if (Object.prototype.hasOwnProperty.call(audioConfig, prop)) {
@@ -41,7 +44,12 @@ export const useAudioConfigStore = defineStore('audioConfig', () => {
       console.warn(`Property "${prop}" does not exist in audioConfig`);
     }
   }
-  return { audioConfig, updateConfig };
+
+  function reset() {
+    Object.assign(audioConfig, { ...defaultConfig });
+  }
+
+  return { audioConfig, updateConfig, reset };
 }, {
   persist: true
 });

@@ -28,7 +28,7 @@ export const mapZHVoiceName = (name: string): string | undefined => {
 };
 import { ref, type Ref } from 'vue';
 interface AudioController {
-  play: () => Promise<void>;
+  play: () => Promise<boolean>;
   pause: () => void;
   toggle: () => void;
   destroy: () => void;
@@ -57,12 +57,8 @@ export function useAudio(mp3Url: string): AudioController {
   const play = async () => {
     initAudio();
     if (audio && !isPlaying.value) {
-      try {
-        await audio.play();
-        isPlaying.value = true;
-      } catch (error) {
-        console.error('Audio playback failed:', error);
-      }
+      await audio.play();
+      isPlaying.value = true;
     }
   };
 

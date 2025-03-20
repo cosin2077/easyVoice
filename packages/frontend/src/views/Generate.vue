@@ -235,6 +235,9 @@
       >
         生成语音
       </el-button>
+      <el-button type="danger" size="large" @click="reset">
+        重置配置
+      </el-button>
     </div>
     <DownloadList />
   </div>
@@ -247,7 +250,7 @@ import { useAudioConfigStore, type AudioConfig } from "@/stores/audioConfig";
 import { generateTTS, getProgress, getVoiceList, type Voice } from "@/api/tts";
 import { Sparkles } from "lucide-vue-next";
 import { UploadFilled, Service } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
 import { mapZHVoiceName } from "@/utils";
 import DownloadList from "@/components/DownloadList.vue";
@@ -275,6 +278,15 @@ const languages = ref([
   { code: "en-CA", name: "英语（加拿大）" },
 ]);
 
+const reset = () => {
+  ElMessageBox.confirm("确定将配置重置为初始状态", "操作提示", {
+    confirmButtonText: "确定",
+    cancelButtonText: "取消",
+    type: "warning",
+  }).then(() => {
+    configStore.reset();
+  });
+};
 const updateConfig = (prop: keyof AudioConfig, value: string) => {
   configStore.updateConfig(prop, value);
 };
@@ -684,7 +696,7 @@ const pooling = async (id: string) => {
 .action-area {
   margin-top: 2rem;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
 }
 

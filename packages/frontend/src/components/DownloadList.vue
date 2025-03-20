@@ -100,8 +100,19 @@ const playAudio = async (item: Audio, _: number) => {
     audio.pause();
     item.isPlaying = false;
   } else {
-    await audio.play();
-    item.isPlaying = true;
+    try {
+      const ok = await audio.play();
+      if (!ok) {
+        ElMessage.error("糟糕，音频可能不见了");
+      }
+      item.isPlaying = true;
+    } catch (err) {
+      if (err instanceof Error && err.name === "NotSupportedError") {
+        // 处理不支持的场景
+        ElMessage.error('糟糕！音频可能丢失了!')
+      }
+      console.log(`audio.play error`, (err as Error).message);
+    }
   }
   watch(audio.isPlaying, (isPlaying) => {
     if (isPlaying === false) {
