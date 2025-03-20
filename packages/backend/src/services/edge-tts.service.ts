@@ -20,13 +20,14 @@ async function runEdgeTTS({ text, pitch, volume, voice, rate, output }: Omit<Gen
   return {
     audio: output,
     srt: output.replace('.mp3', '.srt'),
-    success: true
+    file: ''
   }
 }
 export const generateSingleVoice = async ({ text, volume, pitch, voice, rate, output }: Omit<Generate, 'useLLM'> & { output: string }) => {
   let result: TTSResult = {
     audio: '',
     srt: '',
+    file: '',
   }
   await safeRunWithRetry(async () => {
     result = await runEdgeTTS({ text, pitch, volume, voice, rate, output });

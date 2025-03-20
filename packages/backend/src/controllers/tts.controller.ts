@@ -21,7 +21,7 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.info(`generateAudio raw body: `, req.body)
+    // logger.info(`generateAudio raw body: `, req.body)
     const formattedBody = formatBody(req.body);
     const { text, pitch, volume, voice, rate, useLLM } = formattedBody
     logger.info(`generateAudio formatted body: `, formattedBody)

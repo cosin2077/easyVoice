@@ -5,8 +5,8 @@ interface Segment {
 
 interface TTSResult {
   audio: string;
-  file?: string;
-  srt?: string;
+  file: string;
+  srt: string;
 }
 
 interface TTSParams {

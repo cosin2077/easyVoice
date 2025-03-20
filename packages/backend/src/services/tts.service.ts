@@ -11,8 +11,7 @@ import path from "path";
 import fs from "fs/promises";
 import ffmpeg from 'fluent-ffmpeg';
 import { MapLimitController } from "../controllers/concurrency.controller";
-
-const API_TIMEOUT = 10_000;
+import audioCacheInstance from "./audioCache.service";
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -31,9 +30,13 @@ enum ErrorMessages {
  * @throws {Error} 当处理过程中发生错误时抛出具体错误
  * @returns {Promise<TTSResult>} 包含音频路径和字幕的Promise
  */
-export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: Generate): Promise<TTSResult> {
+export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: Required<Generate>): Promise<TTSResult> {
   try {
     const cache = await getCache(voice, text)
+    if (cache) {
+      logger.info(`hit cache: ${voice} ${text.slice(0, 10)} `)
+      return cache
+    }
     const segment: Segment = { id: generateId(voice, text), text };
     validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
@@ -49,6 +52,7 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
           file: segment.id,
           srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
         }
+        await audioCacheInstance.setAudio(`${voice}_${text}`, { text, pitch, voice, rate, volume, ...result })
       } else {
         const fileList = []
         const tmpDirName = segment.id.replace('.mp3', '')
@@ -59,14 +63,15 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
           const segment = segments[index]
           const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
           const task = async () => {
-            await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
+            result = await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
+            await audioCacheInstance.setAudio(`${voice}_${segment}`, { text: segment, pitch, voice, rate, volume, ...result })
             fileList.push(output)
           }
           generateTasks.push(task)
         }
 
         try {
-          const controller = new MapLimitController(generateTasks, 5, () => {
+          const controller = new MapLimitController(generateTasks, 3, () => {
             console.log('Callback: generateSingleVoice tasks finished!');
           });
           const promise = controller.run();
@@ -110,9 +115,15 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
 }
 export async function getCache(voice: string, text: string): Promise<TTSResult | null> {
   try {
-    const cacheKey = 
+    const cache = await audioCacheInstance.getAudio(`${voice}_${text}`)
+    if (!cache) return null
+    const { audio, file, srt } = cache;
+    if (!audio || !file) { return null }
+    return {
+      audio, file, srt
+    }
   } catch (error) { }
-  return null; // 如果没有找到缓存，返回null
+  return null;
 }
 /**
  * 验证输入的segment
