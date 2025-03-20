@@ -241,7 +241,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useGenerationStore } from "@/stores/generation";
 import { useAudioConfigStore, type AudioConfig } from "@/stores/audioConfig";
 import { generateTTS, getProgress, getVoiceList, type Voice } from "@/api/tts";
@@ -367,8 +367,10 @@ onMounted(async () => {
     const response = await getVoiceList();
     voiceList.value = response?.data?.data;
   } catch (error) {
-    console.error("Failed to load voiceList:", error);
     const handled = handle429(error);
+    if (!handled) {
+      console.error("Failed to load voiceList:", error);
+    }
   }
 });
 

@@ -34,7 +34,7 @@ export const useAudioConfigStore = defineStore('audioConfig', () => {
     previewAudioUrl: '',
   });
 
-  function updateConfig(prop: keyof AudioConfig, value: string) {
+  function updateConfig<K extends keyof AudioConfig>(prop: K, value: AudioConfig[K]) {
     if (Object.prototype.hasOwnProperty.call(audioConfig, prop)) {
       audioConfig[prop] = value;
     } else {
