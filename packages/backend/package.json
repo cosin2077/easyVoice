@@ -3,7 +3,7 @@
   "version": "0.0.3",
   "scripts": {
     "start": "node dist/server.js",
-    "build": "tsc && copyfiles -u 1 'src/**/*.{json,txt,yml}' dist/",
+    "build": "tsc && copyfiles -u 1 \"src/**/*.{json,txt,yml}\" dist/",
     "dev": "cross-env NODE_ENV=development tsx --watch src/server.ts",
     "test": "jest"
   },

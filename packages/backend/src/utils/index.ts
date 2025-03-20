@@ -1,8 +1,8 @@
 import fs from "fs/promises";
-import { franc } from 'franc';
 import { resolve } from 'path';
 
 export async function getLangConfig(text: string) {
+  const { franc } = await import('franc');
   let lang = franc(text)
   if (lang === 'cmn') { lang = 'zh' }
   const voicePath = resolve(__dirname, `../llm/prompt/voice.json`)
