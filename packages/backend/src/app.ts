@@ -1,6 +1,7 @@
 import cors from 'cors';
 import { rateLimit } from 'express-rate-limit'
 import express, { Application } from "express";
+import helmet from 'helmet'
 import history from 'connect-history-api-fallback'
 import ttsRoutes from "./routes/tts.route";
 import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW } from "./config";
@@ -16,6 +17,7 @@ export function createApp(): Application {
     standardHeaders: 'draft-8', // draft-6: `RateLimit-*` headers; draft-7 & draft-8: combined `RateLimit` header
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
   })
+  app.use(helmet());
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
   app.use(limiter);
