@@ -24,7 +24,7 @@ export async function generateAudio(req: Request, res: Response, next: NextFunct
     // logger.info(`generateAudio raw body: `, req.body)
     const formattedBody = formatBody(req.body);
     const { text, pitch, volume, voice, rate, useLLM } = formattedBody
-    logger.info(`generateAudio formatted body: `, formattedBody)
+    // logger.info(`generateAudio formatted body: `, formattedBody)
     const result = await generateTTS(formattedBody);
     res.json(result);
   } catch (error) {

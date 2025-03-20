@@ -1,6 +1,6 @@
+import { EdgeTTS } from "../lib/node-edge-tts/edge-tts-fixed";
 import { Generate } from "../schema/generate";
 import { fileExist, safeRunWithRetry } from "../utils";
-import { EdgeTTS } from 'node-edge-tts'
 import fs from 'fs/promises'
 
 async function runEdgeTTS({ text, pitch, volume, voice, rate, output }: Omit<Generate, 'useLLM'> & { output: string }) {
