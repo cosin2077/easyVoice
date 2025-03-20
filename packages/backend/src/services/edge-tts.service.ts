@@ -31,7 +31,7 @@ export const generateSingleVoice = async ({ text, volume, pitch, voice, rate, ou
   }
   await safeRunWithRetry(async () => {
     result = await runEdgeTTS({ text, pitch, volume, voice, rate, output });
-  })
+  }, { retries: 5 })
   return result!
 }
 

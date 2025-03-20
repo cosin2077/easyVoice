@@ -54,7 +54,7 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
         }
         await audioCacheInstance.setAudio(`${voice}_${text}`, { text, pitch, voice, rate, volume, ...result })
       } else {
-        const fileList = []
+        const fileList: string[] = []
         const tmpDirName = segment.id.replace('.mp3', '')
         const tmpDirPath = path.resolve(AUDIO_DIR, tmpDirName)
         ensureDir(tmpDirPath)
@@ -71,10 +71,10 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
             }
             if (!result!) {
               result = await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
+              await audioCacheInstance.setAudio(`${voice}_${segment}`, { text: segment, pitch, voice, rate, volume, ...result })
             }
 
-            await audioCacheInstance.setAudio(`${voice}_${segment}`, { text: segment, pitch, voice, rate, volume, ...result })
-            fileList.push(output)
+            fileList.push(result.audio)
           }
           generateTasks.push(task)
         }
@@ -94,7 +94,7 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
           console.error('执行出错:', error);
         }
         const outputFile = path.resolve(AUDIO_DIR, segment.id)
-        await concatMp3Files({ inputDir: tmpDirPath, outputFile })
+        await concatMp3Files({ inputDir: tmpDirPath, fileList, outputFile })
         result = {
           audio: `${STATIC_DOMAIN}/${segment.id}`,
           file: `${segment.id}`,
@@ -127,7 +127,7 @@ export async function getCache(voice: string, text: string): Promise<TTSResult |
     const cache = await audioCacheInstance.getAudio(`${voice}_${text}`)
     if (!cache) return null
     const { audio, file, srt } = cache;
-    if (!audio || !file) { return null }
+    if (!audio) { return null }
     return {
       audio, file, srt
     }
@@ -198,8 +198,9 @@ function validateTTSResult(result: TTSResult, segmentId: string): void {
 }
 
 export interface ConcatAudioParams {
-  inputDir: string; // 输入文件夹路径
-  outputFile: string; // 输出文件路径
+  fileList: string[];
+  outputFile: string;
+  inputDir: string;
 }
 /**
  * 将指定文件夹中的 MP3 文件拼接成单个音频文件
@@ -207,18 +208,19 @@ export interface ConcatAudioParams {
  * @returns Promise<void>
  */
 export async function concatMp3Files(params: ConcatAudioParams): Promise<void> {
-  const { inputDir, outputFile } = params;
+  const { fileList, outputFile,inputDir } = params;
 
   try {
-    // 检查输入文件夹是否存在
-    await fs.access(inputDir)
+
 
     // 查找所有 MP3 文件并排序
-    const mp3Files = (await fs.readdir(inputDir))
+    const mp3Files = fileList
       .filter((file) => path.extname(file).toLowerCase() === '.mp3')
-      .map((file) => path.join(inputDir, file))
-      .sort((x: string, y: string) => Number(x.split('_')[0]) - Number(y.split('_')[0])); // 按文件名自然排序
-
+      .sort((a: string, b: string) => {
+        const x = path.parse(a).base;
+        const y = path.parse(b).base;
+        return Number(x.split('_')[0]) - Number(y.split('_')[0])
+      }); // 按文件名自然排序
     // 检查是否有 MP3 文件
     if (mp3Files.length === 0) {
       throw new Error('错误: 输入文件夹中没有找到 MP3 文件');
