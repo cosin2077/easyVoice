@@ -8,7 +8,7 @@ export function splitText(text: string, targetLength = TARGET_LENGTH) {
   if (text.length < targetLength) return { length: 1, segments: [text] };
   const segments: string[] = [];
   let currentSegment = "";
-  let sentences = text.split(/([。！？])/); // 按句号、感叹号、问号分割，并保留标点
+  let sentences = text.split(/([。！？.!?])/); // 按句号、感叹号、问号分割，并保留标点
 
   for (let i = 0; i < sentences.length; i += 2) {
     const sentence = (sentences[i] || "") + (sentences[i + 1] || ""); // 拼接句子和标点

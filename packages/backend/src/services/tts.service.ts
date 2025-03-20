@@ -63,7 +63,16 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
           const segment = segments[index]
           const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
           const task = async () => {
-            result = await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
+            let result: TTSResult;
+            const cache = await getCache(voice, segment)
+            if (cache) {
+              logger.info(`hit cache: ${voice} ${segment.slice(0, 10)} `)
+              result = cache;
+            }
+            if (!result!) {
+              result = await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
+            }
+
             await audioCacheInstance.setAudio(`${voice}_${segment}`, { text: segment, pitch, voice, rate, volume, ...result })
             fileList.push(output)
           }
