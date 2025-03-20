@@ -33,6 +33,7 @@ enum ErrorMessages {
  */
 export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: Generate): Promise<TTSResult> {
   try {
+    const cache = await getCache(voice, text)
     const segment: Segment = { id: generateId(voice, text), text };
     validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
@@ -107,7 +108,12 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
     throw error;
   }
 }
-
+export async function getCache(voice: string, text: string): Promise<TTSResult | null> {
+  try {
+    const cacheKey = 
+  } catch (error) { }
+  return null; // 如果没有找到缓存，返回null
+}
 /**
  * 验证输入的segment
  * @throws {Error} 当segment无效时抛出错误

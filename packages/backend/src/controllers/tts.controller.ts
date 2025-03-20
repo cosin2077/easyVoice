@@ -8,11 +8,11 @@ import { Generate } from "../schema/generate";
 
 function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
   const positivePercent = (value: string | undefined) => {
-    if (value === '0%' || value === '0' || undefined) return '+0%'
+    if (value === '0%' || value === '0' || value === undefined) return '+0%'
     return value
   }
   const positiveHz = (value: string | undefined) => {
-    if (value === '0Hz' || value === '0' || undefined) return '+0Hz'
+    if (value === '0Hz' || value === '0' || value === undefined) return '+0Hz'
     return value
   }
   return {
@@ -24,6 +24,7 @@ export async function generateAudio(req: Request, res: Response, next: NextFunct
     logger.info(`generateAudio raw body: `, req.body)
     const formattedBody = formatBody(req.body);
     const { text, pitch, volume, voice, rate, useLLM } = formattedBody
+    logger.info(`generateAudio formatted body: `, formattedBody)
     const result = await generateTTS(formattedBody);
     res.json(result);
   } catch (error) {
