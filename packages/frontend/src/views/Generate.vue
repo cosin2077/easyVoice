@@ -420,14 +420,12 @@ const clearText = () => {
 
 // 根据语言和性别过滤语音
 const filterVoices = () => {
-  const { selectedVoice, selectedGender } = audioConfig;
+  const { selectedVoice } = audioConfig;
   const isCurrentVoiceValid = filteredVoices.value.some(
     (v) => v.Name === selectedVoice
   );
-  if (
-    (!isCurrentVoiceValid && filteredVoices.value.length > 0) ||
-    selectedGender === "All"
-  ) {
+  console.log(`isCurrentVoiceValid: ${isCurrentVoiceValid}, filteredVoices.length: ${filteredVoices.value.length}`)
+  if (filteredVoices.value.length > 0) {
     updateConfig("selectedVoice", filteredVoices.value[0].Name);
   } else {
     updateConfig("selectedVoice", "");
