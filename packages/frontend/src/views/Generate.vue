@@ -810,8 +810,5 @@ const pooling = async (id: string) => {
     display: flex;
   }
 
-  .voice-mode-selector .el-radio-button {
-    /* flex: 0.5; */
-  }
 }
 </style>

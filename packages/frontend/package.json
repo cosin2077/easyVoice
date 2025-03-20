@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build && copyfiles -u 1 'dist/**/*' ../backend/public/",
+    "build": "vue-tsc -b && vite build && copyfiles -u 1 \"dist/**/*\" ../backend/public/",
     "preview": "vite preview",
     "test": "vitest"
   },
