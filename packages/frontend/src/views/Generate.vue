@@ -357,7 +357,6 @@ const formatPitch = (val: number) => {
   return val >= 0 ? `+${val}Hz` : `${val}Hz`;
 };
 watch(() =>audioConfig.selectedLanguage, (value, oldValue) => {
-  console.log(value, oldValue)
   if (value === oldValue) return
   const matchLang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(value)?.[1];
   if (matchLang && matchLang in previewTextSelect) {

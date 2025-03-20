@@ -49,8 +49,6 @@ watch(
     } else {
       if (audio.value) audio.value.src = newData;
     }
-    console.log("Audio source updated:", newData);
-    console.log("audio.value:", audio.value);
     audio.value?.load();
     isPlaying.value = false;
     progress.value = 0;
