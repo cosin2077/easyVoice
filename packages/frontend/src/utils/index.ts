@@ -28,7 +28,7 @@ export const mapZHVoiceName = (name: string): string | undefined => {
 };
 import { ref, type Ref } from 'vue';
 interface AudioController {
-  play: () => Promise<boolean>;
+  play: () => Promise<void>;
   pause: () => void;
   toggle: () => void;
   destroy: () => void;

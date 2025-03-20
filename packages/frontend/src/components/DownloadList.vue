@@ -101,10 +101,7 @@ const playAudio = async (item: Audio, _: number) => {
     item.isPlaying = false;
   } else {
     try {
-      const ok = await audio.play();
-      if (!ok) {
-        ElMessage.error("糟糕，音频可能不见了");
-      }
+      await audio.play();
       item.isPlaying = true;
     } catch (err) {
       if (err instanceof Error && err.name === "NotSupportedError") {
