@@ -3,10 +3,10 @@ import { z } from 'zod';
 
 export const generateSchema = z.object({
   text: z.string().trim().min(1),
-  pitch: z.string(),
   voice: z.string(),
-  volume: z.string(),
-  rate: z.string(),
+  pitch: z.string().optional(),
+  volume: z.string().optional(),
+  rate: z.string().optional(),
   useLLM: z.boolean().default(false)
 })
 export type Generate = z.infer<typeof generateSchema>;

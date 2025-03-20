@@ -7,12 +7,12 @@ import { ALLOWED_EXTENSIONS, AUDIO_DIR } from "../config";
 import { Generate } from "../schema/generate";
 
 function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
-  const positivePercent = (value: string) => {
-    if (value === '0%') return '+0%'
+  const positivePercent = (value: string | undefined) => {
+    if (value === '0%' || value === '0' || undefined) return '+0%'
     return value
   }
-  const positiveHz = (value: string) => {
-    if (value === '0Hz') return '+0Hz'
+  const positiveHz = (value: string | undefined) => {
+    if (value === '0Hz' || value === '0' || undefined) return '+0Hz'
     return value
   }
   return {
@@ -21,9 +21,9 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    const { text, pitch, volume, voice, rate, useLLM } = req.body;
-    logger.info(`generateAudio body: `, req.body)
-    const formattedBody = formatBody({ text, pitch, volume, voice, rate, useLLM })
+    logger.info(`generateAudio raw body: `, req.body)
+    const formattedBody = formatBody(req.body);
+    const { text, pitch, volume, voice, rate, useLLM } = formattedBody
     const result = await generateTTS(formattedBody);
     res.json(result);
   } catch (error) {
