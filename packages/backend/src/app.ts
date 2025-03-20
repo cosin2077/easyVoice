@@ -13,9 +13,9 @@ export function createApp(): Application {
   const app = express();
   const limiter = rateLimit({
     windowMs: RATE_LIMIT_WINDOW * 60 * 1000,
-    limit: isDev ? 1e6 : RATE_LIMIT, 
-    standardHeaders: 'draft-8', // draft-6: `RateLimit-*` headers; draft-7 & draft-8: combined `RateLimit` header
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+    limit: isDev ? 1e6 : RATE_LIMIT,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
   })
 
   if (!isDev) {

@@ -2,7 +2,7 @@ import { NextFunction, Response, Request } from 'express';
 import { z } from 'zod';
 
 export const generateSchema = z.object({
-  text: z.string().trim().min(1),
+  text: z.string().trim().min(5),
   voice: z.string(),
   pitch: z.string().optional(),
   volume: z.string().optional(),
@@ -16,7 +16,7 @@ export const validateGenerate = (req: Request, res: Response, next: NextFunction
     next();
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ message: error.errors, success: false });
+      res.status(400).json({ code: '400', errors: error.errors, success: false });
       return;
     }
     res.status(500).json({ message: 'Internal server error' });

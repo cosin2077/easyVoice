@@ -6,5 +6,4 @@ export async function initApp() {
   // Prepare works like db, runtime configs...
   await ensureDir(AUDIO_DIR)
   await ensureDir(PUBLIC_DIR)
-  // await ensureDir(FRONT_DIST)
 }

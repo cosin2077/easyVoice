@@ -366,11 +366,32 @@ watch(audioConfig, (audioConfig) => {
     );
   }
 });
+const commonErrorHandler = (error: unknown) => {
+  if (error instanceof AxiosError) {
+    const status = error.status;
+    switch (status) {
+      case 429:
+        return handle429(error);
+      case 400:
+        return handle400(error);
+      default:
+        ElMessage.error("请求失败！");
+    }
+  }
+};
 const handle429 = (error: unknown) => {
   if (error instanceof AxiosError) {
-    if (error.status === 429)
+    if (error.status === 429) {
       ElMessage.error("请求太快啦，小服务器扛不住！请稍后再试");
-    return true;
+    }
+  }
+};
+const handle400 = (error: AxiosError) => {
+  const { errors } = error?.response?.data as any;
+  if (errors?.some((error: any) => error.code === "too_small")) {
+    ElMessage.error("请至少输入5个字符以上！");
+  } else {
+    ElMessage.error("请求失败！");
   }
 };
 // 加载语音数据
@@ -379,10 +400,7 @@ onMounted(async () => {
     const response = await getVoiceList();
     voiceList.value = response?.data?.data;
   } catch (error) {
-    const handled = handle429(error);
-    if (!handled) {
-      console.error("Failed to load voiceList:", error);
-    }
+    handle429(error);
   }
 });
 
@@ -458,10 +476,7 @@ const previewAudio = async () => {
     });
   } catch (error) {
     console.error("Preview failed:", error);
-    const handled = handle429(error);
-    if (!handled) {
-      ElMessage.error("试听失败，请稍后重试");
-    }
+    commonErrorHandler(error);
   } finally {
     previewLoading.value = false;
   }
@@ -521,10 +536,7 @@ const generateAudio = async () => {
     }
   } catch (error) {
     console.error("生成失败:", error);
-    const handled = handle429(error);
-    if (!handled) {
-      ElMessage.error("生成失败，请稍后重试");
-    }
+    commonErrorHandler(error);
     generating.value = false;
   }
 };
