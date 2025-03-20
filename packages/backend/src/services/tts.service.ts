@@ -15,7 +15,7 @@ import audioCacheInstance from "./audioCache.service";
 
 // 错误消息枚举
 enum ErrorMessages {
-  INVALID_SEGMENT = "Invalid segment: id and text are required",
+  ENG_MODEL_INVALID_TEXT = 'Eng model cannot transpile non english',
   API_FETCH_FAILED = "Failed to fetch TTS parameters from API",
   INVALID_API_RESPONSE = "Invalid API response: no TTS parameters returned",
   PARAMS_PARSE_FAILED = "Failed to parse TTS parameters",
@@ -38,8 +38,8 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
       return cache
     }
     const segment: Segment = { id: generateId(voice, text), text };
-    validateSegment(segment);
     const { lang, voiceList } = await getLangConfig(segment.text);
+    validateLangAndVoice(lang, voice);
     let result: TTSResult;
     if (!useLLM) {
       const { length, segments } = splitText(text)
@@ -138,9 +138,9 @@ export async function getCache(voice: string, text: string): Promise<TTSResult |
  * 验证输入的segment
  * @throws {Error} 当segment无效时抛出错误
  */
-function validateSegment(segment: Segment): void {
-  if (!segment?.id || !segment?.text?.trim()) {
-    throw new Error(ErrorMessages.INVALID_SEGMENT);
+function validateLangAndVoice(lang:string, voice: string): void {
+  if (lang !== 'eng' && voice.startsWith('en')) {
+    throw new Error(ErrorMessages.ENG_MODEL_INVALID_TEXT)
   }
 }
 

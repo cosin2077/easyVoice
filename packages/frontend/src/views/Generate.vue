@@ -374,9 +374,19 @@ const commonErrorHandler = (error: unknown) => {
         return handle429(error);
       case 400:
         return handle400(error);
+      case 500:
+        return handle500(error);
       default:
         ElMessage.error("请求失败！");
     }
+  }
+};
+const handle500 = (error: AxiosError) => {
+  const { message } = error?.response?.data as any;
+  if (message === 'Eng model cannot transpile non english') {
+    ElMessage.error(`英文模型不支持转中文语音哦！请切换模型到中文！`);
+  } else {
+    ElMessage.error(message);
   }
 };
 const handle429 = (error: unknown) => {
