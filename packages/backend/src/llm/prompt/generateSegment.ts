@@ -1,4 +1,3 @@
-
 const cnTemplate = (voiceList: VoiceConfig[], text: string) => `
 我希望你根据以下声音配置和一段文字内容，为文字配音提供优化建议。任务包括：
 1. 将文字按场景、角色、旁白分割。
@@ -67,10 +66,16 @@ export function genSegment(lang = 'cn', voiceList: VoiceConfig[], text: string) 
   switch (lang) {
     case 'zh':
     case 'cn':
-      return cnTemplate(voiceList.filter(voice => voice.Name.startsWith('zh')), text);
+      return cnTemplate(
+        voiceList.filter((voice) => voice.Name.startsWith('zh')),
+        text
+      )
     case 'eng':
-      return engTemplate(voiceList.filter(voice => voice.Name.startsWith('en')), text);
+      return engTemplate(
+        voiceList.filter((voice) => voice.Name.startsWith('en')),
+        text
+      )
     default:
-      throw new Error(`Unsupported language: ${lang}`);
+      throw new Error(`Unsupported language: ${lang}`)
   }
 }

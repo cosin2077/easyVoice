@@ -1,94 +1,92 @@
 interface Task {
-  (): Promise<any>;
+  (): Promise<any>
 }
 
 export class MapLimitController {
-  private cancelled: boolean = false;
-  private runningTasks: Set<Promise<any>> = new Set();
+  private cancelled: boolean = false
+  private runningTasks: Set<Promise<any>> = new Set()
 
   constructor(
     private tasks: Task[],
     private concurrency: number = 3,
-    private callback: () => void = () => { }
-  ) { }
+    private callback: () => void = () => {}
+  ) {}
 
   cancel(): void {
-    this.cancelled = true;
+    this.cancelled = true
   }
 
   run(): Promise<{ results: any[]; cancelled: boolean }> {
     if (!Array.isArray(this.tasks) || this.tasks.length === 0) {
-      this.callback();
-      return Promise.resolve({ results: [], cancelled: false });
+      this.callback()
+      return Promise.resolve({ results: [], cancelled: false })
     }
-    if (this.concurrency < 1) { this.concurrency = 1 }
+    if (this.concurrency < 1) {
+      this.concurrency = 1
+    }
 
-    let running = 0;
-    let completed = 0;
-    let index = 0;
-    const results: any[] = [];
-    const originalLength = this.tasks.length;
+    let running = 0
+    let completed = 0
+    let index = 0
+    const results: any[] = []
+    const originalLength = this.tasks.length
 
     return new Promise((resolve) => {
       const complete = () => {
-        this.callback();
-        resolve({ results, cancelled: this.cancelled });
-      };
+        this.callback()
+        resolve({ results, cancelled: this.cancelled })
+      }
 
       const runNext = () => {
-        while (
-          !this.cancelled &&
-          running < this.concurrency &&
-          index < this.tasks.length
-        ) {
-          const currentIndex = index++;
-          running++;
+        while (!this.cancelled && running < this.concurrency && index < this.tasks.length) {
+          const currentIndex = index++
+          running++
 
-          const taskPromise = this.tasks[currentIndex]();
-          this.runningTasks.add(taskPromise);
+          const taskPromise = this.tasks[currentIndex]()
+          this.runningTasks.add(taskPromise)
 
           taskPromise
             .then((result) => {
               if (!this.cancelled) {
-                results[currentIndex] = { success: true, value: result };
+                results[currentIndex] = { success: true, value: result }
               }
             })
             .catch((error) => {
               if (!this.cancelled) {
-                results[currentIndex] = { success: false, error };
+                results[currentIndex] = { success: false, error }
               }
             })
             .finally(() => {
-              this.runningTasks.delete(taskPromise);
-              running--;
-              completed++;
+              this.runningTasks.delete(taskPromise)
+              running--
+              completed++
 
               if (completed === originalLength) {
-                complete();
+                complete()
               } else if (!this.cancelled) {
-                runNext();
+                runNext()
               } else if (running === 0) {
-                complete();
+                complete()
               }
-            });
+            })
         }
-      };
+      }
 
-      runNext();
-    });
+      runNext()
+    })
   }
 }
 
 // 使用示例
 const asyncTask = (id: number, delay: number): Promise<string> => {
   return new Promise((resolve) => {
-    console.log(`任务 ${id} 开始`);
+    console.log(`任务 ${id} 开始`)
     setTimeout(() => {
-      console.log(`任务 ${id} 完成`);
-      resolve(`结果 ${id}`);
-    }, delay);
-  });
-};
+      console.log(`任务 ${id} 完成`)
+      resolve(`结果 ${id}`)
+    }, delay)
+  })
+}
 
 const tasks = [
   () => asyncTask(1, 1000),
@@ -96,7 +94,7 @@ const tasks = [
   () => asyncTask(3, 2000),
   () => asyncTask(4, 300),
   () => asyncTask(5, 1500),
-];
+]
 
 // 使用示例
 // async function example() {

@@ -1,4 +1,3 @@
-// src/api/services/text.service.ts
 import { Jieba } from '@node-rs/jieba'
 
 const jieba = new Jieba()

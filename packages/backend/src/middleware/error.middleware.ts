@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from "express";
-import { logger } from "../utils/logger";
+import { Request, Response, NextFunction } from 'express'
+import { logger } from '../utils/logger'
 
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
   const errorDetails = {
@@ -14,9 +14,9 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
       body: req.body,
       query: req.query,
       params: req.params,
-      ip: req.ip
-    }
-  };
+      ip: req.ip,
+    },
+  }
 
   logger.error('Error occurred:', {
     ...errorDetails,
@@ -25,14 +25,14 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
       body: {
         ...errorDetails.request.body,
         password: undefined,
-        authorization: undefined
-      }
-    }
-  });
+        authorization: undefined,
+      },
+    },
+  })
 
   res.status(500).json({
     success: false,
     message: err.message,
-    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {})
-  });
+    ...(process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
+  })
 }

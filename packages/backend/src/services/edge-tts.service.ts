@@ -1,7 +1,7 @@
-import { EdgeTTS } from '../lib/node-edge-tts/edge-tts-fixed'
-import { Generate } from '../schema/generate'
-import { fileExist, readJson, safeRunWithRetry } from '../utils'
 import fs from 'fs/promises'
+import { Generate } from '../schema/generate'
+import { EdgeTTS } from '../lib/node-edge-tts/edge-tts-fixed'
+import { fileExist, readJson, safeRunWithRetry } from '../utils'
 
 export async function runEdgeTTS({
   text,

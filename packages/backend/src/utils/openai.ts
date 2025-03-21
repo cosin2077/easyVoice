@@ -1,5 +1,5 @@
-import { MODEL_NAME, OPENAI_BASE_URL, OPENAI_KEY } from "../config";
-import { fetcher } from "./request";
+import { MODEL_NAME, OPENAI_BASE_URL, OPENAI_KEY } from '../config'
+import { fetcher } from './request'
 
 /**
  * 创建 OpenAI 客户端实例
@@ -11,13 +11,13 @@ export function createOpenAIClient() {
     baseURL: OPENAI_BASE_URL,
     model: MODEL_NAME,
     timeout: 60000,
-  };
+  }
 
   // 设置默认 headers
   const defaultHeaders = {
-    'Authorization': `Bearer ${OPENAI_KEY}`,
+    Authorization: `Bearer ${OPENAI_KEY}`,
     'Content-Type': 'application/json',
-  };
+  }
 
   /**
    * 创建 Chat Completion
@@ -32,7 +32,7 @@ export function createOpenAIClient() {
       const mergedConfig = {
         ...defaultConfig,
         ...customConfig,
-      };
+      }
 
       const response = await fetcher.post<ChatCompletionResponse>(
         `${mergedConfig.baseURL}/chat/completions`,
@@ -48,12 +48,14 @@ export function createOpenAIClient() {
           headers: defaultHeaders,
           timeout: mergedConfig.timeout,
         }
-      );
+      )
 
-      return response.data;
+      return response.data
     } catch (error) {
       console.log(error)
-      throw new Error(`Chat completion request failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Chat completion request failed: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 
@@ -69,17 +71,19 @@ export function createOpenAIClient() {
           headers: defaultHeaders,
           timeout: defaultConfig.timeout,
         }
-      );
-      return response.data;
+      )
+      return response.data
     } catch (error) {
-      throw new Error(`Get models failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Get models failed: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 
   return {
     createChatCompletion,
     getModels,
-  };
+  }
 }
 export const openai = createOpenAIClient()
 // 使用示例
