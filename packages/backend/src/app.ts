@@ -1,6 +1,6 @@
 import cors from 'cors'
 import helmet from 'helmet'
-import express, { Application } from 'express'
+import express, { Application, Request, Response} from 'express'
 import { rateLimit } from 'express-rate-limit'
 import history from 'connect-history-api-fallback'
 import ttsRoutes from './routes/tts.route'
@@ -8,6 +8,7 @@ import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW } from './config'
 import { errorHandler } from './middleware/error.middleware'
 import { requestLoggerMiddleware } from './middleware/info.middleware'
 import { logger } from './utils/logger'
+import { healthHandler } from './middleware/health.middleware'
 
 const isDev = process.env.NODE_ENV === 'development'
 export function createApp(): Application {
@@ -29,13 +30,14 @@ export function createApp(): Application {
   app.use(express.json({ limit: '10mb' }))
   app.use(limiter)
 
+  app.use('/api/v1/tts', ttsRoutes)
+  app.use("/api/health", healthHandler);
+
   app.use(history())
 
   app.use(express.static(AUDIO_DIR))
   app.use(express.static(PUBLIC_DIR))
   app.use(requestLoggerMiddleware)
-
-  app.use('/api/v1/tts', ttsRoutes)
 
   app.use(errorHandler)
 

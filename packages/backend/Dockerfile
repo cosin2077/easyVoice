@@ -1,22 +1,47 @@
-FROM node:18-bullseye
+# 使用更精简的基础镜像并添加版本标签
+FROM node:20-alpine3.19 AS builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 启用 corepack
+RUN corepack enable
+
+# 复制包管理文件
+COPY package.json tsconfig.json ./
+
+# 安装所有依赖（包括 devDependencies，因为需要构建）
+RUN pnpm install --frozen-lockfile
+
+# 复制源代码
+COPY src/ ./src/
+
+# 构建项目
+RUN pnpm run build
+
+# 多阶段构建 - 生产镜像
+FROM node:20-alpine3.19 AS production
 
 WORKDIR /app
 
-# 安装 Python 和 FFmpeg
-RUN apt-get update && apt-get install -y python3 python3-pip ffmpeg && \
-    ln -s /usr/bin/python3 /usr/bin/python
+RUN apk add --no-cache ffmpeg
 
-# 复制依赖并安装
-COPY package.json .
-COPY tsconfig.json .
-RUN npm install && pip3 install edge-tts
+RUN corepack enable
 
-# 复制源代码并构建
-COPY src/ ./src/
-RUN npm run build
+COPY package.json ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public  ./public
 
-# 暴露端口
+RUN pnpm install --prod --frozen-lockfile
+
+ENV NODE_ENV=production
 EXPOSE 3000
 
-# 启动服务
-CMD ["npm", "start"]
+# 使用非 root 用户运行
+USER node
+
+# 启动命令
+CMD ["pnpm", "start"]
+
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD curl --fail http://localhost:3000/health || exit 1
