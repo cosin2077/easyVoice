@@ -123,7 +123,12 @@ const playAudio = async (item: Audio, _: number) => {
     }
   })
 }
-const commonDownload = (item: Audio, file: keyof Audio, title: string, loadingProp: string) => {
+const commonDownload = (
+  item: Audio,
+  file: string,
+  title: string,
+  loadingProp: keyof Pick<Audio, 'isSrtLoading' | 'isDownloading'>
+) => {
   try {
     item[loadingProp] = true
     const url = downloadFile(file)

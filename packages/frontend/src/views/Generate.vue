@@ -14,9 +14,7 @@
           <template #header>
             <div class="card-header">
               <span>文本输入</span>
-              <el-button type="primary" size="small" @click="clearText"
-                >清空</el-button
-              >
+              <el-button type="primary" size="small" @click="clearText">清空</el-button>
             </div>
           </template>
           <el-input
@@ -35,9 +33,7 @@
               :show-file-list="false"
             >
               <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-              <div class="el-upload__text">
-                拖拽文件到此处或 <em>点击上传</em>
-              </div>
+              <div class="el-upload__text">拖拽文件到此处或 <em>点击上传</em></div>
               <template #tip>
                 <div class="el-upload__tip">支持 .txt 文本文件</div>
               </template>
@@ -66,11 +62,7 @@
               >
                 <el-radio-button label="ai" disabled>
                   AI 推荐
-                  <Sparkles
-                    class="sparkles-icon"
-                    :size="24"
-                    :stroke-width="1.25"
-                  />
+                  <Sparkles class="sparkles-icon" :size="24" :stroke-width="1.25" />
                 </el-radio-button>
               </el-tooltip>
             </el-radio-group>
@@ -107,11 +99,7 @@
               </el-form-item>
 
               <el-form-item label="语音">
-                <el-select
-                  v-model="audioConfig.selectedVoice"
-                  placeholder="选择语音"
-                  filterable
-                >
+                <el-select v-model="audioConfig.selectedVoice" placeholder="选择语音" filterable>
                   <el-option
                     v-for="voice in filteredVoices"
                     :key="voice.Name"
@@ -182,10 +170,7 @@
               </el-form-item>
 
               <el-form-item label="模型">
-                <el-select
-                  v-model="audioConfig.openaiModel"
-                  placeholder="选择模型"
-                >
+                <el-select v-model="audioConfig.openaiModel" placeholder="选择模型">
                   <el-option label="gpt-3.5-turbo" value="gpt-3.5-turbo" />
                   <el-option label="gpt-4" value="gpt-4" />
                   <el-option label="gpt-4-turbo" value="gpt-4-turbo" />
@@ -235,212 +220,201 @@
       >
         生成语音
       </el-button>
-      <el-button type="danger" size="large" @click="reset">
-        重置配置
-      </el-button>
+      <el-button type="danger" size="large" @click="reset"> 重置配置 </el-button>
     </div>
     <DownloadList />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { useGenerationStore } from "@/stores/generation";
-import { useAudioConfigStore, type AudioConfig } from "@/stores/audioConfig";
-import { generateTTS, getProgress, getVoiceList, type Voice } from "@/api/tts";
-import { Sparkles } from "lucide-vue-next";
-import { UploadFilled, Service } from "@element-plus/icons-vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { defaultVoiceList, previewTextSelect } from "@/constants/voice";
-import { mapZHVoiceName } from "@/utils";
-import DownloadList from "@/components/DownloadList.vue";
-import { AxiosError } from "axios";
+import { ref, computed, onMounted, watch } from 'vue'
+import { useGenerationStore } from '@/stores/generation'
+import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
+import { generateTTS, getProgress, getVoiceList, type Voice } from '@/api/tts'
+import { Sparkles } from 'lucide-vue-next'
+import { UploadFilled, Service } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
+import { mapZHVoiceName } from '@/utils'
+import DownloadList from '@/components/DownloadList.vue'
+import { AxiosError } from 'axios'
 // 状态管理
-const generationStore = useGenerationStore();
-const configStore = useAudioConfigStore();
-const { audioConfig } = configStore;
+const generationStore = useGenerationStore()
+const configStore = useAudioConfigStore()
+const { audioConfig } = configStore
 
-const generating = ref(false);
-const progressStatus = ref("准备中...");
+const generating = ref(false)
+const progressStatus = ref('准备中...')
 
-const previewLoading = ref(false);
-const audioPlayer = ref<HTMLAudioElement>();
+const previewLoading = ref(false)
+const audioPlayer = ref<HTMLAudioElement>()
 
-const voiceList = ref<Voice[]>(defaultVoiceList);
+const voiceList = ref<Voice[]>(defaultVoiceList)
 
 const languages = ref([
-  { code: "zh-CN", name: "中文（简体）" },
-  { code: "zh-TW", name: "中文（繁体）" },
-  { code: "zh-HK", name: "中文（香港）" },
-  { code: "en-US", name: "英语（美国）" },
-  { code: "en-GB", name: "英语（英国）" },
-  { code: "en-AU", name: "英语（澳大利亚）" },
-  { code: "en-CA", name: "英语（加拿大）" },
-]);
+  { code: 'zh-CN', name: '中文（简体）' },
+  { code: 'zh-TW', name: '中文（繁体）' },
+  { code: 'zh-HK', name: '中文（香港）' },
+  { code: 'en-US', name: '英语（美国）' },
+  { code: 'en-GB', name: '英语（英国）' },
+  { code: 'en-AU', name: '英语（澳大利亚）' },
+  { code: 'en-CA', name: '英语（加拿大）' },
+])
 
 const reset = () => {
-  ElMessageBox.confirm("确定将配置重置为初始状态", "操作提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning",
+  ElMessageBox.confirm('确定将配置重置为初始状态', '操作提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
   }).then(() => {
-    configStore.reset();
-  });
-};
+    configStore.reset()
+  })
+}
 const updateConfig = (prop: keyof AudioConfig, value: string) => {
-  configStore.updateConfig(prop, value);
-};
+  configStore.updateConfig(prop, value)
+}
 const betterShowCN = (voiceList: Voice[]) => {
-  if (audioConfig.selectedLanguage?.includes("zh-")) {
+  if (audioConfig.selectedLanguage?.includes('zh-')) {
     return voiceList.map((voice) => {
       return {
         ...voice,
         cnName: mapZHVoiceName(voice.Name) ?? voice.Name,
-      };
-    });
+      }
+    })
   }
-  return voiceList;
-};
+  return voiceList
+}
 // 过滤后的语音列表
 const filteredVoices = computed(() => {
   return betterShowCN(
     voiceList.value.filter((voice) => {
-      const matchLanguage = voice.Name.startsWith(audioConfig.selectedLanguage);
+      const matchLanguage = voice.Name.startsWith(audioConfig.selectedLanguage)
       const matchGender =
-        audioConfig.selectedGender === "All" ||
-        voice.Gender === audioConfig.selectedGender;
-      return matchLanguage && matchGender;
+        audioConfig.selectedGender === 'All' || voice.Gender === audioConfig.selectedGender
+      return matchLanguage && matchGender
     })
-  );
-});
+  )
+})
 
 // 是否可以生成语音
 const canGenerate = computed(() => {
-  const {
-    inputText,
-    voiceMode,
-    openaiBaseUrl,
-    openaiKey,
-    openaiModel,
-    selectedVoice,
-  } = audioConfig;
-  if (!inputText.trim()) return false;
+  const { inputText, voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } = audioConfig
+  if (!inputText.trim()) return false
 
-  if (voiceMode === "preset") {
-    return !!selectedVoice;
+  if (voiceMode === 'preset') {
+    return !!selectedVoice
   } else {
-    return !!openaiBaseUrl && !!openaiKey && !!openaiModel;
+    return !!openaiBaseUrl && !!openaiKey && !!openaiModel
   }
-});
+})
 
 // 是否可以试听
 const canPreview = computed(() => {
-  const { voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } =
-    audioConfig;
-  if (voiceMode === "preset") {
-    return !!selectedVoice;
+  const { voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } = audioConfig
+  if (voiceMode === 'preset') {
+    return !!selectedVoice
   } else {
-    return !!openaiBaseUrl && !!openaiKey && !!openaiModel;
+    return !!openaiBaseUrl && !!openaiKey && !!openaiModel
   }
-});
+})
 
 // 格式化语速显示
 const formatRate = (val: number) => {
-  return val > 0 ? `+${val}%` : `${val}%`;
-};
+  return val > 0 ? `+${val}%` : `${val}%`
+}
 const formatVolume = (val: number) => {
-  return val >= 0 ? `+${val}%` : `${val}%`;
-};
+  return val >= 0 ? `+${val}%` : `${val}%`
+}
 
 // 格式化音调显示
 const formatPitch = (val: number) => {
-  return val >= 0 ? `+${val}Hz` : `${val}Hz`;
-};
-watch(() =>audioConfig.selectedLanguage, (value, oldValue) => {
-  if (value === oldValue) return
-  const matchLang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(value)?.[1];
-  if (matchLang && matchLang in previewTextSelect) {
-    updateConfig(
-      `previewText`,
-      previewTextSelect[matchLang as keyof typeof previewTextSelect]
-    );
-  }
-});
-const commonErrorHandler = (error: unknown) => {
-  if (error instanceof AxiosError) {
-    const status = error.status;
-    switch (status) {
-      case 429:
-        return handle429(error);
-      case 400:
-        return handle400(error);
-      case 500:
-        return handle500(error);
-      default:
-        ElMessage.error("请求失败！");
+  return val >= 0 ? `+${val}Hz` : `${val}Hz`
+}
+watch(
+  () => audioConfig.selectedLanguage,
+  (value, oldValue) => {
+    if (value === oldValue) return
+    const matchLang = /([a-zA-Z]{2,5}-[a-zA-Z]{2,5}\b)/.exec(value)?.[1]
+    if (matchLang && matchLang in previewTextSelect) {
+      updateConfig(`previewText`, previewTextSelect[matchLang as keyof typeof previewTextSelect])
     }
   }
-};
-const handle500 = (error: AxiosError) => {
-  const { message } = error?.response?.data as any;
-  if (message === 'English model cannot process non-English text') {
-    ElMessage.error(`英文模型不支持转中文语音哦！请切换模型到中文！`);
-  } else {
-    ElMessage.error(message);
+)
+const commonErrorHandler = (error: unknown) => {
+  if (error instanceof AxiosError) {
+    const status = error.status
+    switch (status) {
+      case 429:
+        return handle429(error)
+      case 400:
+        return handle400(error)
+      case 500:
+        return handle500(error)
+      default:
+        ElMessage.error('请求失败！')
+    }
   }
-};
+}
+const handle500 = (error: AxiosError) => {
+  const { message } = error?.response?.data as any
+  if (message === 'English model cannot process non-English text') {
+    ElMessage.error(`英文模型不支持转中文语音哦！请切换模型到中文！`)
+  } else {
+    ElMessage.error(message)
+  }
+}
 const handle429 = (error: unknown) => {
   if (error instanceof AxiosError) {
     if (error.status === 429) {
-      ElMessage.error("请求太快啦，小服务器扛不住！请稍后再试");
+      ElMessage.error('请求太快啦，小服务器扛不住！请稍后再试')
     }
   }
-};
+}
 const handle400 = (error: AxiosError) => {
-  const { errors } = error?.response?.data as any;
-  if (errors?.some((error: any) => error.code === "too_small")) {
-    ElMessage.error("请至少输入5个字符以上！");
+  const { errors } = error?.response?.data as any
+  if (errors?.some((error: any) => error.code === 'too_small')) {
+    ElMessage.error('请至少输入5个字符以上！')
   } else {
-    ElMessage.error("请求失败！");
+    ElMessage.error('请求失败！')
   }
-};
+}
 // 加载语音数据
 onMounted(async () => {
   try {
-    const response = await getVoiceList();
-    voiceList.value = response?.data?.data;
+    const response = await getVoiceList()
+    voiceList.value = response?.data?.data
   } catch (error) {
-    handle429(error);
+    handle429(error)
   }
-});
+})
 
 // 处理文件上传
 const handleFile = (file: any) => {
-  const reader = new FileReader();
+  const reader = new FileReader()
   reader.onload = (e) => {
-    updateConfig("inputText", e.target?.result as string);
-  };
-  reader.readAsText(file.raw);
-};
+    updateConfig('inputText', e.target?.result as string)
+  }
+  reader.readAsText(file.raw)
+}
 
 // 清空文本
 const clearText = () => {
-  updateConfig("inputText", "");
-};
+  updateConfig('inputText', '')
+}
 
 // 根据语言和性别过滤语音
 const filterVoices = () => {
-  const { selectedVoice } = audioConfig;
-  const isCurrentVoiceValid = filteredVoices.value.some(
-    (v) => v.Name === selectedVoice
-  );
-  console.log(`isCurrentVoiceValid: ${isCurrentVoiceValid}, filteredVoices.length: ${filteredVoices.value.length}`)
+  const { selectedVoice } = audioConfig
+  const isCurrentVoiceValid = filteredVoices.value.some((v) => v.Name === selectedVoice)
+  console.log(
+    `isCurrentVoiceValid: ${isCurrentVoiceValid}, filteredVoices.length: ${filteredVoices.value.length}`
+  )
   if (filteredVoices.value.length > 0) {
-    updateConfig("selectedVoice", filteredVoices.value[0].Name);
+    updateConfig('selectedVoice', filteredVoices.value[0].Name)
   } else {
-    updateConfig("selectedVoice", "");
+    updateConfig('selectedVoice', '')
   }
-};
+}
 
 // 试听功能
 const previewAudio = async () => {
@@ -454,77 +428,74 @@ const previewAudio = async () => {
     openaiKey,
     openaiModel,
     voiceMode,
-  } = audioConfig;
-  if (!previewText.trim() || !canPreview.value) return;
-  previewLoading.value = true;
+  } = audioConfig
+  if (!previewText.trim() || !canPreview.value) return
+  previewLoading.value = true
   try {
     // 构建请求参数
     const params: any = {
       text: previewText,
-    };
-
-    if (voiceMode === "preset") {
-      params.voice = selectedVoice;
-      params.rate = `${rate > 0 ? "+" : ""}${rate}%`;
-      params.pitch = `${pitch > 0 ? "+" : ""}${pitch}Hz`;
-      params.volume = `${volume > 0 ? "+" : ""}${volume}%`;
-    } else {
-      params.useLLM = true;
-      params.openaiBaseUrl = openaiBaseUrl;
-      params.openaiKey = openaiKey;
-      params.openaiModel = openaiModel;
     }
 
-    const { data } = await generateTTS(params);
-    updateConfig("previewAudioUrl", data.audio);
+    if (voiceMode === 'preset') {
+      params.voice = selectedVoice
+      params.rate = `${rate > 0 ? '+' : ''}${rate}%`
+      params.pitch = `${pitch > 0 ? '+' : ''}${pitch}Hz`
+      params.volume = `${volume > 0 ? '+' : ''}${volume}%`
+    } else {
+      params.useLLM = true
+      params.openaiBaseUrl = openaiBaseUrl
+      params.openaiKey = openaiKey
+      params.openaiModel = openaiModel
+    }
+
+    const { data } = await generateTTS(params)
+    if (data?.audio) {
+      updateConfig('previewAudioUrl', data?.audio)
+    }
 
     setTimeout(() => {
       // Next tick to ensure the audio element is updated
-      (audioPlayer?.value as HTMLAudioElement).play();
-    });
+      ;(audioPlayer?.value as HTMLAudioElement).play()
+    })
   } catch (error) {
-    console.error("Preview failed:", error);
-    commonErrorHandler(error);
+    console.error('Preview failed:', error)
+    commonErrorHandler(error)
   } finally {
-    previewLoading.value = false;
+    previewLoading.value = false
   }
-};
+}
 
 // 生成音频
 const generateAudio = async () => {
-  if (!audioConfig.inputText.trim() || !canGenerate.value) return;
-  const {
-    rate,
-    pitch,
-    volume,
-    openaiBaseUrl,
-    openaiKey,
-    openaiModel,
-    voiceMode,
-    selectedVoice,
-  } = audioConfig;
-  generating.value = true;
-  generationStore.updateProgress(0);
-  progressStatus.value = "准备中...";
+  if (!audioConfig.inputText.trim() || !canGenerate.value) return
+  const { rate, pitch, volume, openaiBaseUrl, openaiKey, openaiModel, voiceMode, selectedVoice } =
+    audioConfig
+  generating.value = true
+  generationStore.updateProgress(0)
+  progressStatus.value = '准备中...'
 
   try {
     // 构建请求参数
     const params: any = {
       text: audioConfig.inputText,
-    };
-
-    if (voiceMode === "preset") {
-      params.voice = selectedVoice;
-      params.rate = `${rate >= 0 ? "+" : ""}${rate}%`;
-      params.pitch = `${pitch >= 0 ? "+" : ""}${pitch}Hz`;
-      params.volume = `${volume >= 0 ? "+" : ""}${volume}%`;
-    } else {
-      params.useLLM = true;
-      params.openaiBaseUrl = openaiBaseUrl;
-      params.openaiKey = openaiKey;
-      params.openaiModel = openaiModel;
     }
-    const { data } = await generateTTS(params);
+
+    if (voiceMode === 'preset') {
+      params.voice = selectedVoice
+      params.rate = `${rate >= 0 ? '+' : ''}${rate}%`
+      params.pitch = `${pitch >= 0 ? '+' : ''}${pitch}Hz`
+      params.volume = `${volume >= 0 ? '+' : ''}${volume}%`
+    } else {
+      params.useLLM = true
+      params.openaiBaseUrl = openaiBaseUrl
+      params.openaiKey = openaiKey
+      params.openaiModel = openaiModel
+    }
+    const { data } = await generateTTS(params)
+    if (!data) {
+      throw new Error(`no data returned from generateTTS`)
+    }
     const audioItem = {
       audio: data.audio,
       file: data.file,
@@ -534,91 +505,86 @@ const generateAudio = async () => {
       isSrtLoading: false,
       isPlaying: false,
       progress: 0,
-    };
-    const newAudioList = [...generationStore.audioList, audioItem];
-    generationStore.updateAudioList(newAudioList);
-    progressStatus.value = "生成完成！";
-    ElMessage.success("语音生成成功！");
-    generating.value = false;
+    }
+    const newAudioList = [...generationStore.audioList, audioItem]
+    generationStore.updateAudioList(newAudioList)
+    progressStatus.value = '生成完成！'
+    ElMessage.success('语音生成成功！')
+    generating.value = false
     if (Math.random() > 1e5) {
       // TODO: 根据ID轮询进度，展示不同文案
-      pooling("123");
+      pooling('123')
     }
   } catch (error) {
-    console.error("生成失败:", error);
-    commonErrorHandler(error);
-    generating.value = false;
+    console.error('生成失败:', error)
+    commonErrorHandler(error)
+    generating.value = false
   }
-};
+}
 const pooling = async (id: string) => {
   // 轮询进度
-  let intervalId: number | null = null;
+  let intervalId: number | null = null
   try {
     intervalId = window.setInterval(async () => {
       try {
-        const { data: progressData } = await getProgress({ id });
-        const {
-          progress: currentProgress,
-          success,
-          message,
-          url,
-        } = progressData;
+        const { data: progressData } = await getProgress({ id })
+        const { progress: currentProgress, success, message, url } = progressData
 
         // 更新进度和状态
-        generationStore.updateProgress(currentProgress);
+        generationStore.updateProgress(currentProgress)
 
         // 更新进度状态文本
         if (currentProgress < 20) {
-          progressStatus.value = "分析文本中...";
+          progressStatus.value = '分析文本中...'
         } else if (currentProgress < 40) {
-          progressStatus.value = "生成语音中...";
+          progressStatus.value = '生成语音中...'
         } else if (currentProgress < 70) {
-          progressStatus.value = "处理音频中...";
+          progressStatus.value = '处理音频中...'
         } else if (currentProgress < 90) {
-          progressStatus.value = "优化音频质量...";
+          progressStatus.value = '优化音频质量...'
         } else {
-          progressStatus.value = "即将完成...";
+          progressStatus.value = '即将完成...'
         }
 
         // 检查是否完成
         if (currentProgress >= 100 || success) {
           if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
+            clearInterval(intervalId)
+            intervalId = null
           }
-          generationStore.setAudio(url);
-          progressStatus.value = "生成完成！";
-          ElMessage.success("语音生成成功！");
-          generating.value = false;
+          generationStore.setAudio(url)
+          progressStatus.value = '生成完成！'
+          ElMessage.success('语音生成成功！')
+          generating.value = false
         }
 
         // 检查是否有错误
         if (!success && message) {
-          console.error(message);
-          ElMessage.error(`生成失败: ${message}`);
+          console.error(message)
+          ElMessage.error(`生成失败: ${message}`)
           if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
+            clearInterval(intervalId)
+            intervalId = null
           }
-          generating.value = false;
+          generating.value = false
         }
       } catch (error) {
-        console.error("获取进度失败:", error);
+        console.error('获取进度失败:', error)
         if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
+          clearInterval(intervalId)
+          intervalId = null
         }
-        generating.value = false;
+        generating.value = false
       }
-    }, 2000);
+    }, 2000)
   } catch (error) {
-    console.error("设置进度轮询失败:", error);
+    console.error('设置进度轮询失败:', error)
     if (intervalId) {
-      clearInterval(intervalId);
+      clearInterval(intervalId)
     }
-    generating.value = false;
+    generating.value = false
   }
-};
+}
 </script>
 
 <style scoped>
@@ -811,6 +777,5 @@ const pooling = async (id: string) => {
     width: 100%;
     display: flex;
   }
-
 }
 </style>
