@@ -26,6 +26,7 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
+    logger.debug('Generating audio with body:', req.body)
     const formattedBody = formatBody(req.body)
     const result = await generateTTS(formattedBody)
     const responseResult = {
@@ -90,6 +91,7 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
 
 export async function getVoiceList(req: Request, res: Response, next: NextFunction) {
   try {
+    logger.debug('Fetching voice list...')
     const voices = require('../llm/prompt/voice.json')
     res.json({
       data: voices,

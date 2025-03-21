@@ -30,7 +30,6 @@ enum ErrorMessages {
  */
 export async function generateTTS(params: Required<Generate>): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume, useLLM } = params
-
   // 检查缓存
   const cache = await getCache(voice, text)
   if (cache) {
@@ -40,6 +39,7 @@ export async function generateTTS(params: Required<Generate>): Promise<TTSResult
 
   const segment: Segment = { id: generateId(voice, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
+  logger.debug(`Language detected: ${lang} and voice list: ${voiceList.join(', ')}`)
   validateLangAndVoice(lang, voice)
 
   let result: TTSResult
@@ -85,8 +85,9 @@ async function generateWithLLM(
   lang: string
 ): Promise<TTSResult> {
   const prompt = genSegment(lang, voiceList, segment.text)
+  logger.debug(`Prompt for LLM: ${prompt}`)
   const llmResponse = await fetchLLMSegment(prompt)
-  // TODO: not works now.
+  // TODO: it not works now.
   return runEdgeTTS({ ...(llmResponse as any), text: segment.text.trim() })
 }
 
@@ -118,9 +119,11 @@ async function generateSingleSegment(segment: Segment, params: TTSParams): Promi
     volume,
     output,
   })
+  logger.debug('Generated single segment:', result)
   const jsonPath = `${output}.json`
   const srtPath = output.replace('.mp3', '.srt')
   await generateSrt(jsonPath, srtPath)
+  logger.debug('Generated SRT file:', srtPath)
   return {
     audio: `${STATIC_DOMAIN}/${segment.id}`,
     srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
@@ -150,6 +153,7 @@ async function generateMultipleSegments(
       return cache
     }
     const result = await generateSingleVoice({ text, pitch, voice, rate, volume, output })
+    logger.debug(`Cache miss and generate audio: ${result.audio}, ${result.srt}`)
     fileList.push(result.audio)
     await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
     return result
@@ -157,8 +161,10 @@ async function generateMultipleSegments(
 
   await runConcurrentTasks(tasks, 3)
   const outputFile = path.resolve(AUDIO_DIR, segment.id)
+  logger.debug(`Concatenating audio files from ${tmpDirPath} to ${outputFile}`)
   await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
   await concatDirSrt({ inputDir: tmpDirPath, fileList, outputFile })
+  logger.debug(`Concatenating SRT files from ${tmpDirPath} to ${outputFile.replace('.mp3', '.srt')}`)
 
   return {
     audio: `${STATIC_DOMAIN}/${segment.id}`,
@@ -170,6 +176,7 @@ async function generateMultipleSegments(
  * 并发执行任务
  */
 async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number): Promise<void> {
+  logger.debug(`Running ${tasks.length} tasks with a limit of ${limit}`)
   const controller = new MapLimitController(tasks, limit, () =>
     logger.info('All concurrent tasks completed')
   )

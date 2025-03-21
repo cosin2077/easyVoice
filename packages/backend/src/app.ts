@@ -7,9 +7,11 @@ import ttsRoutes from "./routes/tts.route";
 import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW } from "./config";
 import { errorHandler } from "./middleware/error.middleware";
 import { requestLoggerMiddleware } from "./middleware/info.middleware";
+import { logger } from './utils/logger';
 
 const isDev = process.env.NODE_ENV === 'development'
 export function createApp(): Application {
+  logger.debug('Creating app...')
   const app = express();
   const limiter = rateLimit({
     windowMs: RATE_LIMIT_WINDOW * 60 * 1000,
@@ -19,6 +21,7 @@ export function createApp(): Application {
   })
 
   if (!isDev) {
+    logger.debug('Using helmet...')
     app.use(helmet());
   }
 
