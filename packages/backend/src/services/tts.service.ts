@@ -61,6 +61,7 @@ export async function generateTTS(params: Required<Generate>): Promise<TTSResult
   logger.info(`Generated audio succeed: `, result)
   if (result.partial) {
     logger.warn(`Partial result detected, some splits generated audio failed!`)
+  } else {
     await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
   }
   return result

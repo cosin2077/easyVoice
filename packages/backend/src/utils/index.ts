@@ -1,5 +1,6 @@
 import fs from 'fs/promises'
 import { resolve } from 'path'
+import crypto from 'crypto'
 
 export async function getLangConfig(text: string) {
   const { franc } = await import('franc')

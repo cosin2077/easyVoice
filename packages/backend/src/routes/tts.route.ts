@@ -1,11 +1,13 @@
-import { Router } from "express";
-import { validateGenerate } from "../schema/generate";
-import { generateAudio, downloadAudio, getVoiceList } from "../controllers/tts.controller";
+import { Router } from 'express'
+import { validateCreateTask, validateGenerate } from '../schema/generate'
+import { generateAudio, downloadAudio, getVoiceList, createTask, getTask } from '../controllers/tts.controller'
 
-const router = Router();
+const router = Router()
 
-router.get("/voiceList", getVoiceList);
-router.post("/generate", validateGenerate, generateAudio);
-router.get("/download/:file", downloadAudio);
+router.get('/voiceList', getVoiceList)
+router.post('/create', validateCreateTask, createTask)
+router.post('/task/:id', getTask)
+router.post('/generate', validateGenerate, generateAudio)
+router.get('/download/:file', downloadAudio)
 
-export default router;
+export default router

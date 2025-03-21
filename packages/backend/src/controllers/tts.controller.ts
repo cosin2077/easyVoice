@@ -5,7 +5,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { ALLOWED_EXTENSIONS, AUDIO_DIR } from '../config'
 import { Generate } from '../schema/generate'
-
+import taskManager from '../controllers/taskManager'
 function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
   const positivePercent = (value: string | undefined) => {
     if (value === '0%' || value === '0' || value === undefined) return '+0%'
@@ -22,6 +22,63 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
     rate: positivePercent(rate),
     volume: positivePercent(volume),
     useLLM,
+  }
+}
+export async function createTask(req: Request, res: Response, next: NextFunction) {
+  try {
+    logger.debug('Generating audio with body:', req.body)
+    const formattedBody = formatBody(req.body)
+    const task = taskManager.createTask(formattedBody)
+    logger.info(`Generated task ID: ${task.id}`)
+
+    generateTTS(formattedBody)
+      .then((result) => {
+        const data = {
+          ...result,
+          file: path.parse(result.audio).base,
+          srt: path.parse(result.srt).base,
+        }
+        taskManager.updateTask(task.id, data)
+        logger.info(`Updated task ID: ${task.id} with result`, result)
+      })
+      .catch((err) => {
+        const data = {
+          message: (err as Error).message,
+        }
+        taskManager.failTask(task.id, data)
+      })
+    const data = {
+      success: true,
+      data: { task },
+      code: 200,
+    }
+    res.json(data)
+  } catch (error) {
+    next(error)
+  }
+}
+export async function getTask(req: Request, res: Response, next: NextFunction) {
+  const taskId = req.params.id
+  try {
+    const task = taskManager.getTask(taskId)
+    if (!task) {
+      res.status(404).json({ success: false, message: 'Task not found', code: 404 })
+      return
+    }
+    const { status, progress, updatedAt, message } = task
+    const responseResult = {
+      success: true,
+      data: {
+        status,
+        progress,
+        updatedAt,
+        message,
+      },
+      code: 200,
+    }
+    res.json(responseResult)
+  } catch (error) {
+    next(error)
   }
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {

@@ -372,10 +372,8 @@ const handle429 = (error: unknown) => {
 }
 const handle400 = (error: AxiosError) => {
   const { errors } = error?.response?.data as any
-  if (errors?.some((error: any) => error.code === 'too_small')) {
-    ElMessage.error('请至少输入5个字符以上！')
-  } else {
-    ElMessage.error('请求失败！')
+  if (errors?.length) {
+    ElMessage.error(errors[0].message)
   }
 }
 // 加载语音数据
