@@ -49,7 +49,25 @@ export type Voice = {
   ContentCategories: string[]
   VoicePersonalities: string[]
 }
-export const getVoiceList = () => api.get<AxiosResponse<Voice[]>>('/voiceList')
+export interface Task {
+  id: string
+  fields: any
+  status: string
+  progress: number
+  message: string
+  code?: string | number
+  result: any
+  createdAt: Date
+  updatedAt?: Date
+  updateProgress?: (taskId: string, progress: number) => Task | undefined
+}
+export const getVoiceList = async () => {
+  const response = await api.get<ResponseWrapper<Voice[]>>('/voiceList')
+  if (response.data?.code !== 200 || !response.data?.success) {
+    throw new Error(response.data?.message || '生成语音失败')
+  }
+  return response.data
+}
 
 export const generateTTS = async (data: GenerateRequest) => {
   const response = await api.post<ResponseWrapper<GenerateResponse>>('/generate', data)
@@ -58,7 +76,19 @@ export const generateTTS = async (data: GenerateRequest) => {
   }
   return response.data
 }
-
-export const getProgress = (data: TaskRequest) => api.post<TaskResponse>(`/task/${data.id}`)
+export const getTask = async (data: TaskRequest) => {
+  const response = await api.get<ResponseWrapper<Task>>(`/task/${data.id}`)
+  if (response.data?.code !== 200 || !response.data?.success) {
+    throw new Error(response.data?.message || '获取任务')
+  }
+  return response.data
+}
+export const createTask = async (data: TaskRequest) => {
+  const response = await api.post<ResponseWrapper<Task>>(`/create`, data)
+  if (response.data?.code !== 200 || !response.data?.success) {
+    throw new Error(response.data?.message || '获取任务')
+  }
+  return response.data
+}
 
 export const downloadFile = (file: string) => `${api.defaults.baseURL}/download/${file}`

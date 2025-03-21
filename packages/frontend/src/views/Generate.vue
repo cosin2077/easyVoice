@@ -230,7 +230,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useGenerationStore } from '@/stores/generation'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
-import { generateTTS, getProgress, getVoiceList, type Voice } from '@/api/tts'
+import { generateTTS, getTask, getVoiceList, createTask, type Voice } from '@/api/tts'
 import { Sparkles } from 'lucide-vue-next'
 import { UploadFilled, Service } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -380,7 +380,7 @@ const handle400 = (error: AxiosError) => {
 onMounted(async () => {
   try {
     const response = await getVoiceList()
-    voiceList.value = response?.data?.data
+    voiceList.value = response?.data!
   } catch (error) {
     handle429(error)
   }
@@ -413,9 +413,7 @@ const filterVoices = () => {
     updateConfig('selectedVoice', '')
   }
 }
-
-// 试听功能
-const previewAudio = async () => {
+const buildParams = () => {
   const {
     previewText,
     selectedVoice,
@@ -427,25 +425,29 @@ const previewAudio = async () => {
     openaiModel,
     voiceMode,
   } = audioConfig
+  const params: any = {
+    text: previewText,
+  }
+
+  if (voiceMode === 'preset') {
+    params.voice = selectedVoice
+    params.rate = `${rate > 0 ? '+' : ''}${rate}%`
+    params.pitch = `${pitch > 0 ? '+' : ''}${pitch}Hz`
+    params.volume = `${volume > 0 ? '+' : ''}${volume}%`
+  } else {
+    params.useLLM = true
+    params.openaiBaseUrl = openaiBaseUrl
+    params.openaiKey = openaiKey
+    params.openaiModel = openaiModel
+  }
+  return params
+}
+const previewAudio = async () => {
+  const { previewText } = audioConfig
   if (!previewText.trim() || !canPreview.value) return
   previewLoading.value = true
   try {
-    // 构建请求参数
-    const params: any = {
-      text: previewText,
-    }
-
-    if (voiceMode === 'preset') {
-      params.voice = selectedVoice
-      params.rate = `${rate > 0 ? '+' : ''}${rate}%`
-      params.pitch = `${pitch > 0 ? '+' : ''}${pitch}Hz`
-      params.volume = `${volume > 0 ? '+' : ''}${volume}%`
-    } else {
-      params.useLLM = true
-      params.openaiBaseUrl = openaiBaseUrl
-      params.openaiKey = openaiKey
-      params.openaiModel = openaiModel
-    }
+    const params = buildParams()
 
     const { data } = await generateTTS(params)
     if (data?.audio) {
@@ -453,7 +455,6 @@ const previewAudio = async () => {
     }
 
     setTimeout(() => {
-      // Next tick to ensure the audio element is updated
       ;(audioPlayer?.value as HTMLAudioElement).play()
     })
   } catch (error) {
@@ -467,29 +468,13 @@ const previewAudio = async () => {
 // 生成音频
 const generateAudio = async () => {
   if (!audioConfig.inputText.trim() || !canGenerate.value) return
-  const { rate, pitch, volume, openaiBaseUrl, openaiKey, openaiModel, voiceMode, selectedVoice } =
-    audioConfig
+
   generating.value = true
   generationStore.updateProgress(0)
   progressStatus.value = '准备中...'
 
   try {
-    // 构建请求参数
-    const params: any = {
-      text: audioConfig.inputText,
-    }
-
-    if (voiceMode === 'preset') {
-      params.voice = selectedVoice
-      params.rate = `${rate >= 0 ? '+' : ''}${rate}%`
-      params.pitch = `${pitch >= 0 ? '+' : ''}${pitch}Hz`
-      params.volume = `${volume >= 0 ? '+' : ''}${volume}%`
-    } else {
-      params.useLLM = true
-      params.openaiBaseUrl = openaiBaseUrl
-      params.openaiKey = openaiKey
-      params.openaiModel = openaiModel
-    }
+    const params = buildParams()
     const { data } = await generateTTS(params)
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
@@ -519,69 +504,85 @@ const generateAudio = async () => {
     generating.value = false
   }
 }
-const pooling = async (id: string) => {
-  // 轮询进度
-  let intervalId: number | null = null
+const generateAudioTask = async () => {
+  if (!audioConfig.inputText.trim() || !canGenerate.value) return
+  generating.value = true
+  generationStore.updateProgress(0)
+  progressStatus.value = '准备中...'
+
   try {
-    intervalId = window.setInterval(async () => {
-      try {
-        const { data: progressData } = await getProgress({ id })
-        const { progress: currentProgress, success, message, url } = progressData
-
-        // 更新进度和状态
-        generationStore.updateProgress(currentProgress)
-
-        // 更新进度状态文本
-        if (currentProgress < 20) {
-          progressStatus.value = '分析文本中...'
-        } else if (currentProgress < 40) {
-          progressStatus.value = '生成语音中...'
-        } else if (currentProgress < 70) {
-          progressStatus.value = '处理音频中...'
-        } else if (currentProgress < 90) {
-          progressStatus.value = '优化音频质量...'
-        } else {
-          progressStatus.value = '即将完成...'
-        }
-
-        // 检查是否完成
-        if (currentProgress >= 100 || success) {
-          if (intervalId) {
-            clearInterval(intervalId)
-            intervalId = null
-          }
-          generationStore.setAudio(url)
-          progressStatus.value = '生成完成！'
-          ElMessage.success('语音生成成功！')
-          generating.value = false
-        }
-
-        // 检查是否有错误
-        if (!success && message) {
-          console.error(message)
-          ElMessage.error(`生成失败: ${message}`)
-          if (intervalId) {
-            clearInterval(intervalId)
-            intervalId = null
-          }
-          generating.value = false
-        }
-      } catch (error) {
-        console.error('获取进度失败:', error)
-        if (intervalId) {
-          clearInterval(intervalId)
-          intervalId = null
-        }
-        generating.value = false
-      }
-    }, 2000)
-  } catch (error) {
-    console.error('设置进度轮询失败:', error)
-    if (intervalId) {
-      clearInterval(intervalId)
+    const params = buildParams()
+    const { data } = await createTask(params)
+    if (!data) {
+      throw new Error(`no data returned from generateTTS`)
     }
+    const taskId = data.id
+    pooling(taskId)
+  } catch (error) {
+    console.error('生成失败:', error)
+    commonErrorHandler(error)
     generating.value = false
   }
+}
+const pooling = async (taskId: string) => {
+  const clear = () => {
+    if (intervalId) {
+      generating.value = false
+      clearInterval(intervalId)
+    }
+  }
+  let intervalId = window.setInterval(async () => {
+    try {
+      const { data } = await getTask({ id: taskId })
+      const { status, progress: currentProgress, message, result } = data!
+      const success = status === 'success'
+      const failed = status === 'failed'
+      const pending = status === 'pending'
+
+      if (!pending) clear()
+      if (failed) {
+        console.error(message)
+        ElMessage.error(`生成失败: ${message}`)
+        return
+      }
+      if (success) {
+        const audioItem = {
+          audio: result.audio,
+          file: result.file,
+          size: result.size,
+          srt: result.srt,
+          isDownloading: false,
+          isSrtLoading: false,
+          isPlaying: false,
+          progress: 0,
+        }
+        const newAudioList = [...generationStore.audioList, audioItem]
+        generationStore.updateAudioList(newAudioList)
+        progressStatus.value = '生成完成！'
+        ElMessage.success('语音生成成功！')
+        return
+      }
+
+      // 更新进度和状态
+      generationStore.updateProgress(currentProgress)
+
+      // 更新进度状态文本
+      if (currentProgress < 20) {
+        progressStatus.value = '分析文本中...'
+      } else if (currentProgress < 40) {
+        progressStatus.value = '生成语音中...'
+      } else if (currentProgress < 70) {
+        progressStatus.value = '处理音频中...'
+      } else if (currentProgress < 90) {
+        progressStatus.value = '优化音频质量...'
+      } else {
+        progressStatus.value = '即将完成...'
+      }
+    } catch (error) {
+      console.error('获取进度失败:', error)
+      clear()
+    }
+  }, 2000)
 }
 </script>
 

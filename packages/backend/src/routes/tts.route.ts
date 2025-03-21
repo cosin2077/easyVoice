@@ -6,7 +6,7 @@ const router = Router()
 
 router.get('/voiceList', getVoiceList)
 router.post('/create', validateCreateTask, createTask)
-router.post('/task/:id', getTask)
+router.get('/task/:id', getTask)
 router.post('/generate', validateGenerate, generateAudio)
 router.get('/download/:file', downloadAudio)
 

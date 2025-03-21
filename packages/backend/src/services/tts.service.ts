@@ -29,7 +29,7 @@ enum ErrorMessages {
 /**
  * 生成文本转语音 (TTS) 的音频和字幕
  */
-export async function generateTTS(params: Required<Generate>, task: Task): Promise<TTSResult> {
+export async function generateTTS(params: Required<Generate>, task?: Task): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume, useLLM } = params
   // 检查缓存
   const cache = await getCache(voice, text)
@@ -106,7 +106,7 @@ async function generateWithLLM(
 async function generateWithoutLLM(
   segment: Segment,
   params: TTSParams,
-  task: Task
+  task?: Task
 ): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume } = params
   const { length, segments } = splitText(text)
@@ -124,7 +124,7 @@ async function generateWithoutLLM(
 async function generateSingleSegment(
   segment: Segment,
   params: TTSParams,
-  task: Task
+  task?: Task
 ): Promise<TTSResult> {
   const { pitch, voice, rate, volume } = params
   const output = path.resolve(AUDIO_DIR, segment.id)
@@ -157,7 +157,7 @@ async function generateMultipleSegments(
   segment: Segment,
   segments: string[],
   params: TTSParams,
-  task: Task
+  task?: Task
 ): Promise<TTSResult> {
   const { pitch, voice, rate, volume } = params
   const tmpDirName = segment.id.replace('.mp3', '')
