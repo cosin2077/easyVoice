@@ -13,6 +13,7 @@ import { Generate } from '../schema/generate'
 import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
+import { Task } from '../controllers/taskManager'
 
 // 错误消息枚举
 enum ErrorMessages {
@@ -28,7 +29,7 @@ enum ErrorMessages {
 /**
  * 生成文本转语音 (TTS) 的音频和字幕
  */
-export async function generateTTS(params: Required<Generate>): Promise<TTSResult> {
+export async function generateTTS(params: Required<Generate>, task: Task): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume, useLLM } = params
   // 检查缓存
   const cache = await getCache(voice, text)
@@ -46,14 +47,18 @@ export async function generateTTS(params: Required<Generate>): Promise<TTSResult
   if (useLLM) {
     result = await generateWithLLM(segment, voiceList, lang)
   } else {
-    result = await generateWithoutLLM(segment, {
-      text,
-      pitch,
-      voice,
-      rate,
-      volume,
-      output: segment.id,
-    })
+    result = await generateWithoutLLM(
+      segment,
+      {
+        text,
+        pitch,
+        voice,
+        rate,
+        volume,
+        output: segment.id,
+      },
+      task
+    )
   }
 
   // 验证结果并缓存
@@ -98,23 +103,32 @@ async function generateWithLLM(
 /**
  * 不使用 LLM 生成 TTS
  */
-async function generateWithoutLLM(segment: Segment, params: TTSParams): Promise<TTSResult> {
+async function generateWithoutLLM(
+  segment: Segment,
+  params: TTSParams,
+  task: Task
+): Promise<TTSResult> {
   const { text, pitch, voice, rate, volume } = params
   const { length, segments } = splitText(text)
 
   if (length <= 1) {
-    return generateSingleSegment(segment, params)
+    return generateSingleSegment(segment, params, task)
   } else {
-    return generateMultipleSegments(segment, segments, params)
+    return generateMultipleSegments(segment, segments, params, task)
   }
 }
 
 /**
  * 生成单个片段的 TTS
  */
-async function generateSingleSegment(segment: Segment, params: TTSParams): Promise<TTSResult> {
+async function generateSingleSegment(
+  segment: Segment,
+  params: TTSParams,
+  task: Task
+): Promise<TTSResult> {
   const { pitch, voice, rate, volume } = params
   const output = path.resolve(AUDIO_DIR, segment.id)
+  task?.updateProgress?.(task.id, 10)
   const result = await generateSingleVoice({
     text: segment.text,
     pitch,
@@ -123,11 +137,13 @@ async function generateSingleSegment(segment: Segment, params: TTSParams): Promi
     volume,
     output,
   })
+  task?.updateProgress?.(task.id, 80)
   logger.debug('Generated single segment:', result)
   const jsonPath = `${output}.json`
   const srtPath = output.replace('.mp3', '.srt')
   await generateSrt(jsonPath, srtPath)
   logger.debug('Generated SRT file:', srtPath)
+  task?.updateProgress?.(task.id, 100)
   return {
     audio: `${STATIC_DOMAIN}/${segment.id}`,
     srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
@@ -140,7 +156,8 @@ async function generateSingleSegment(segment: Segment, params: TTSParams): Promi
 async function generateMultipleSegments(
   segment: Segment,
   segments: string[],
-  params: TTSParams
+  params: TTSParams,
+  task: Task
 ): Promise<TTSResult> {
   const { pitch, voice, rate, volume } = params
   const tmpDirName = segment.id.replace('.mp3', '')
@@ -148,6 +165,7 @@ async function generateMultipleSegments(
   ensureDir(tmpDirPath)
 
   const fileList: string[] = []
+  const length = segments.length
   const tasks = segments.map((text, index) => async () => {
     const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
     const cache = await getCache(voice, text)
@@ -159,6 +177,7 @@ async function generateMultipleSegments(
     const result = await generateSingleVoice({ text, pitch, voice, rate, volume, output })
     logger.debug(`Cache miss and generate audio: ${result.audio}, ${result.srt}`)
     fileList.push(result.audio)
+    task?.updateProgress?.(task.id, Number((((index + 1) / length) * 100).toFixed(2)))
     await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
     return result
   })
@@ -172,6 +191,7 @@ async function generateMultipleSegments(
   logger.debug(`Concatenating audio files from ${tmpDirPath} to ${outputFile}`)
   await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
   await concatDirSrt({ inputDir: tmpDirPath, fileList, outputFile })
+  task?.updateProgress?.(task.id, 100)
   logger.debug(
     `Concatenating SRT files from ${tmpDirPath} to ${outputFile.replace('.mp3', '.srt')}`
   )

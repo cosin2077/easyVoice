@@ -4,8 +4,20 @@ interface Options {
   prefix?: string
   length?: number
 }
+export interface Task {
+  id: string
+  fields: any
+  status: string
+  progress: number
+  message: string
+  code?: string | number
+  result: any
+  createdAt: Date
+  updatedAt?: Date
+  updateProgress?: (taskId: string, progress: number) => Task | undefined
+}
 class TaskManager {
-  tasks: Map<string, any>
+  tasks: Map<string, Task>
   constructor() {
     this.tasks = new Map()
   }
@@ -33,7 +45,7 @@ class TaskManager {
     return `${prefix}${hashValue.slice(0, length)}`
   }
 
-  createTask(fields: any, options?: Options) {
+  createTask(fields: any, options?: Options): Task {
     const taskId = this.generateTaskId(fields, options)
     if (this.getTask(taskId)) {
       throw new Error(`task: ${taskId} already exists!`)
@@ -46,6 +58,7 @@ class TaskManager {
       message: '',
       result: null,
       createdAt: new Date(),
+      updateProgress: this.updateProgress.bind(this),
     }
     this.tasks.set(taskId, task)
     return task
@@ -53,6 +66,7 @@ class TaskManager {
 
   finishTask(taskId: string) {
     const task = this.tasks.get(taskId)
+    if (!task) throw new Error(`Cannot find task: ${taskId}`)
     task.status = 'completed'
     task.progress = 100
     task.updatedAt = new Date()
@@ -75,7 +89,7 @@ class TaskManager {
     this.tasks.set(taskId, findTask)
     return true
   }
-  updateProgress(taskId: string, progress: number) {
+  updateProgress(taskId: string, progress: number): Task | undefined {
     const findTask = this.getTask(taskId)
     if (!findTask) return
     findTask.progress = progress

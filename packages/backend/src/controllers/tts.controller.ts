@@ -31,7 +31,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
     const task = taskManager.createTask(formattedBody)
     logger.info(`Generated task ID: ${task.id}`)
 
-    generateTTS(formattedBody)
+    generateTTS(formattedBody, task)
       .then((result) => {
         const data = {
           ...result,
