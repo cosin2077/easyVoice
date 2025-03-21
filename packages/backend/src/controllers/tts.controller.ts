@@ -65,12 +65,12 @@ export async function getTask(req: Request, res: Response, next: NextFunction) {
       res.status(404).json({ success: false, message: 'Task not found', code: 404 })
       return
     }
-    const responseResult = {
+    const data = {
       success: true,
       data: { task },
       code: 200,
     }
-    res.json(responseResult)
+    res.json(data)
   } catch (error) {
     next(error)
   }

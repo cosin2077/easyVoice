@@ -75,6 +75,14 @@ class TaskManager {
     this.tasks.set(taskId, findTask)
     return true
   }
+  updateProgress(taskId: string, progress: number) {
+    const findTask = this.getTask(taskId)
+    if (!findTask) return
+    findTask.progress = progress
+    findTask.updatedAt = new Date()
+    this.tasks.set(taskId, findTask)
+    return findTask
+  }
   updateTask(taskId: string, result: any) {
     const findTask = this.getTask(taskId)
     if (!findTask) {
