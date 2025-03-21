@@ -174,7 +174,7 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
     logger.info('All concurrent tasks completed')
   )
   const { results, cancelled } = await controller.run()
-  logger.info(`Tasks completed: ${results.length}, cancelled: ${cancelled.length}`)
+  logger.info(`Tasks completed: ${results.length}, cancelled: ${cancelled}`)
 }
 
 /**

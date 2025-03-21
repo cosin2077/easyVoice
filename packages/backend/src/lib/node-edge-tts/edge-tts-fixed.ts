@@ -97,12 +97,12 @@ class EdgeTTS {
         resolve(wsConnect);
       });
 
-      wsConnect.on('error', (err) => {
+      wsConnect.on('error', (err: Error) => {
         clearTimeout(timeoutId);
         reject(new Error(`WebSocket error: ${err.message}`));
       });
 
-      wsConnect.on('close', (code, reason) => {
+      wsConnect.on('close', (code: number, reason: string) => {
         clearTimeout(timeoutId);
         if (code !== 1000) { // 1000 表示正常关闭
           reject(new Error(`WebSocket closed unexpectedly with code ${code}: ${reason.toString()}`));
@@ -178,14 +178,14 @@ class EdgeTTS {
         }
       });
 
-      _wsConnect.on('error', (err) => {
+      _wsConnect.on('error', (err: Error) => {
         clearTimeout(timeout);
         audioStream.end();
         _wsConnect.close();
         reject(new Error(`WebSocket error during transmission: ${err.message}`));
       });
 
-      _wsConnect.on('close', (code, reason) => {
+      _wsConnect.on('close', (code: number, reason: string) => {
         clearTimeout(timeout);
         if (code !== 1000) {
           audioStream.end();
