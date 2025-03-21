@@ -383,7 +383,7 @@ const commonErrorHandler = (error: unknown) => {
 };
 const handle500 = (error: AxiosError) => {
   const { message } = error?.response?.data as any;
-  if (message === 'Eng model cannot transpile non english') {
+  if (message === 'English model cannot process non-English text') {
     ElMessage.error(`英文模型不支持转中文语音哦！请切换模型到中文！`);
   } else {
     ElMessage.error(message);
@@ -531,6 +531,7 @@ const generateAudio = async () => {
       size: data.size,
       srt: data.srt,
       isDownloading: false,
+      isSrtLoading: false,
       isPlaying: false,
       progress: 0,
     };

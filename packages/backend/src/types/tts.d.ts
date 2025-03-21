@@ -5,7 +5,6 @@ interface Segment {
 
 interface TTSResult {
   audio: string;
-  file: string;
   srt: string;
 }
 

@@ -3,7 +3,7 @@ import { Generate } from '../schema/generate'
 import { fileExist, readJson, safeRunWithRetry } from '../utils'
 import fs from 'fs/promises'
 
-async function runEdgeTTS({
+export async function runEdgeTTS({
   text,
   pitch,
   volume,
@@ -41,7 +41,6 @@ export const generateSingleVoice = async ({
   let result: TTSResult = {
     audio: '',
     srt: '',
-    file: '',
   }
   await safeRunWithRetry(
     async () => {

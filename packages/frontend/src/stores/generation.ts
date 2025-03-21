@@ -7,6 +7,7 @@ export interface Audio {
   size?: number;
   srt?: number;
   isDownloading: boolean;
+  isSrtLoading: boolean;
   isPlaying: boolean;
   progress: number;
 }

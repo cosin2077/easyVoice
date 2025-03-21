@@ -10,7 +10,6 @@ interface AudioData {
   volume: string;
   audio: string;
   srt: string;
-  file: string;
 }
 class AudioCacheService {
   private cache: CacheService;

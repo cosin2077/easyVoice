@@ -1,8 +1,5 @@
 <template>
-  <div
-    v-if="store.audioList && store.audioList.length > 0"
-    class="download-area"
-  >
+  <div v-if="store.audioList && store.audioList.length > 0" class="download-area">
     <!-- 下载列表标题 -->
     <div class="download-header">
       <span class="header-title">下载列表 ({{ store.audioList.length }})</span>
@@ -34,7 +31,7 @@
           >
             <transition name="text-fade" mode="out-in">
               <span :key="item.isPlaying ? 'playing' : 'play'">
-                {{ item.isPlaying ? "暂停" : "播放" }}
+                {{ item.isPlaying ? '暂停' : '播放' }}
               </span>
             </transition>
           </el-button>
@@ -45,9 +42,9 @@
             @click="downloadAudio(item, index)"
             :disabled="item.isDownloading"
             :loading="item.isDownloading"
-            :icon="Download"
+            :icon="Service"
           >
-            {{ item.isDownloading ? "下载音频中" : "下载音频" }}
+            {{ item.isDownloading ? '下载中' : '下载' }}
           </el-button>
           <el-button
             v-if="item.srt"
@@ -55,18 +52,13 @@
             size="small"
             round
             @click="downloadSrt(item, index)"
-            :disabled="item.isDownloading"
-            :loading="item.isDownloading"
-            :icon="Download"
+            :disabled="item.isSrtLoading"
+            :loading="item.isSrtLoading"
+            :icon="ChatLineSquare"
           >
-            {{ item.isDownloading ? "下载字幕中" : "下载字幕" }}
+            {{ item.isSrtLoading ? '下载中' : '下载' }}
           </el-button>
-          <el-tooltip
-            content="删除"
-            placement="top"
-            :disabled="item.isDownloading"
-            effect="dark"
-          >
+          <el-tooltip content="删除" placement="top" :disabled="item.isDownloading" effect="dark">
             <el-icon class="delete-icon" @click="removeDownloadItem(item)">
               <CircleCloseFilled />
             </el-icon>
@@ -90,109 +82,117 @@
 </template>
 
 <script setup lang="ts">
-import { downloadFile } from "@/api/tts";
-import { useGenerationStore } from "@/stores/generation";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { watch } from "vue";
+import { downloadFile } from '@/api/tts'
+import { useGenerationStore } from '@/stores/generation'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { watch } from 'vue'
 import {
   Download,
   CircleCloseFilled,
   Delete,
   VideoPause,
   VideoPlay,
-} from "@element-plus/icons-vue";
-import { useAudio } from "@/utils/index";
-import type { Audio } from "../stores/generation";
+  ChatLineSquare,
+  Service,
+} from '@element-plus/icons-vue'
+import { useAudio } from '@/utils/index'
+import type { Audio } from '../stores/generation'
 
-const store = useGenerationStore();
+const store = useGenerationStore()
 
 const playAudio = async (item: Audio, _: number) => {
-  const audio = useAudio(item.audio);
+  const audio = useAudio(item.audio)
   if (audio.isPlaying.value) {
-    audio.pause();
-    item.isPlaying = false;
+    audio.pause()
+    item.isPlaying = false
   } else {
     try {
-      await audio.play();
-      item.isPlaying = true;
+      await audio.play()
+      item.isPlaying = true
     } catch (err) {
-      if (err instanceof Error && err.name === "NotSupportedError") {
+      if (err instanceof Error && err.name === 'NotSupportedError') {
         // 处理不支持的场景
         ElMessage.error('糟糕！音频可能丢失了!')
       }
-      console.log(`audio.play error`, (err as Error).message);
+      console.log(`audio.play error`, (err as Error).message)
     }
   }
   watch(audio.isPlaying, (isPlaying) => {
     if (isPlaying === false) {
-      item.isPlaying = false;
+      item.isPlaying = false
     }
-  });
-};
-const commonDownload = (item: Audio, file: keyof Audio, title: string) => {
-  item.isDownloading = true;
-  const url = downloadFile(file);
-  const link = document.createElement("a");
-  link.href = url;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  ElMessage.success(`下载${title}成功！`);
-  setTimeout(() => {
-    item.isDownloading = false;
-  }, 200);
+  })
+}
+const commonDownload = (item: Audio, file: keyof Audio, title: string, loadingProp: string) => {
+  try {
+    item[loadingProp] = true
+    const url = downloadFile(file)
+    const link = document.createElement('a')
+    link.target = '_blank'
+    link.href = url
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    ElMessage.success(`下载${title}成功！`)
+  } catch (err) {
+    console.log(`commonDownload error: ${file}`, (err as Error).message)
+  } finally {
+    setTimeout(() => {
+      item[loadingProp] = false
+    }, 200)
+  }
 }
 const downloadAudio = (item: Audio, _: number) => {
-  if (!item.file) return;
-  commonDownload(item, item.file, '音频')
-};
+  if (!item.file) return
+  commonDownload(item, item.file, '音频', 'isDownloading')
+}
 const downloadSrt = (item: Audio, _: number) => {
   console.log('item.srt', item.srt)
-  if (!item.srt) return;
-  commonDownload(item, item.srt, '字幕')
-};
+  if (!item.srt) return
+  commonDownload(item, item.srt, '字幕', 'isSrtLoading')
+}
 
 const removeDownloadItem = (item: Audio) => {
-  if (item.isDownloading) return;
+  if (item.isDownloading) return
   // 确认删除操作
-  ElMessageBox.confirm("确定删除该下载项吗？", "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning",
+  ElMessageBox.confirm('确定删除该下载项吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
   }).then(() => {
-    const newList = store.audioList.filter((audio) => audio !== item);
-    store.updateAudioList(newList);
-    ElMessage.success("已删除");
-  });
-};
+    const newList = store.audioList.filter((audio) => audio !== item)
+    store.updateAudioList(newList)
+    ElMessage.success('已删除')
+  })
+}
 
 const formatFileSize = (bytes: number) => {
-  if (!bytes) return "";
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
+  if (!bytes) return ''
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 
 const downloadAll = () => {
   store.audioList.forEach((item, index) => {
     if (!item.isDownloading) {
-      downloadAudio(item, index);
+      downloadAudio(item, index)
     }
-  });
-};
+  })
+}
 
 const clearAll = () => {
-  ElMessageBox.confirm("确定清空下载列表吗？", "提示", {
-    confirmButtonText: "确定",
-    cancelButtonText: "取消",
-    type: "warning",
+  ElMessageBox.confirm('确定清空下载列表吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
   }).then(() => {
-    store.updateAudioList([]);
-    ElMessage.success("已清空");
-  });
-};
+    store.updateAudioList([])
+    ElMessage.success('已清空')
+  })
+}
 </script>
 
 <style scoped>
