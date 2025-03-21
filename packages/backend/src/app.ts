@@ -32,7 +32,7 @@ export function createApp(): Application {
   app.use(express.static(PUBLIC_DIR));
   app.use(requestLoggerMiddleware);
 
-  app.use("/api", ttsRoutes);
+  app.use("/api/v1/tts", ttsRoutes);
 
   app.use(errorHandler);
 

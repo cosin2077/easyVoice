@@ -165,9 +165,7 @@ export async function getCache(voice: string, text: string): Promise<TTSResult |
     const cache = await audioCacheInstance.getAudio(`${voice}_${text}`)
     if (!cache) return null
     const { audio, file, srt } = cache
-    if (!audio) {
-      return null
-    }
+    if (!audio) return null
     return {
       audio,
       file,
@@ -291,18 +289,16 @@ export async function concatDirAudio(params: ConcatAudioParams): Promise<void> {
     if (mp3Files.length === 0) {
       throw new Error('错误: 输入文件夹中没有找到 MP3 文件')
     }
-    // 创建临时文件列表
     const tempListPath = path.resolve(inputDir, 'file_list.txt')
     const fileListContent = mp3Files.map((file) => `file '${file}'`).join('\n')
     await fs.writeFile(tempListPath, fileListContent)
 
-    // 使用 fluent-ffmpeg 拼接
     await new Promise<void>((resolve, reject) => {
       ffmpeg()
         .input(tempListPath)
         .inputFormat('concat')
-        .inputOption('-safe', '0') // 允许非标准路径
-        .audioCodec('copy') // 不重新编码，直接复制
+        .inputOption('-safe', '0')
+        .audioCodec('copy')
         .output(outputFile)
         .on('end', () => {
           console.log(`成功: 已生成 ${outputFile}`)
@@ -313,8 +309,6 @@ export async function concatDirAudio(params: ConcatAudioParams): Promise<void> {
         })
         .run()
     })
-
-    // await fs.unlink(tempListPath);
   } catch (error) {
     console.error(error instanceof Error ? error.message : '未知错误')
     throw error
