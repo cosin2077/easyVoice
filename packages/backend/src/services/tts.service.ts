@@ -1,27 +1,28 @@
-import { runEdgeTTS } from "../utils/spawn";
-import { AUDIO_DIR, STATIC_DOMAIN } from "../config";
-import { logger } from "../utils/logger";
-import { genSegment } from "../llm/prompt/generateSegment";
-import { ensureDir, generateId, getLangConfig } from "../utils";
-import { openai } from "../utils/openai";
-import { splitText } from "./text.service";
-import { generateSingleVoice, handleSRT } from "./edge-tts.service";
-import { Generate } from "../schema/generate";
-import path from "path";
-import fs from "fs/promises";
-import ffmpeg from 'fluent-ffmpeg';
-import { MapLimitController } from "../controllers/concurrency.controller";
-import audioCacheInstance from "./audioCache.service";
+import { runEdgeTTS } from '../utils/spawn'
+import { AUDIO_DIR, STATIC_DOMAIN } from '../config'
+import { logger } from '../utils/logger'
+import { genSegment } from '../llm/prompt/generateSegment'
+import { ensureDir, generateId, getLangConfig, readJson } from '../utils'
+import { openai } from '../utils/openai'
+import { splitText } from './text.service'
+import { generateSingleVoice, generateSrt } from './edge-tts.service'
+import { Generate } from '../schema/generate'
+import path from 'path'
+import fs from 'fs/promises'
+import ffmpeg from 'fluent-ffmpeg'
+import { MapLimitController } from '../controllers/concurrency.controller'
+import audioCacheInstance from './audioCache.service'
+import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 
 // 错误消息枚举
 enum ErrorMessages {
   ENG_MODEL_INVALID_TEXT = 'Eng model cannot transpile non english',
-  API_FETCH_FAILED = "Failed to fetch TTS parameters from API",
-  INVALID_API_RESPONSE = "Invalid API response: no TTS parameters returned",
-  PARAMS_PARSE_FAILED = "Failed to parse TTS parameters",
-  INVALID_PARAMS_FORMAT = "Invalid TTS parameters format",
-  TTS_GENERATION_FAILED = "TTS generation failed",
-  INCOMPLETE_RESULT = "Incomplete TTS result"
+  API_FETCH_FAILED = 'Failed to fetch TTS parameters from API',
+  INVALID_API_RESPONSE = 'Invalid API response: no TTS parameters returned',
+  PARAMS_PARSE_FAILED = 'Failed to parse TTS parameters',
+  INVALID_PARAMS_FORMAT = 'Invalid TTS parameters format',
+  TTS_GENERATION_FAILED = 'TTS generation failed',
+  INCOMPLETE_RESULT = 'Incomplete TTS result',
 }
 
 /**
@@ -30,29 +31,52 @@ enum ErrorMessages {
  * @throws {Error} 当处理过程中发生错误时抛出具体错误
  * @returns {Promise<TTSResult>} 包含音频路径和字幕的Promise
  */
-export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: Required<Generate>): Promise<TTSResult> {
+export async function generateTTS({
+  text,
+  pitch,
+  voice,
+  rate,
+  volume,
+  useLLM,
+}: Required<Generate>): Promise<TTSResult> {
   try {
     const cache = await getCache(voice, text)
     if (cache) {
       logger.info(`hit cache: ${voice} ${text.slice(0, 10)} `)
       return cache
     }
-    const segment: Segment = { id: generateId(voice, text), text };
-    const { lang, voiceList } = await getLangConfig(segment.text);
-    validateLangAndVoice(lang, voice);
-    let result: TTSResult;
+    const segment: Segment = { id: generateId(voice, text), text }
+    const { lang, voiceList } = await getLangConfig(segment.text)
+    validateLangAndVoice(lang, voice)
+    let result: TTSResult
     if (!useLLM) {
       const { length, segments } = splitText(text)
       if (length <= 1) {
         const output = path.resolve(AUDIO_DIR, segment.id)
-        result = await generateSingleVoice({ text: segments[0], pitch, voice, rate, volume, output })
-        await handleSRT(output)
+        result = await generateSingleVoice({
+          text: segments[0],
+          pitch,
+          voice,
+          rate,
+          volume,
+          output,
+        })
+        const jsonPath = output + '.json'
+        const srtPath = output.replace('.mp3', '.srt')
+        await generateSrt(jsonPath, srtPath)
         result = {
           audio: `${STATIC_DOMAIN}/${segment.id}`,
           file: segment.id,
           srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
         }
-        await audioCacheInstance.setAudio(`${voice}_${text}`, { text, pitch, voice, rate, volume, ...result })
+        await audioCacheInstance.setAudio(`${voice}_${text}`, {
+          text,
+          pitch,
+          voice,
+          rate,
+          volume,
+          ...result,
+        })
       } else {
         const fileList: string[] = []
         const tmpDirName = segment.id.replace('.mp3', '')
@@ -63,17 +87,30 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
           const segment = segments[index]
           const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
           const task = async () => {
-            let result: TTSResult;
+            let result: TTSResult
             const cache = await getCache(voice, segment)
             if (cache) {
               logger.info(`hit cache: ${voice} ${segment.slice(0, 10)} `)
-              result = cache;
+              result = cache
             }
             if (!result!) {
-              result = await generateSingleVoice({ text: segment, pitch, voice, rate, volume, output })
-              await audioCacheInstance.setAudio(`${voice}_${segment}`, { text: segment, pitch, voice, rate, volume, ...result })
+              result = await generateSingleVoice({
+                text: segment,
+                pitch,
+                voice,
+                rate,
+                volume,
+                output,
+              })
+              await audioCacheInstance.setAudio(`${voice}_${segment}`, {
+                text: segment,
+                pitch,
+                voice,
+                rate,
+                volume,
+                ...result,
+              })
             }
-
             fileList.push(result.audio)
           }
           generateTasks.push(task)
@@ -81,20 +118,21 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
 
         try {
           const controller = new MapLimitController(generateTasks, 3, () => {
-            console.log('Callback: generateSingleVoice tasks finished!');
-          });
-          const promise = controller.run();
-          const { results, cancelled } = await promise;
+            console.log('Callback: generateSingleVoice tasks finished!')
+          })
+          const promise = controller.run()
+          const { results, cancelled } = await promise
           console.log('执行完成:', {
             results,
             cancelled,
-            completedCount: results.filter(r => r !== undefined).length
-          });
+            completedCount: results.filter((r) => r !== undefined).length,
+          })
         } catch (error) {
-          console.error('执行出错:', error);
+          console.error('执行出错:', error)
         }
         const outputFile = path.resolve(AUDIO_DIR, segment.id)
-        await concatMp3Files({ inputDir: tmpDirPath, fileList, outputFile })
+        await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
+        await concatDirSrt({ inputDir: tmpDirPath, fileList, outputFile })
         result = {
           audio: `${STATIC_DOMAIN}/${segment.id}`,
           file: `${segment.id}`,
@@ -103,42 +141,46 @@ export async function generateTTS({ text, pitch, voice, rate, volume, useLLM }: 
       }
     } else {
       // use LLM
-      const prompt = genSegment(lang, voiceList, segment.text);
+      const prompt = genSegment(lang, voiceList, segment.text)
       // formated JSON LLM returns.
-      const segmentList = await fetchLLMSegment(prompt);
+      const segmentList = await fetchLLMSegment(prompt)
       // const output = `${segment.id}.mp3`;
       const result = await runEdgeTTS({
         ...(prompt as any),
         text: segment.text.trim(),
-      });
+      })
     }
     // 验证结果
-    validateTTSResult(result!, segment.id);
-    logger.info(`Generated TTS for segment ${segment.id}`);
-    return result!;
+    validateTTSResult(result!, segment.id)
+    logger.info(`Generated TTS for segment ${segment.id}`)
+    return result!
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`TTS generation error: ${errorMessage}`);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error(`TTS generation error: ${errorMessage}`)
+    throw error
   }
 }
 export async function getCache(voice: string, text: string): Promise<TTSResult | null> {
   try {
     const cache = await audioCacheInstance.getAudio(`${voice}_${text}`)
     if (!cache) return null
-    const { audio, file, srt } = cache;
-    if (!audio) { return null }
-    return {
-      audio, file, srt
+    const { audio, file, srt } = cache
+    if (!audio) {
+      return null
     }
-  } catch (error) { }
-  return null;
+    return {
+      audio,
+      file,
+      srt,
+    }
+  } catch (error) {}
+  return null
 }
 /**
  * 验证输入的segment
  * @throws {Error} 当segment无效时抛出错误
  */
-function validateLangAndVoice(lang:string, voice: string): void {
+function validateLangAndVoice(lang: string, voice: string): void {
   if (lang !== 'eng' && voice.startsWith('en')) {
     throw new Error(ErrorMessages.ENG_MODEL_INVALID_TEXT)
   }
@@ -150,7 +192,6 @@ function validateLangAndVoice(lang:string, voice: string): void {
  */
 async function fetchLLMSegment(prompt: string): Promise<any> {
   try {
-
     const response = await openai.createChatCompletion({
       messages: [
         { role: 'system', content: 'You are a helpful assistant.' },
@@ -158,16 +199,16 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
       ],
       temperature: 0.7,
       max_tokens: 500,
-      response_format: { type: "json_object" },
-    });
+      response_format: { type: 'json_object' },
+    })
     console.log('response:', response)
     if (!response.choices[0].message.content) {
-      throw new Error(ErrorMessages.INVALID_API_RESPONSE);
+      throw new Error(ErrorMessages.INVALID_API_RESPONSE)
     }
-    parseLLMResponse(response);
-    return response;
+    parseLLMResponse(response)
+    return response
   } catch (error) {
-    throw new Error(`${ErrorMessages.API_FETCH_FAILED}: ${(error as Error).message}`);
+    throw new Error(`${ErrorMessages.API_FETCH_FAILED}: ${(error as Error).message}`)
   }
 }
 
@@ -177,13 +218,13 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
  */
 function parseLLMResponse(response: any): TTSParams {
   try {
-    const params = JSON.parse(response.choices[0].message.content) as TTSParams;
+    const params = JSON.parse(response.choices[0].message.content) as TTSParams
     if (!params || typeof params !== 'object') {
-      throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT);
+      throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
     }
-    return params;
+    return params
   } catch (error) {
-    throw new Error(`${ErrorMessages.PARAMS_PARSE_FAILED}: ${(error as Error).message}`);
+    throw new Error(`${ErrorMessages.PARAMS_PARSE_FAILED}: ${(error as Error).message}`)
   }
 }
 
@@ -193,43 +234,67 @@ function parseLLMResponse(response: any): TTSParams {
  */
 function validateTTSResult(result: TTSResult, segmentId: string): void {
   if (!result?.audio) {
-    throw new Error(`${ErrorMessages.INCOMPLETE_RESULT} for segment ${segmentId}`);
+    throw new Error(`${ErrorMessages.INCOMPLETE_RESULT} for segment ${segmentId}`)
   }
 }
 
 export interface ConcatAudioParams {
-  fileList: string[];
-  outputFile: string;
-  inputDir: string;
+  fileList: string[]
+  outputFile: string
+  inputDir: string
+}
+function sortAudioDir(fileList: string[], ext: string = '.mp3') {
+  return fileList
+    .filter((file) => path.extname(file).toLowerCase() === ext)
+    .sort((a: string, b: string) => {
+      const x = path.parse(a).base
+      const y = path.parse(b).base
+      return Number(x.split('_')[0]) - Number(y.split('_')[0])
+    })
+}
+// 拼接字幕
+export async function concatDirSrt(params: ConcatAudioParams): Promise<void> {
+  const { fileList, outputFile, inputDir } = params
+  try {
+    const srtFiles = sortAudioDir(
+      fileList.map((file) => file + '.json'),
+      '.json'
+    )
+    if (srtFiles.length === 0) {
+      throw new Error('错误: 输入文件夹中没有找到 SRT 文件')
+    }
+    const tempListPath = path.resolve(inputDir, 'all_splits.mp3.json')
+    const subtitleFiles: SubtitleFiles = []
+    for (let jsonPath of srtFiles) {
+      const subtitleJson: SubtitleFile = await readJson(jsonPath)
+      subtitleFiles.push(subtitleJson)
+    }
+    const tmpFinalJson = mergeSubtitleFiles(subtitleFiles)
+    await fs.writeFile(tempListPath, JSON.stringify(tmpFinalJson, null, 2))
+    const srtPath = outputFile.replace('.mp3', '.srt')
+    await generateSrt(tempListPath, srtPath)
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : '未知错误')
+    throw error
+  }
 }
 /**
  * 将指定文件夹中的 MP3 文件拼接成单个音频文件
  * @param params 输入参数
  * @returns Promise<void>
  */
-export async function concatMp3Files(params: ConcatAudioParams): Promise<void> {
-  const { fileList, outputFile,inputDir } = params;
+export async function concatDirAudio(params: ConcatAudioParams): Promise<void> {
+  const { fileList, outputFile, inputDir } = params
 
   try {
-
-
-    // 查找所有 MP3 文件并排序
-    const mp3Files = fileList
-      .filter((file) => path.extname(file).toLowerCase() === '.mp3')
-      .sort((a: string, b: string) => {
-        const x = path.parse(a).base;
-        const y = path.parse(b).base;
-        return Number(x.split('_')[0]) - Number(y.split('_')[0])
-      }); // 按文件名自然排序
-    // 检查是否有 MP3 文件
+    const mp3Files = sortAudioDir(fileList, '.mp3')
     if (mp3Files.length === 0) {
-      throw new Error('错误: 输入文件夹中没有找到 MP3 文件');
+      throw new Error('错误: 输入文件夹中没有找到 MP3 文件')
     }
-
     // 创建临时文件列表
-    const tempListPath = path.resolve(inputDir, 'file_list.txt');
-    const fileListContent = mp3Files.map((file) => `file '${file}'`).join('\n');
-    await fs.writeFile(tempListPath, fileListContent);
+    const tempListPath = path.resolve(inputDir, 'file_list.txt')
+    const fileListContent = mp3Files.map((file) => `file '${file}'`).join('\n')
+    await fs.writeFile(tempListPath, fileListContent)
 
     // 使用 fluent-ffmpeg 拼接
     await new Promise<void>((resolve, reject) => {
@@ -240,18 +305,18 @@ export async function concatMp3Files(params: ConcatAudioParams): Promise<void> {
         .audioCodec('copy') // 不重新编码，直接复制
         .output(outputFile)
         .on('end', () => {
-          console.log(`成功: 已生成 ${outputFile}`);
-          resolve();
+          console.log(`成功: 已生成 ${outputFile}`)
+          resolve()
         })
         .on('error', (err: Error) => {
-          reject(new Error(`错误: 拼接失败 - ${err.message}`));
+          reject(new Error(`错误: 拼接失败 - ${err.message}`))
         })
-        .run();
-    });
+        .run()
+    })
 
     // await fs.unlink(tempListPath);
   } catch (error) {
-    console.error(error instanceof Error ? error.message : '未知错误');
-    throw error;
+    console.error(error instanceof Error ? error.message : '未知错误')
+    throw error
   }
 }

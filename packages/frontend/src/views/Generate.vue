@@ -529,6 +529,7 @@ const generateAudio = async () => {
       audio: data.audio,
       file: data.file,
       size: data.size,
+      srt: data.srt,
       isDownloading: false,
       isPlaying: false,
       progress: 0,

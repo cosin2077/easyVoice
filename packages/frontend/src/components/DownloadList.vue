@@ -47,7 +47,19 @@
             :loading="item.isDownloading"
             :icon="Download"
           >
-            {{ item.isDownloading ? "下载中" : "下载" }}
+            {{ item.isDownloading ? "下载音频中" : "下载音频" }}
+          </el-button>
+          <el-button
+            v-if="item.srt"
+            type="primary"
+            size="small"
+            round
+            @click="downloadSrt(item, index)"
+            :disabled="item.isDownloading"
+            :loading="item.isDownloading"
+            :icon="Download"
+          >
+            {{ item.isDownloading ? "下载字幕中" : "下载字幕" }}
           </el-button>
           <el-tooltip
             content="删除"
@@ -117,19 +129,27 @@ const playAudio = async (item: Audio, _: number) => {
     }
   });
 };
-const downloadAudio = (item: Audio, _: number) => {
-  if (!item.file) return;
+const commonDownload = (item: Audio, file: keyof Audio, title: string) => {
   item.isDownloading = true;
-  const url = downloadFile(item.file);
+  const url = downloadFile(file);
   const link = document.createElement("a");
   link.href = url;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  ElMessage.success("下载成功！");
+  ElMessage.success(`下载${title}成功！`);
   setTimeout(() => {
     item.isDownloading = false;
   }, 200);
+}
+const downloadAudio = (item: Audio, _: number) => {
+  if (!item.file) return;
+  commonDownload(item, item.file, '音频')
+};
+const downloadSrt = (item: Audio, _: number) => {
+  console.log('item.srt', item.srt)
+  if (!item.srt) return;
+  commonDownload(item, item.srt, '字幕')
 };
 
 const removeDownloadItem = (item: Audio) => {

@@ -6,16 +6,16 @@ export async function getLangConfig(text: string) {
   let lang = franc(text)
   if (lang === 'cmn') { lang = 'zh' }
   const voicePath = resolve(__dirname, `../llm/prompt/voice.json`)
-  const voiceList = await readJSON<VoiceConfig[]>(voicePath)
+  const voiceList = await readJson<VoiceConfig[]>(voicePath)
   return { lang, voiceList }
 }
 
-export async function readJSON<T>(path: string): Promise<T> {
+export async function readJson<T>(path: string): Promise<T> {
   try {
     const data = await fs.readFile(path, 'utf-8');
     return JSON.parse(data)
   } catch (err) {
-    console.log(`readJSON ${path} error:`, (err as Error).message)
+    console.log(`readJson ${path} error:`, (err as Error).message)
     return {} as T
   }
 }
@@ -72,10 +72,10 @@ export async function asyncSleep(delay = 200) {
 }
 export function generateId(voice: string, text: string) {
   const now = Date.now()
-  return `${voice}-${safeFileName(text).slice(0, 10)}_${now}.mp3`
+  return `${voice}-${safeFileName(text).slice(0, 10)}-${now}.mp3`
 }
 function safeFileName(fileName: string) {
-  return fileName.replace(/[/\\?%*:|"<>\r\n\s]/g, '-');
+  return fileName.replace(/[/\\?%*:|"<>\r\n\s#]/g, '-');
 }
 
 export async function fileExist(path: string) {

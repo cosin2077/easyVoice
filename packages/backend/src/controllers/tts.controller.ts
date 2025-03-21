@@ -22,7 +22,6 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: Generate) {
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
     const formattedBody = formatBody(req.body);
-    // logger.info(`generateAudio formatted body: `, formattedBody)
     const result = await generateTTS(formattedBody);
     res.json(result);
   } catch (error) {
