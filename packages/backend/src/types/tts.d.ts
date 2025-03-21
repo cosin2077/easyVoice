@@ -6,6 +6,7 @@ interface Segment {
 interface TTSResult {
   audio: string;
   srt: string;
+  partial?: boolean
 }
 
 interface TTSParams {

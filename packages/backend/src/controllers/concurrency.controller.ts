@@ -53,7 +53,11 @@ export class MapLimitController {
             })
             .catch((error) => {
               if (!this.cancelled) {
-                results[currentIndex] = { success: false, error }
+                results[currentIndex] = {
+                  success: false,
+                  index: currentIndex,
+                  error: (error as Error).message,
+                }
               }
             })
             .finally(() => {

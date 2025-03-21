@@ -66,7 +66,7 @@ function defaultErrorHandler(err: unknown, attempt: number): void {
   if (message.includes('Invalid response status')) {
     console.log(`Attempt ${attempt} failed for ${fnName}: ${message}`)
   } else {
-    console.error(`Attempt ${attempt} failed for ${fnName}:`, err)
+    console.error(`Attempt ${attempt} failed for ${fnName}:`, (err as Error).message)
   }
 }
 export async function asyncSleep(delay = 200) {

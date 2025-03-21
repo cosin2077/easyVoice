@@ -142,10 +142,11 @@ class EdgeTTS {
       let subFile: subLine[] = []
       let timeout = setTimeout(() => {
         _wsConnect.close()
-        reject(new Error('Timed out'))
+        reject(new Error(`_wsConnect.on('message') Timed out`))
       }, this.timeout)
 
       _wsConnect.on('message', async (data: Buffer, isBinary: boolean) => {
+        clearTimeout(timeout)
         if (isBinary) {
           let separator = 'Path:audio\r\n'
           let index = data.indexOf(separator) + separator.length

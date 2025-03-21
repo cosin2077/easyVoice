@@ -58,8 +58,11 @@ export async function generateTTS(params: Required<Generate>): Promise<TTSResult
 
   // 验证结果并缓存
   validateTTSResult(result, segment.id)
-  await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
-  logger.info(`Generated TTS for segment ${segment.id}`)
+  logger.info(`Generated audio succeed: `, result)
+  if (result.partial) {
+    logger.warn(`Partial result detected, some splits generated audio failed!`)
+    await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
+  }
   return result
 }
 
@@ -148,7 +151,7 @@ async function generateMultipleSegments(
     const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
     const cache = await getCache(voice, text)
     if (cache) {
-      logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
+      logger.info(`Cache hit[segments]: ${voice} ${text.slice(0, 10)}`)
       fileList.push(cache.audio)
       return cache
     }
@@ -158,8 +161,12 @@ async function generateMultipleSegments(
     await audioCacheInstance.setAudio(`${voice}_${text}`, { ...params, ...result })
     return result
   })
-
-  await runConcurrentTasks(tasks, 3)
+  let partial = false
+  const results = await runConcurrentTasks(tasks, 3)
+  if (results?.some((result) => !result.success)) {
+    logger.warn(`Partial result detected, some splits generated audio failed!`, results)
+    partial = true
+  }
   const outputFile = path.resolve(AUDIO_DIR, segment.id)
   logger.debug(`Concatenating audio files from ${tmpDirPath} to ${outputFile}`)
   await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
@@ -171,13 +178,14 @@ async function generateMultipleSegments(
   return {
     audio: `${STATIC_DOMAIN}/${segment.id}`,
     srt: `${STATIC_DOMAIN}/${segment.id.replace('.mp3', '.srt')}`,
+    partial,
   }
 }
 
 /**
  * 并发执行任务
  */
-async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number): Promise<void> {
+async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number): Promise<any[]> {
   logger.debug(`Running ${tasks.length} tasks with a limit of ${limit}`)
   const controller = new MapLimitController(tasks, limit, () =>
     logger.info('All concurrent tasks completed')
@@ -185,6 +193,7 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
   const { results, cancelled } = await controller.run()
   logger.info(`Tasks completed: ${results.length}, cancelled: ${cancelled}`)
   logger.debug(`Task results:`, results)
+  return results
 }
 
 /**

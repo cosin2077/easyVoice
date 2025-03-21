@@ -1,6 +1,7 @@
 import { BaseStorage } from '../storage/baseStorage'
 import { MemoryStorage } from '../storage/memoryStorage'
 import { FileStorage } from '../storage/fileStorage'
+import { logger } from '../utils/logger'
 // import { RedisStorage } from '../storage/redisStorage'; // 可选 Redis 实现
 
 export interface CacheOptions {
@@ -48,6 +49,7 @@ class CacheService {
   async set<T>(str: string, value: T, customTtl?: number): Promise<boolean> {
     const key = this.generateKey(str)
     const ttl = customTtl ?? this.defaultTtl
+    logger.debug(`CacheSerive Set cache: ${key}`)
     const item: CacheItem<T> = {
       value,
       expireAt: Date.now() + ttl,
@@ -64,6 +66,7 @@ class CacheService {
       await this.storage.delete(key) // 删除过期项
       return null
     }
+    logger.debug(`CacheSerive hit cache: ${key}`)
     return item.value
   }
 
