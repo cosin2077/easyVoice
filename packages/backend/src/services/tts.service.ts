@@ -39,7 +39,7 @@ export async function generateTTS(params: Required<Generate>): Promise<TTSResult
 
   const segment: Segment = { id: generateId(voice, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
-  logger.debug(`Language detected: ${lang} and voice list: ${voiceList.join(', ')}`)
+  logger.debug(`Language detected lang and voice list: `, [lang, voiceList])
   validateLangAndVoice(lang, voice)
 
   let result: TTSResult
@@ -164,7 +164,9 @@ async function generateMultipleSegments(
   logger.debug(`Concatenating audio files from ${tmpDirPath} to ${outputFile}`)
   await concatDirAudio({ inputDir: tmpDirPath, fileList, outputFile })
   await concatDirSrt({ inputDir: tmpDirPath, fileList, outputFile })
-  logger.debug(`Concatenating SRT files from ${tmpDirPath} to ${outputFile.replace('.mp3', '.srt')}`)
+  logger.debug(
+    `Concatenating SRT files from ${tmpDirPath} to ${outputFile.replace('.mp3', '.srt')}`
+  )
 
   return {
     audio: `${STATIC_DOMAIN}/${segment.id}`,
@@ -182,6 +184,7 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
   )
   const { results, cancelled } = await controller.run()
   logger.info(`Tasks completed: ${results.length}, cancelled: ${cancelled}`)
+  logger.debug(`Task results:`, results)
 }
 
 /**

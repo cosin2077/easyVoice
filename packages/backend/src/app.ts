@@ -1,45 +1,40 @@
-import cors from 'cors'
-import helmet from 'helmet'
-import express, { Application, Request, Response} from 'express'
-import { rateLimit } from 'express-rate-limit'
-import history from 'connect-history-api-fallback'
-import ttsRoutes from './routes/tts.route'
-import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW } from './config'
-import { errorHandler } from './middleware/error.middleware'
-import { requestLoggerMiddleware } from './middleware/info.middleware'
+import express, { Application } from 'express'
 import { logger } from './utils/logger'
-import { healthHandler } from './middleware/health.middleware'
+import { createMiddlewareConfig } from './middleware/config'
+import { configureStaticFiles } from './middleware/static'
+import { setupRoutes } from './routes'
 
-const isDev = process.env.NODE_ENV === 'development'
-export function createApp(): Application {
-  logger.debug('Creating app...')
+// 应用配置接口
+interface AppConfig {
+  isDev: boolean
+  rateLimit: number
+  rateLimitWindow: number
+  audioDir: string
+  publicDir: string
+}
+
+// 创建应用工厂函数
+export function createApp(config: AppConfig): Application {
+  const { isDev, rateLimit, rateLimitWindow, audioDir, publicDir } = config
+  logger.debug('Initializing application...')
+
   const app = express()
-  const limiter = rateLimit({
-    windowMs: RATE_LIMIT_WINDOW * 60 * 1000,
-    limit: isDev ? 1e6 : RATE_LIMIT,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
+
+  // 配置中间件
+  const middleware = createMiddlewareConfig({
+    isDev,
+    rateLimit,
+    rateLimitWindow,
   })
 
-  if (!isDev) {
-    logger.debug('Using helmet...')
-    app.use(helmet())
-  }
+  // 应用中间件
+  Object.values(middleware).forEach((mw) => app.use(mw))
 
-  app.use(cors())
-  app.use(express.json({ limit: '10mb' }))
-  app.use(limiter)
+  // 配置路由
+  setupRoutes(app)
 
-  app.use('/api/v1/tts', ttsRoutes)
-  app.use("/api/health", healthHandler);
-
-  app.use(history())
-
-  app.use(express.static(AUDIO_DIR))
-  app.use(express.static(PUBLIC_DIR))
-  app.use(requestLoggerMiddleware)
-
-  app.use(errorHandler)
+  // 配置静态文件服务
+  configureStaticFiles(app, { audioDir, publicDir })
 
   return app
 }

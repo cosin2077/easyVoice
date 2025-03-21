@@ -1,15 +1,14 @@
 import { createApp } from './app'
-import { config } from './config'
-import { initApp } from './initApp'
-import { logger } from './utils/logger'
+import { AUDIO_DIR, PUBLIC_DIR, RATE_LIMIT, RATE_LIMIT_WINDOW } from './config'
 
-const app = createApp()
+const app = createApp({
+  isDev: process.env.NODE_ENV === 'development',
+  rateLimit: RATE_LIMIT,
+  rateLimitWindow: RATE_LIMIT_WINDOW,
+  audioDir: AUDIO_DIR,
+  publicDir: PUBLIC_DIR,
+})
 
-const start = async () => {
-  await initApp()
-  app.listen(config.port, () => {
-    logger.info(`Server running on port ${config.port}`)
-  })
-}
-
-start()
+app.listen(process.env.PORT, () => {
+  console.log('Server running on port 3000')
+})
