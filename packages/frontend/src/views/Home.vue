@@ -9,6 +9,9 @@
         <el-button type="primary" round @click="triggerConfettiAndGo">
           <Sparkles class="icon" /> 立即体验
         </el-button>
+        <el-button type="success" round @click="goToCustomGenerate">
+          <Users class="icon" /> 角色自定义
+        </el-button>
         <el-button plain round @click="goToGitHub"> <Github class="icon" /> GitHub </el-button>
       </div>
     </header>
@@ -116,6 +119,10 @@ const fadeout = ref(false)
 
 const goToGenerate = () => {
   router.push('/generate')
+}
+
+const goToCustomGenerate = () => {
+  router.push('/custom-generate')
 }
 
 const goToGitHub = () => {

@@ -116,3 +116,40 @@ export const createTaskStream = async (data: TaskRequest) => {
 }
 
 export const downloadFile = (file: string) => `${api.defaults.baseURL}/download/${file}`
+
+export interface CustomGenerateItem {
+  desc?: string
+  text: string
+  voice: string
+  rate?: string
+  pitch?: string
+  volume?: string
+}
+
+export interface CustomGenerateRequest {
+  data: CustomGenerateItem[]
+}
+
+export const generateJson = async (data: CustomGenerateRequest) => {
+  const response = await api.post<ReadableStream | ResponseWrapper<GenerateResponse>>(
+    '/generateJson',
+    data,
+    {
+      responseType: 'stream',
+      adapter: 'fetch',
+      timeout: 0,
+    }
+  )
+  const ttsType = response.headers['x-generate-tts-type']
+  const contentType = response.headers['content-type']
+  if (
+    response.status !== 200 ||
+    ttsType === 'application/json' ||
+    contentType?.includes?.('application/json')
+  ) {
+    const text = await new Response(response.data as any).text()
+    const responseData = JSON.parse(text)
+    return responseData
+  }
+  return response.data as ReadableStream
+}
