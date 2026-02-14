@@ -189,11 +189,22 @@ class EdgeTTS {
       throw new Error('audioPath is required when outputType is "file"')
     }
 
-    let _wsConnect: WebSocket
-    try {
-      _wsConnect = await this._connectWebSocket()
-    } catch (err) {
-      throw new Error(`Failed to connect WebSocket: ${(err as Error).message}`)
+    let _wsConnect: WebSocket | undefined
+    const retryCount = 3
+    let lastError;
+    for (let attempt = 1; attempt <= retryCount; attempt++) {
+      try {
+        _wsConnect = await this._connectWebSocket();
+        break;
+      } catch (err) {
+        lastError = err;
+        if ( attempt !== retryCount ){
+          await new Promise(resolve => setTimeout(resolve, attempt * 100));
+        }
+      }
+    }
+    if ( _wsConnect === undefined ){
+      throw new Error(`Failed to connect WebSocket: ${(lastError as Error).message}`)
     }
 
     let audioStream: WriteStream | undefined
