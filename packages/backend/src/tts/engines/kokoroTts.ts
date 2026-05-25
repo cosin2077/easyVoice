@@ -96,8 +96,13 @@ export class KokoroTtsEngine implements TTSEngine {
 
   async getVoiceOptions(): Promise<string[]> {
     try {
-      const response = await fetcher.get<{ voices: string[] }>(`${this.baseUrl}/audio/voices`)
+      // Kokoro-FastAPI v0.4.0+ returns [{id, name}]; older versions returned strings.
+      const response = await fetcher.get<{
+        voices: Array<string | { id?: string; name?: string }>
+      }>(`${this.baseUrl}/audio/voices`)
       return response.data.voices
+        .map(v => (typeof v === 'string' ? v : (v.id ?? v.name ?? '')))
+        .filter(Boolean)
     } catch (error) {
       console.warn(`Failed to fetch Kokoro voice options: ${(error as Error).message}`)
       return ['af_bella', 'af_sky', 'am_adam', 'bf_emma']
