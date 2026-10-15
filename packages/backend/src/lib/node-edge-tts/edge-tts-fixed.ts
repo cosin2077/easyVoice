@@ -4,7 +4,12 @@ import { WebSocket } from 'ws'
 import { parse, resolve } from 'path'
 import { access, writeFile } from 'node:fs/promises'
 import { HttpsProxyAgent } from 'https-proxy-agent'
-import { generateSecMsGecToken, TRUSTED_CLIENT_TOKEN, CHROMIUM_FULL_VERSION } from './drm'
+import {
+  generateSecMsGecToken,
+  TRUSTED_CLIENT_TOKEN,
+  CHROMIUM_FULL_VERSION,
+  SEC_MS_GEC_VERSION,
+} from './drm'
 import { Readable } from 'node:stream'
 import { ensureDir, escapeSSML } from '../../utils'
 
@@ -75,7 +80,7 @@ class EdgeTTS {
 
   async _connectWebSocket(): Promise<WebSocket> {
     const wsConnect = new WebSocket(
-      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${generateSecMsGecToken()}&Sec-MS-GEC-Version=1-${CHROMIUM_FULL_VERSION}`,
+      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${generateSecMsGecToken()}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}`,
       {
         host: 'speech.platform.bing.com',
         origin: 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',

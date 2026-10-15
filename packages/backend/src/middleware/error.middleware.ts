@@ -3,31 +3,13 @@ import { logger } from '../utils/logger'
 import { ErrorMessages } from '../services/tts.service'
 
 export function errorHandler(err: Error, req: Request, res: Response, next: NextFunction) {
-  const errorDetails = {
+  logger.error('Request failed:', {
     name: err.name,
     message: err.message,
-    stack: err.stack,
     timestamp: new Date().toISOString(),
     request: {
       method: req.method,
-      url: req.url,
-      headers: req.headers,
-      body: req.body,
-      query: req.query,
-      params: req.params,
-      ip: req.ip,
-    },
-  }
-
-  logger.error('Error occurred:', {
-    ...errorDetails,
-    request: {
-      ...errorDetails.request,
-      body: {
-        ...errorDetails.request.body,
-        password: undefined,
-        authorization: undefined,
-      },
+      path: req.path,
     },
   })
   const code = getCode(err.message)
@@ -38,8 +20,6 @@ export function errorHandler(err: Error, req: Request, res: Response, next: Next
   })
 }
 function getCode(message: string): number {
-  console.log(`message, ErrorMessages.ENG_MODEL_INVALID_TEXT`)
-  console.log(message, ErrorMessages.ENG_MODEL_INVALID_TEXT)
   if (message.includes(ErrorMessages.ENG_MODEL_INVALID_TEXT)) return 400
   return 500
 }

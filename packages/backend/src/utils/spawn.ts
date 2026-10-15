@@ -8,7 +8,7 @@ export function runEdgeTTS(
   return new Promise((resolve, reject) => {
     const srt = params.output.replace('.mp3', '.srt')
     logger.info(
-      `run with : edge-tts --text ${params.text.slice(0, 10) + '...'} --voice ${
+      `run edge-tts for ${params.text.length} characters --voice ${
         params.voice
       }  --volume=${params.volume} --pitch=${params.pitch} --rate=${params.rate} --write-media ${
         params.output

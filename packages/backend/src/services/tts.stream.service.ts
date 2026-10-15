@@ -62,7 +62,7 @@ export async function generateTTSStream(params: Required<EdgeSchema>, task: Task
       srt: path.parse(cache.srt).base,
       text: '',
     }
-    logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
+    logger.info(`Cache hit: ${voice}, ${text.length} characters`)
     task.context?.res?.setHeader('x-generate-tts-type', 'application/json')
     task.context?.res?.setHeader('Access-Control-Expose-Headers', 'x-generate-tts-type')
     task.context?.res?.json({ code: 200, data, success: true })
@@ -102,7 +102,7 @@ async function generateWithLLMStream(task: Task) {
       }))
   if (length <= 1) {
     const prompt = getPrompt(lang, voiceList, segments[0])
-    logger.debug(`Prompt for LLM: ${prompt}`)
+    logger.debug(`Prompt for LLM: ${prompt.length} characters`)
     const llmResponse = await fetchLLMSegment(prompt)
     let llmSegments = llmResponse?.result || llmResponse?.segments || []
     if (!Array.isArray(llmSegments)) {
@@ -126,7 +126,7 @@ async function generateWithLLMStream(task: Task) {
     for (let seg of segments) {
       count++
       const prompt = getPrompt(lang, voiceList, seg)
-      logger.debug(`Prompt for LLM: ${prompt}`)
+      logger.debug(`Prompt for LLM: ${prompt.length} characters`)
       const llmResponse = await fetchLLMSegment(prompt)
       let llmSegments = llmResponse?.result || llmResponse?.segments || []
       if (!Array.isArray(llmSegments)) {
@@ -317,7 +317,7 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       await audioStream.pipe(outputStream, { end: false })
       await new Promise((resolve) => audioStream.on('end', resolve))
       completedSegments++
-      logger.info(`processing text:\n ${segment.text.slice(0, 10)}...`)
+      logger.info(`Processed segment ${index + 1}/${totalSegments}: ${segment.text.length} characters`)
       logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
       await processSegment(index + 1)
     } catch (err) {

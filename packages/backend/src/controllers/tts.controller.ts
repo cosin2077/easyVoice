@@ -26,7 +26,10 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
 }
 export async function createTask(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio request:', {
+      textLength: typeof req.body?.text === 'string' ? req.body.text.length : 0,
+      useLLM: Boolean(req.body?.useLLM),
+    })
     const formattedBody = formatBody(req.body)
     const task = taskManager.createTask(formattedBody)
     logger.info(`Generated task ID: ${task.id}`)
@@ -95,7 +98,10 @@ export async function getTaskStats(_req: Request, res: Response, next: NextFunct
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio request:', {
+      textLength: typeof req.body?.text === 'string' ? req.body.text.length : 0,
+      useLLM: Boolean(req.body?.useLLM),
+    })
     const formattedBody = formatBody(req.body)
     let result = await generateTTS(formattedBody)
     const responseResult = {
