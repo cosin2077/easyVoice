@@ -84,7 +84,7 @@ const commonValidate = (req: Request, res: Response, next: NextFunction, schema:
 export const validateEdge = (req: Request, res: Response, next: NextFunction) => {
   const body = req.body
   const isGenerate = req.url.includes('/generate')
-  logger.info(`validateEdge`, body, req.url)
+  logger.info('validateEdge', { fields: Object.keys(body ?? {}), path: req.path })
   if (isGenerate && body.text?.length > DIRECT_GEN_LIMIT) {
     res.status(400).json({
       code: 400,
@@ -98,7 +98,7 @@ export const validateEdge = (req: Request, res: Response, next: NextFunction) =>
 export const validateLLM = (req: Request, res: Response, next: NextFunction) => {
   const { useLLM, text } = req.body
   const isGenerate = req.url.includes('/generate')
-  logger.info(`validateLLM`, useLLM, req.url)
+  logger.info('validateLLM', { useLLM, path: req.path })
   if (isGenerate && useLLM && text?.length > DIRECT_GEN_LIMIT) {
     res.status(400).json({
       code: 400,

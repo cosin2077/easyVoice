@@ -35,7 +35,7 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
   const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
   const cache = await audioCacheInstance.getAudio(cacheKey)
   if (cache) {
-    logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
+    logger.info(`Cache hit: ${voice}, ${text.length} characters`)
     return cache
   }
 
@@ -240,7 +240,7 @@ async function buildSegmentList(
     const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
     const cache = await audioCacheInstance.getAudio(cacheKey)
     if (cache) {
-      logger.info(`Cache hit[segments]: ${voice} ${text.slice(0, 10)}`)
+      logger.info(`Cache hit[segments]: ${voice}, ${text.length} characters`)
       fileList.push(cache.audio)
       return cache
     }

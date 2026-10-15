@@ -37,7 +37,10 @@ export async function createTaskStream(req: Request, res: Response, next: NextFu
       streamWithLimit(res, path.join(__dirname, '../../mock/flying.mp3'), 1280) // Mock stream with limit
       return
     }
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio request:', {
+      textLength: typeof req.body?.text === 'string' ? req.body.text.length : 0,
+      useLLM: Boolean(req.body?.useLLM),
+    })
     const formattedBody = formatBody(req.body)
     const task = taskManager.createTask(formattedBody)
     task.context = { req, res, body: req.body }
@@ -51,7 +54,12 @@ export async function createTaskStream(req: Request, res: Response, next: NextFu
 export async function generateJson(req: Request, res: Response, next: NextFunction) {
   try {
     const data = req.body?.data
-    logger.debug('generateJson with body:', data)
+    logger.debug('Generating JSON audio request:', {
+      segments: Array.isArray(data) ? data.length : 0,
+      textLength: Array.isArray(data)
+        ? data.reduce((total: number, item: any) => total + (item.text?.length ?? 0), 0)
+        : 0,
+    })
     const formatedBody = data.map((item: any) => formatBody(item))
     const text = data.map((item: any) => item.text).join('')
     const taskParams = {
