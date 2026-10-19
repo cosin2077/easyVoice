@@ -1,6 +1,6 @@
 {
   "name": "easy-voice",
-  "version": "0.0.15",
+  "version": "0.0.18",
   "private": true,
   "scripts": {
     "dev": "cross-env MODE=development pnpm -r --parallel dev",
