@@ -108,6 +108,21 @@ export function formatFileSize(bytes: number) {
  * @param inputStream 输入流
  * @param options 配置选项
  */
+
+/** HTTP headers must be Latin-1 / ASCII. Encode filenames that may contain CJK etc. */
+export function encodeHeaderValue(value: string): string {
+  // Node's setHeader rejects non-ASCII / some control chars (ERR_INVALID_CHAR).
+  return encodeURIComponent(value)
+}
+
+export function decodeHeaderValue(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
 export function streamToResponse(
   res: Response,
   inputStream: Readable | Stream,
@@ -125,7 +140,17 @@ export function streamToResponse(
   let isClientDisconnected = false
 
   Object.entries(headers).forEach(([key, value]) => {
-    res.setHeader(key, value)
+    try {
+      const raw = String(value)
+      // Filename-bearing / id headers may contain CJK — percent-encode for HTTP.
+      const needsEncode =
+        key.toLowerCase() === 'x-generate-tts-id' ||
+        /filename/i.test(key) ||
+        /[^\u0000-\u00ff]/.test(raw)
+      res.setHeader(key, needsEncode ? encodeHeaderValue(raw) : raw)
+    } catch (err) {
+      logger.error(`Failed to set header ${key}:`, (err as Error).message)
+    }
   })
 
   const handleDisconnect = () => {
@@ -150,16 +175,32 @@ export function streamToResponse(
   inputStream.on('error', (err: Error) => {
     if (isClientDisconnected) return
     logger.error('Input stream error:', err)
-    const errorMessage = onError(err)
-    outputStream.write(errorMessage)
-    outputStream.end()
+    try {
+      if (!res.headersSent) {
+        res.status(500)
+      }
+      const errorMessage = onError(err)
+      if (outputStream.writable) {
+        outputStream.write(errorMessage)
+        outputStream.end()
+      } else if (!res.writableEnded) {
+        res.end(errorMessage)
+      }
+    } catch (e) {
+      logger.error('Failed to report input stream error:', (e as Error).message)
+    }
   })
 
   // 输出流错误处理
   outputStream.on('error', (err: Error) => {
     if (isClientDisconnected) return
     logger.error('Output stream error:', err)
-    res.status(500).end('Internal server error')
+    try {
+      if (!res.headersSent) res.status(500)
+      if (!res.writableEnded) res.end('Internal server error')
+    } catch (e) {
+      logger.error('Failed to report output stream error:', (e as Error).message)
+    }
   })
 
   // 流完成处理

@@ -2,17 +2,18 @@ import path, { resolve } from 'path'
 import { Response } from 'express'
 import fs, { readdir } from 'fs/promises'
 import ffmpeg from 'fluent-ffmpeg'
-import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT } from '../config'
+import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT, SEGMENT_MAX_RETRIES, SEGMENT_RETRY_BASE_DELAY_MS } from '../config'
 import { logger } from '../utils/logger'
 import { getPrompt } from '../llm/prompt/generateSegment'
 import {
-  asyncSleep,
   ensureDir,
   generateId,
   getLangConfig,
   readJson,
+  safeRunWithRetry,
   streamToResponse,
 } from '../utils'
+import { parseLLMJsonContent, shouldRejectEnglishVoice } from '../utils/langGuard'
 import { openai } from '../utils/openai'
 import { splitText } from './text.service'
 import { generateSingleVoiceStream, generateSrt } from './edge-tts.service'
@@ -47,7 +48,7 @@ export async function generateTTSStream(params: Required<EdgeSchema>, task: Task
   task!.context!.lang = lang
   task!.context!.voiceList = voiceList
   const { res } = task.context as Required<NonNullable<Task['context']>>
-  if (!validateLangAndVoice(lang, voice, res)) {
+  if (!validateLangAndVoice(lang, voice, segment.text, res)) {
     task?.endTask?.(task.id)
     return
   }
@@ -198,18 +199,30 @@ async function generateWithoutLLMStream(params: TTSParams, task: Task) {
 async function buildSegment(params: TTSParams, task: Task, dir: string = '') {
   const { segment } = task.context as Required<NonNullable<Task['context']>>
   const output = path.resolve(AUDIO_DIR, dir, segment.id)
-  const stream = (await generateSingleVoiceStream({
-    ...params,
-    output,
-    outputType: 'stream',
-  })) as Readable
+  const stream = (await safeRunWithRetry(
+    () =>
+      generateSingleVoiceStream({
+        ...params,
+        output,
+        outputType: 'stream',
+      }) as Promise<Readable>,
+    {
+      retries: SEGMENT_MAX_RETRIES,
+      baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
+      onError: (err, attempt) =>
+        logger.warn(
+          `stream buildSegment failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`
+        ),
+    }
+  )) as Readable
   const { res } = task.context as Required<NonNullable<Task['context']>>
 
   streamToResponse(res, stream, {
     headers: {
       'content-type': 'application/octet-stream',
       'x-generate-tts-type': 'stream',
-      'Access-Control-Expose-Headers-generate-tts-id': task.id,
+      'x-generate-tts-id': segment.id,
+      'Access-Control-Expose-Headers': 'x-generate-tts-type, x-generate-tts-id',
     },
     fileName: segment.id,
     onError: (err) => `Custom error: ${err.message}`,
@@ -266,7 +279,8 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
     headers: {
       'content-type': 'application/octet-stream',
       'x-generate-tts-type': 'stream',
-      'Access-Control-Expose-Headers-generate-tts-id': task.id,
+      'x-generate-tts-id': segment.id,
+      'Access-Control-Expose-Headers': 'x-generate-tts-type, x-generate-tts-id',
     },
     onError: (err) => `Custom error: ${err.message}`,
     fileName: segment.id,
@@ -283,7 +297,7 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
     },
   })
 
-  const processSegment = async (index: number, maxRetries = 3): Promise<void> => {
+  const processSegment = async (index: number, maxRetries = SEGMENT_MAX_RETRIES): Promise<void> => {
     if (index >= totalSegments) {
       outputStream.end()
       task?.endTask?.(task.id)
@@ -291,29 +305,24 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
     }
 
     const segment = segments[index]
-    const generateWithRetry = async (attempt = 0): Promise<Readable> => {
-      try {
-        return (await generateSingleVoiceStream({
-          ...segment,
-          outputType: 'stream',
-          output,
-        })) as Readable
-      } catch (err) {
-        const error = err as Error
-        if (attempt + 1 >= maxRetries) {
-          throw Object.assign(error, { segmentIndex: index, attempt: attempt + 1 } as SegmentError)
-        }
-        logger.warn(
-          `Segment ${index + 1} failed (attempt ${attempt + 1}/${maxRetries}): ${error.message}`
-        )
-        await asyncSleep(1000)
-        return generateWithRetry(attempt + 1)
-      }
-    }
-
     try {
       // TODO: Concurrency of streaming flow
-      const audioStream = await generateWithRetry()
+      const audioStream = (await safeRunWithRetry(
+        () =>
+          generateSingleVoiceStream({
+            ...segment,
+            outputType: 'stream',
+            output,
+          }) as Promise<Readable>,
+        {
+          retries: maxRetries,
+          baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
+          onError: (err, attempt) =>
+            logger.warn(
+              `Segment ${index + 1} failed (attempt ${attempt}/${maxRetries}): ${(err as Error).message}`
+            ),
+        }
+      )) as Readable
       await audioStream.pipe(outputStream, { end: false })
       await new Promise((resolve) => audioStream.on('end', resolve))
       completedSegments++
@@ -321,9 +330,12 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
       await processSegment(index + 1)
     } catch (err) {
-      const { segmentIndex, attempt, message } = err as SegmentError
-      logger.error(`Segment ${segmentIndex + 1} failed after ${attempt} retries: ${message}`)
-      outputStream.emit('error', err)
+      const error = err as Error
+      logger.error(`Segment ${index + 1} failed after ${maxRetries} retries: ${error.message}`)
+      outputStream.emit(
+        'error',
+        Object.assign(error, { segmentIndex: index, attempt: maxRetries } as SegmentError)
+      )
     }
   }
 
@@ -352,11 +364,8 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
 /**
  * 验证语言和语音参数
  */
-function validateLangAndVoice(lang: string, voice: string, res: Response): boolean {
-  // 与 tts.service.ts 同步：franc 对短文本/单词返回 und，或把英语误判为近缘语言，
-  // 不能作为拒绝依据；放行 und/sco，避免 "Healthy" 这类单词被误拦 (issues #43 #76)
-  const ENGLISH_LIKE = new Set(['eng', 'sco', 'und'])
-  if (!ENGLISH_LIKE.has(lang) && voice.startsWith('en')) {
+function validateLangAndVoice(lang: string, voice: string, text: string, res: Response): boolean {
+  if (shouldRejectEnglishVoice(lang, voice, text)) {
     res.status(400).send({
       code: 400,
       success: false,
@@ -394,7 +403,13 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
  * 解析 LLM 响应
  */
 function parseLLMResponse(response: any): TTSParams {
-  const params = JSON.parse(response.choices[0].message.content) as TTSParams
+  const raw = response.choices[0].message.content
+  let params: TTSParams
+  try {
+    params = parseLLMJsonContent(raw) as TTSParams
+  } catch {
+    throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
+  }
   if (!params || typeof params !== 'object') {
     throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
   }

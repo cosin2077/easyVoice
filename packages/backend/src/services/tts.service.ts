@@ -1,10 +1,11 @@
 import path from 'path'
 import fs from 'fs/promises'
 import ffmpeg from 'fluent-ffmpeg'
-import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT } from '../config'
+import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT, SEGMENT_MAX_RETRIES, SEGMENT_RETRY_BASE_DELAY_MS } from '../config'
 import { logger } from '../utils/logger'
 import { getPrompt } from '../llm/prompt/generateSegment'
-import { ensureDir, generateId, getLangConfig, readJson } from '../utils'
+import { ensureDir, generateId, getLangConfig, readJson, safeRunWithRetry } from '../utils'
+import { parseLLMJsonContent, shouldRejectEnglishVoice } from '../utils/langGuard'
 import { openai } from '../utils/openai'
 import { splitText } from './text.service'
 import { generateSingleVoice, generateSrt } from './edge-tts.service'
@@ -42,7 +43,7 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
   const segment: Segment = { id: generateId(`${useLLM ? 'aigen-' : voice}`, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
   logger.debug(`Language detected lang: `, lang)
-  validateLangAndVoice(lang, voice)
+  validateLangAndVoice(lang, voice, segment.text)
 
   let result: TTSResult
   if (useLLM) {
@@ -190,14 +191,25 @@ async function buildSegment(
   const { id, text } = segment
   const { pitch, voice, rate, volume } = params
   const output = path.resolve(AUDIO_DIR, dir, id)
-  const result = await generateSingleVoice({
-    text,
-    pitch,
-    voice,
-    rate,
-    volume,
-    output,
-  })
+  const result = await safeRunWithRetry(
+    () =>
+      generateSingleVoice({
+        text,
+        pitch,
+        voice,
+        rate,
+        volume,
+        output,
+      }),
+    {
+      retries: SEGMENT_MAX_RETRIES,
+      baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
+      onError: (err, attempt) =>
+        logger.warn(
+          `buildSegment failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`
+        ),
+    }
+  )
   logger.info('Generated single segment:', result)
   setTimeout(() => {
     handleSrt(output, false)
@@ -244,7 +256,17 @@ async function buildSegmentList(
       fileList.push(cache.audio)
       return cache
     }
-    const result = await generateSingleVoice({ text, pitch, voice, rate, volume, output })
+    const result = await safeRunWithRetry(
+      () => generateSingleVoice({ text, pitch, voice, rate, volume, output }),
+      {
+        retries: SEGMENT_MAX_RETRIES,
+        baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
+        onError: (err, attempt) =>
+          logger.warn(
+            `Segment ${index + 1} failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`
+          ),
+      }
+    )
     logger.debug(`Cache miss and generate audio: ${result.audio}, ${result.srt}`)
     fileList.push(result.audio)
     handledLength++
@@ -291,12 +313,8 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
 /**
  * 验证语言和语音参数
  */
-function validateLangAndVoice(lang: string, voice: string): void {
-  // franc 对短文本/单词常返回 und(unknown) 或把英语误判为近缘语言(sco/dan/rmn 等)，
-  // 不能作为拒绝英文 voice 的依据。这里维护一个 franc 的英语家族白名单；
-  // und(文本太短无法判断) 也放行，避免 "Healthy" 这类单词被误拦 (issues #43 #76)
-  const ENGLISH_LIKE = new Set(['eng', 'sco', 'und'])
-  if (!ENGLISH_LIKE.has(lang) && voice.startsWith('en')) {
+function validateLangAndVoice(lang: string, voice: string, text: string): void {
+  if (shouldRejectEnglishVoice(lang, voice, text)) {
     throw new Error(ErrorMessages.ENG_MODEL_INVALID_TEXT)
   }
 }
@@ -328,7 +346,13 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
  * 解析 LLM 响应
  */
 function parseLLMResponse(response: any): TTSParams {
-  const params = JSON.parse(response.choices[0].message.content) as TTSParams
+  const raw = response.choices[0].message.content
+  let params: TTSParams
+  try {
+    params = parseLLMJsonContent(raw) as TTSParams
+  } catch {
+    throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
+  }
   if (!params || typeof params !== 'object') {
     throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
   }
