@@ -292,7 +292,11 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
  * 验证语言和语音参数
  */
 function validateLangAndVoice(lang: string, voice: string): void {
-  if (lang !== 'eng' && voice.startsWith('en')) {
+  // franc 对短文本/单词常返回 und(unknown) 或把英语误判为近缘语言(sco/dan/rmn 等)，
+  // 不能作为拒绝英文 voice 的依据。这里维护一个 franc 的英语家族白名单；
+  // und(文本太短无法判断) 也放行，避免 "Healthy" 这类单词被误拦 (issues #43 #76)
+  const ENGLISH_LIKE = new Set(['eng', 'sco', 'und'])
+  if (!ENGLISH_LIKE.has(lang) && voice.startsWith('en')) {
     throw new Error(ErrorMessages.ENG_MODEL_INVALID_TEXT)
   }
 }

@@ -353,7 +353,10 @@ async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number):
  * 验证语言和语音参数
  */
 function validateLangAndVoice(lang: string, voice: string, res: Response): boolean {
-  if (lang !== 'eng' && voice.startsWith('en')) {
+  // 与 tts.service.ts 同步：franc 对短文本/单词返回 und，或把英语误判为近缘语言，
+  // 不能作为拒绝依据；放行 und/sco，避免 "Healthy" 这类单词被误拦 (issues #43 #76)
+  const ENGLISH_LIKE = new Set(['eng', 'sco', 'und'])
+  if (!ENGLISH_LIKE.has(lang) && voice.startsWith('en')) {
     res.status(400).send({
       code: 400,
       success: false,

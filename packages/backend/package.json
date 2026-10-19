@@ -1,6 +1,9 @@
 {
   "name": "@easy-voice/backend",
   "version": "0.0.18",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node dist/server.js",
     "build": "tsc && copyfiles -u 1 \"src/**/*.{json,txt,yml}\" dist/",
