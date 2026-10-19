@@ -128,7 +128,11 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
 
     const safeFileName = path.basename(fileName)
     const encodedFileName = encodeURIComponent(safeFileName)
-    const filePath = path.join(AUDIO_DIR, safeFileName)
+    const filePath = path.resolve(AUDIO_DIR, safeFileName)
+    const audioRoot = path.resolve(AUDIO_DIR)
+    if (filePath !== audioRoot && !filePath.startsWith(audioRoot + path.sep)) {
+      throw new Error('Invalid file name')
+    }
 
     await fs.access(filePath, fs.constants.R_OK)
 

@@ -14,6 +14,8 @@ import {
   streamToResponse,
 } from '../utils'
 import { parseLLMJsonContent, shouldRejectEnglishVoice } from '../utils/langGuard'
+import { preprocessTextForTts } from './textNormalize'
+import { normalizeLlmCasting } from '../llm/segmentSchema'
 import { openai } from '../utils/openai'
 import { splitText } from './text.service'
 import { generateSingleVoiceStream, generateSrt } from './edge-tts.service'
@@ -40,7 +42,8 @@ enum ErrorMessages {
  * 流式生成文本转语音 (TTS) 的音频和字幕
  */
 export async function generateTTSStream(params: Required<EdgeSchema>, task: Task) {
-  const { text, pitch, voice, rate, volume, useLLM } = params
+  const { pitch, voice, rate, volume, useLLM } = params
+  const text = preprocessTextForTts(params.text)
   const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
   const { lang, voiceList } = await getLangConfig(segment.text)
   logger.debug(`Language detected lang: `, lang)
@@ -96,16 +99,19 @@ async function generateWithLLMStream(task: Task) {
   const { length, segments } = splitText(text.trim())
   const formatLlmSegments = (llmSegments: any) =>
     llmSegments
-      .filter((segment: any) => segment.text)
+      .filter((segment: any) => segment.text && (segment.voice || segment.name))
       .map((segment: any) => ({
-        ...segment,
-        voice: segment.name,
+        text: segment.text,
+        voice: segment.voice || segment.name,
+        rate: segment.rate || '+0%',
+        pitch: segment.pitch || '+0Hz',
+        volume: segment.volume || '+0%',
       }))
   if (length <= 1) {
     const prompt = getPrompt(lang, voiceList, segments[0])
     logger.debug(`Prompt for LLM: ${prompt}`)
     const llmResponse = await fetchLLMSegment(prompt)
-    let llmSegments = llmResponse?.result || llmResponse?.segments || []
+    let llmSegments = llmResponse?.segments || []
     if (!Array.isArray(llmSegments)) {
       throw new Error(
         'LLM response is not an array, please switch to Edge TTS mode or use another model'
@@ -129,7 +135,7 @@ async function generateWithLLMStream(task: Task) {
       const prompt = getPrompt(lang, voiceList, seg)
       logger.debug(`Prompt for LLM: ${prompt}`)
       const llmResponse = await fetchLLMSegment(prompt)
-      let llmSegments = llmResponse?.result || llmResponse?.segments || []
+      let llmSegments = llmResponse?.segments || []
       if (!Array.isArray(llmSegments)) {
         throw new Error(
           'LLM response is not an array, please switch to Edge TTS mode or use another model'
@@ -402,18 +408,13 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
 /**
  * 解析 LLM 响应
  */
-function parseLLMResponse(response: any): TTSParams {
+function parseLLMResponse(response: any): any {
   const raw = response.choices[0].message.content
-  let params: TTSParams
   try {
-    params = parseLLMJsonContent(raw) as TTSParams
+    return normalizeLlmCasting(parseLLMJsonContent(raw))
   } catch {
     throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
   }
-  if (!params || typeof params !== 'object') {
-    throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
-  }
-  return params
 }
 
 /**

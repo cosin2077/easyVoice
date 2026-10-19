@@ -15,6 +15,8 @@ import audioCacheInstance from './audioCache.service'
 import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 import taskManager, { Task } from '../utils/taskManager'
 import { handleSrt } from './tts.stream.service'
+import { preprocessTextForTts } from './textNormalize'
+import { normalizeLlmCasting } from '../llm/segmentSchema'
 
 // 错误消息枚举
 export enum ErrorMessages {
@@ -31,7 +33,8 @@ export enum ErrorMessages {
  * 生成文本转语音 (TTS) 的音频和字幕
  */
 export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Promise<TTSResult> {
-  const { text, pitch, voice, rate, volume, useLLM } = params
+  const { pitch, voice, rate, volume, useLLM } = params
+  const text = preprocessTextForTts(params.text)
   // 检查缓存
   const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
   const cache = await audioCacheInstance.getAudio(cacheKey)
@@ -47,7 +50,16 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
 
   let result: TTSResult
   if (useLLM) {
-    result = await generateWithLLM(segment, voiceList, lang, task)
+    try {
+      result = await generateWithLLM(segment, voiceList, lang, task)
+    } catch (err) {
+      logger.warn(`LLM casting failed, falling back to Edge TTS: ${(err as Error).message}`)
+      result = await generateWithoutLLM(
+        segment,
+        { text, pitch, voice, rate, volume },
+        task
+      )
+    }
   } else {
     result = await generateWithoutLLM(
       segment,
@@ -87,16 +99,19 @@ async function generateWithLLM(
   const { length, segments } = splitText(text.trim())
   const formatLlmSegments = (llmSegments: any) =>
     llmSegments
-      .filter((segment: any) => segment.text)
+      .filter((segment: any) => segment.text && (segment.voice || segment.name))
       .map((segment: any) => ({
-        ...segment,
-        voice: segment.name,
+        text: segment.text,
+        voice: segment.voice || segment.name,
+        rate: segment.rate || '+0%',
+        pitch: segment.pitch || '+0Hz',
+        volume: segment.volume || '+0%',
       }))
   if (length <= 1) {
     const prompt = getPrompt(lang, voiceList, segments[0])
     // logger.debug(`Prompt for LLM: ${prompt}`)
     const llmResponse = await fetchLLMSegment(prompt)
-    let llmSegments = llmResponse?.result || llmResponse?.segments || []
+    let llmSegments = llmResponse?.segments || []
     if (!Array.isArray(llmSegments)) {
       task?.endTask?.(task.id)
       throw new Error(
@@ -118,7 +133,7 @@ async function generateWithLLM(
       const prompt = getPrompt(lang, voiceList, seg)
       // logger.debug(`Prompt for LLM: ${prompt}`)
       const llmResponse = await fetchLLMSegment(prompt)
-      let llmSegments = llmResponse?.result || llmResponse?.segments || []
+      let llmSegments = llmResponse?.segments || []
       if (!Array.isArray(llmSegments)) {
         throw new Error(
           'LLM response is not an array, please switch to Edge TTS mode or use another model'
@@ -345,18 +360,14 @@ async function fetchLLMSegment(prompt: string): Promise<any> {
 /**
  * 解析 LLM 响应
  */
-function parseLLMResponse(response: any): TTSParams {
+function parseLLMResponse(response: any): any {
   const raw = response.choices[0].message.content
-  let params: TTSParams
   try {
-    params = parseLLMJsonContent(raw) as TTSParams
+    const parsed = parseLLMJsonContent(raw)
+    return normalizeLlmCasting(parsed)
   } catch {
     throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
   }
-  if (!params || typeof params !== 'object') {
-    throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
-  }
-  return params
 }
 
 /**
