@@ -205,7 +205,7 @@ const triggerConfettiAndGo = (event) => {
   width: 24px;
   height: 24px;
   margin-right: 10px;
-  color: #007aff;
+  color: var(--ev-accent);
 }
 .feature-card h3 {
   font-size: 20px;

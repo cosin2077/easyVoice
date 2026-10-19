@@ -43,7 +43,7 @@
   margin-right: 26px;
 }
 .footer a {
-  color: #007aff;
+  color: var(--ev-accent);
   text-decoration: none;
 }
 </style>

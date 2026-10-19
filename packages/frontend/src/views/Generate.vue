@@ -11,7 +11,7 @@
           <template #header>
             <div class="card-header">
               <span>文本输入</span>
-              <el-button type="primary" size="small" @click="clearText">清空</el-button>
+              <el-button class="ev-danger-text" text size="small" @click="clearText">清空</el-button>
             </div>
           </template>
           <el-input
@@ -189,7 +189,7 @@
                   clearable
                 />
                 <el-button
-                  type="primary"
+                  class="ev-ghost"
                   @click="previewAudio"
                   :disabled="!canPreview || previewLoading"
                   :loading="previewLoading"
@@ -227,14 +227,13 @@
         </el-button>
         <el-button
           v-else
-          type="danger"
           size="large"
-          class="primary-cta"
+          class="primary-cta ev-ghost stop-cta"
           @click="cancelGenerate"
         >
           停止生成
         </el-button>
-        <el-button :disabled="generating" size="large" @click="reset">重置</el-button>
+        <el-button class="ev-ghost" :disabled="generating" size="large" @click="reset">重置</el-button>
       </div>
       <el-progress
         v-if="generating || showDoneProgress"
@@ -310,18 +309,8 @@ const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
 const processor = ref<ReturnType<typeof createAudioStreamProcessor> | null>(null)
 
 const languages = ref(buildLanguageOptions(defaultVoiceList))
-const customColors = [
-  { color: '#f5222d', percentage: 10 }, // 红色 (开始/较低)
-  { color: '#fa541c', percentage: 20 }, // 橘红
-  { color: '#fa8c16', percentage: 30 }, // 橘黄
-  { color: '#fadb14', percentage: 40 }, // 黄色
-  { color: '#fadb14', percentage: 50 }, // 黄色 (中间状态)
-  { color: '#a0d911', percentage: 60 }, // 酸橙绿
-  { color: '#73d13d', percentage: 70 }, // 浅绿
-  { color: '#52c41a', percentage: 80 }, // 绿色
-  { color: '#52c41a', percentage: 90 }, // 绿色 (接近完成)
-  { color: '#52c41a', percentage: 100 }, // 纯绿 (完成)
-]
+/** single accent for progress, matching the primary action */
+const customColors = 'var(--ev-accent)'
 
 const handleClose = (realClose: () => void) => {
   if (generating.value) {
@@ -574,10 +563,8 @@ const clearText = () => {
 
 const filterVoices = () => {
   const { selectedVoice } = audioConfig
-  const isCurrentVoiceValid = filteredVoices.value.some((v) => v.Name === selectedVoice)
-  console.log(
-    `isCurrentVoiceValid: ${isCurrentVoiceValid}, filteredVoices.length: ${filteredVoices.value.length}`
-  )
+  // keep the current voice when it still matches the new language/gender filter
+  if (filteredVoices.value.some((v) => v.Name === selectedVoice)) return
   if (filteredVoices.value.length > 0) {
     updateConfig('selectedVoice', filteredVoices.value[0].Name)
   } else {
@@ -685,7 +672,6 @@ const updateAudioList = (data: GenerateResponse, runId: number) => {
   if (rect) {
     const originX = (rect.left + rect.width / 2) / window.innerWidth
     const originY = (rect.top + rect.height / 2) / window.innerHeight
-    console.log(originX, originY)
     confetti({
       particleCount: 300,
       spread: 360,
@@ -793,7 +779,8 @@ const generateAudioTask = async () => {
       generationStore.updateProgress(progress.done())
       updateAudioList(result as any, runId)
     }
-    const onError = (msg: string) => failRun(runId, msg)
+    const onError = (msg: string) =>
+      failRun(runId, `生成中断（${msg || '连接已断开'}），请重试`)
     processor.value = createAudioStreamProcessor(
       streamed.stream as unknown as ReadableStream,
       () => {},
@@ -809,7 +796,6 @@ const generateAudioTask = async () => {
   }
 }
 const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
-  console.log(`beforeUnloadHandler:`, event.target)
   if (generationStore.audioList.length > 0) {
     // 同步阻止关闭，显示浏览器默认提示
     event.preventDefault()
@@ -861,7 +847,6 @@ onMounted(async () => {
   --ev-border: #e8e8e8;
   --ev-text: #1a1a1a;
   --ev-muted: #6b6b6b;
-  --ev-accent: #5e6ad2;
   --ev-radius: 10px;
   max-width: 1080px;
   margin: 0 auto;
@@ -949,21 +934,6 @@ onMounted(async () => {
   margin-top: 0.75rem;
 }
 
-.generate-section {
-  margin-top: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.generate-section :deep(.el-button--primary) {
-  background: var(--ev-accent);
-  border-color: var(--ev-accent);
-  font-weight: 500;
-}
-.generate-section :deep(.el-button--primary:hover) {
-  filter: brightness(1.05);
-}
-
 
 .action-area {
   margin-top: 1.5rem;
@@ -972,18 +942,17 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
 }
-.action-row :deep(.el-button--primary) {
-  background: var(--ev-accent);
-  border-color: var(--ev-accent);
+.action-row :deep(.el-button) {
   font-weight: 500;
-  min-width: 140px;
 }
-.progress-bar {
-  margin-top: 1rem;
+.action-row :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
-
-.progress-wrap {
-  margin-top: 0.5rem;
+.stop-cta {
+  --el-button-text-color: var(--ev-danger);
+  --el-button-hover-text-color: var(--ev-danger);
+  --el-button-hover-border-color: #e9c3c4;
+  --el-button-hover-bg-color: #fdf6f6;
 }
 
 @media (max-width: 900px) {
@@ -1039,14 +1008,15 @@ onMounted(async () => {
 .ai-help {
   margin: 0 0 12px;
   padding: 10px 12px;
-  background: #f4f5fb;
+  background: var(--el-color-primary-light-9);
   border-radius: 8px;
-  border: 1px solid #e7e9f5;
+  border: 1px solid var(--el-color-primary-light-8);
 }
 .ai-settings {
   min-height: 280px;
 }
 .sparkles-icon { color: var(--ev-accent); opacity: 0.9; }
+.voice-mode-selector :deep(.el-radio-button.is-active .sparkles-icon) { color: inherit; opacity: 1; }
 .mismatch-banner {
   margin: 16px 0 0;
   padding: 10px 14px;

@@ -231,7 +231,7 @@ const getSegmentColor = (voice: string) => {
   if (voice in voiceColors) {
     return voiceColors[voice as VoiceColor]
   }
-  return '#007aff'
+  return 'var(--ev-accent)'
 }
 
 const jumpToVoice = (voice: string) => {
@@ -408,7 +408,7 @@ defineExpose({
 
 .progress-filled {
   height: 100%;
-  background: #007aff;
+  background: var(--ev-accent);
   border-top-left-radius: 2px;
   border-bottom-left-radius: 2px;
   position: absolute;
@@ -420,7 +420,7 @@ defineExpose({
 .progress-thumb {
   width: 12px;
   height: 12px;
-  background: #007aff;
+  background: var(--ev-accent);
   border-radius: 50%;
   position: absolute;
   top: 50%;
