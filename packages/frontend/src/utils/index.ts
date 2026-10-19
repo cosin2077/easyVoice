@@ -133,24 +133,23 @@ export function createAudioStreamProcessor(
   const audioUrl = mediaSource ? URL.createObjectURL(mediaSource) : ''
 
   mediaSource?.addEventListener('sourceopen', async () => {
-    if (!mediaSource.sourceBuffers.length) {
-      sourceBuffer = mediaSource.addSourceBuffer(mimeType)
-      sourceBuffer.mode = 'sequence'
+    if (!mediaSource || mediaSource.sourceBuffers.length) return
+    const sb = mediaSource.addSourceBuffer(mimeType)
+    sb.mode = 'sequence'
+    sourceBuffer = sb
 
-      sourceBuffer.addEventListener('updateend', () => {
-        isAppending = false
-        // 如果流已结束且缓冲区无数据，结束 MediaSource
-        if (
-          mediaSource.readyState === 'open' &&
-          reader === null &&
-          sourceBuffer?.buffered.length === 0
-        ) {
-          mediaSource.endOfStream()
-        }
-      })
-      onStart()
-      await startReadingStream()
-    }
+    sb.addEventListener('updateend', () => {
+      isAppending = false
+      if (
+        mediaSource.readyState === 'open' &&
+        reader === null &&
+        sb.buffered.length === 0
+      ) {
+        mediaSource.endOfStream()
+      }
+    })
+    onStart()
+    await startReadingStream()
   })
   // 读取流并追加数据
   async function startReadingStream() {

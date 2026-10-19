@@ -341,6 +341,16 @@ const betterShowCN = (voiceList: Voice[]) => {
   }
   return voiceList
 }
+const languageGroups = computed(() => {
+  const map = new Map<string, { code: string; name: string; group?: string }[]>()
+  for (const lang of languages.value as any[]) {
+    const g = lang.group || '其他语言'
+    if (!map.has(g)) map.set(g, [])
+    map.get(g)!.push(lang)
+  }
+  return [...map.entries()].map(([label, options]) => ({ label, options }))
+})
+
 const filteredVoices = computed(() => {
   return betterShowCN(
     voiceList.value.filter((voice) => {

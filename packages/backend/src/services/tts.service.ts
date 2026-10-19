@@ -56,7 +56,7 @@ export async function generateTTS(params: Required<EdgeSchema>, task?: Task): Pr
       logger.warn(`LLM casting failed, falling back to Edge TTS: ${(err as Error).message}`)
       result = await generateWithoutLLM(
         segment,
-        { text, pitch, voice, rate, volume },
+        { text, pitch, voice, rate, volume, output: segment.id },
         task
       )
     }
