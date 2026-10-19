@@ -603,7 +603,15 @@ const generateAudioTask = async () => {
     }
     const streamed = streamResult as { stream: ReadableStream; fileId?: string }
     const stream = streamed.stream
-    const streamFileId = streamed.fileId
+    const streamFileId = (() => {
+      const id = streamed.fileId
+      if (!id) return id
+      try {
+        return decodeURIComponent(id)
+      } catch {
+        return id
+      }
+    })()
     console.log('typeof stream:', typeof stream, 'fileId:', streamFileId)
     showStreamButton.value = true
     const onStart = () => {

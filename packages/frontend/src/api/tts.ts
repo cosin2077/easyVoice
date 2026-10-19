@@ -103,7 +103,15 @@ export const createTaskStream = async (data: TaskRequest) => {
   )
   const ttsType = response.headers['x-generate-tts-type']
   const contentType = response.headers['content-type']
-  const fileId = response.headers['x-generate-tts-id'] as string | undefined
+  const rawFileId = response.headers['x-generate-tts-id'] as string | undefined
+  let fileId = rawFileId
+  if (rawFileId) {
+    try {
+      fileId = decodeURIComponent(rawFileId)
+    } catch {
+      fileId = rawFileId
+    }
+  }
   if (
     response.status !== 200 ||
     ttsType === 'application/json' ||
@@ -116,4 +124,4 @@ export const createTaskStream = async (data: TaskRequest) => {
   return { stream: response.data as ReadableStream, fileId }
 }
 
-export const downloadFile = (file: string) => `${api.defaults.baseURL}/download/${file}`
+export const downloadFile = (file: string) => `${api.defaults.baseURL}/download/${encodeURIComponent(file)}`
