@@ -2,7 +2,7 @@
   <div class="novel-to-audio-container">
     <div class="header">
       <h1>文本转语音</h1>
-      <p class="subtitle">将您的文本一键转换为自然流畅的语音</p>
+      <p class="subtitle">自然朗读 · 多语种 · 可选 AI 分角</p>
     </div>
 
     <el-row :gutter="20">
@@ -72,15 +72,22 @@
               <el-form-item label="语言">
                 <el-select
                   v-model="audioConfig.selectedLanguage"
-                  placeholder="选择语言"
+                  placeholder="搜索或选择语言"
+                  filterable
                   @change="filterVoices"
                 >
-                  <el-option
-                    v-for="lang in languages"
-                    :key="lang.code"
-                    :label="lang.name"
-                    :value="lang.code"
-                  />
+                  <el-option-group
+                    v-for="group in languageGroups"
+                    :key="group.label"
+                    :label="group.label"
+                  >
+                    <el-option
+                      v-for="lang in group.options"
+                      :key="lang.code"
+                      :label="lang.name"
+                      :value="lang.code"
+                    />
+                  </el-option-group>
                 </el-select>
               </el-form-item>
 
@@ -590,6 +597,7 @@ const generateAudio = async () => {
 const generateAudioTask = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
+  processor.value?.stop?.()
   generating.value = true
   generationStore.updateProgress(0)
 
@@ -702,6 +710,7 @@ onBeforeMount(() => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnloadHandler)
+  processor.value?.stop?.()
 })
 onMounted(async () => {
   successAudio.value = new Audio(Notification)
@@ -719,197 +728,124 @@ onMounted(async () => {
 
 <style scoped>
 .novel-to-audio-container {
-  max-width: 1200px;
+  --ev-bg: #fafafa;
+  --ev-panel: #ffffff;
+  --ev-border: #e8e8e8;
+  --ev-text: #1a1a1a;
+  --ev-muted: #6b6b6b;
+  --ev-accent: #5e6ad2;
+  --ev-radius: 10px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
-  color: #2c3e50;
+  padding: 2.5rem 1.25rem 4rem;
+  color: var(--ev-text);
+  background: transparent;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC',
+    'Noto Sans SC', sans-serif;
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.75rem;
 }
-
 .header h1 {
-  font-size: 2.5rem;
+  font-size: 1.625rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #1a56db;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.35rem;
+  color: var(--ev-text);
 }
-
 .subtitle {
-  font-size: 1.1rem;
-  color: #64748b;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
+  margin: 0;
+  color: var(--ev-muted);
+  font-size: 0.925rem;
 }
 
 .input-card,
 .settings-card {
-  height: 100%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  border: 1px solid var(--ev-border) !important;
+  border-radius: var(--ev-radius) !important;
+  box-shadow: none !important;
+  background: var(--ev-panel);
 }
 
-.input-card:hover,
-.settings-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.el-input.el-input--large {
-  margin-bottom: 1rem;
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .upload-area {
-  margin-top: 1.5rem;
-  border-top: 1px dashed #e2e8f0;
-  padding-top: 1.5rem;
+  margin-top: 0.85rem;
+}
+.upload-area :deep(.el-upload-dragger) {
+  border-radius: 8px;
+  border-color: var(--ev-border);
+  background: #fcfcfc;
+  padding: 1.25rem;
 }
 
 .voice-mode-selector {
-  margin-bottom: 1.5rem;
-  display: flex;
-  justify-content: center;
+  margin-bottom: 1rem;
 }
-.sparkles-icon {
-  position: absolute;
-  top: -8px;
-  right: 2px;
+.voice-mode-selector :deep(.el-radio-button__inner) {
+  border-radius: 8px !important;
 }
+
 .voice-selector,
 .ai-settings {
-  margin-bottom: 1.5rem;
+  margin-top: 0.25rem;
 }
 
 .voice-option {
   display: flex;
-  flex-direction: row;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
-.voice-personality {
-  font-size: 0.8rem;
-  color: #64748b;
+.sparkles-icon {
+  margin-left: 4px;
+  vertical-align: middle;
+  color: var(--ev-accent);
 }
 
 .preview-section {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px dashed #e2e8f0;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ev-border);
 }
-
 .preview-audio {
   width: 100%;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
-.action-area {
-  margin-top: 2rem;
+.generate-section {
+  margin-top: 1.25rem;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.generate-section :deep(.el-button--primary) {
+  background: var(--ev-accent);
+  border-color: var(--ev-accent);
+  font-weight: 500;
+}
+.generate-section :deep(.el-button--primary:hover) {
+  filter: brightness(1.05);
 }
 
-.progress-container {
-  width: 100%;
-  max-width: 600px;
-  margin: 1.5rem auto;
-}
-.progress-bar {
-  margin-top: 20px;
-  margin-bottom: 20px;
-  height: 12px;
-}
-.progress-text {
-  font-weight: 600;
-  color: #1a56db;
-}
-
-.progress-status {
-  text-align: center;
+.progress-wrap {
   margin-top: 0.5rem;
-  color: #64748b;
-  font-size: 0.9rem;
 }
 
-.download-area {
-  margin-top: 1.5rem;
-  text-align: center;
-}
-
-/* 响应式布局 */
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .novel-to-audio-container {
-    padding: 1.5rem 1rem;
+    padding: 1.25rem 0.85rem 3rem;
   }
-}
-
-@media (max-width: 992px) {
   .header h1 {
-    font-size: 2.2rem;
-  }
-
-  .subtitle {
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .el-row {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .el-col {
-    width: 100% !important;
-    max-width: 100%;
-    flex: 0 0 100%;
-    margin-bottom: 1.5rem;
-  }
-
-  .header {
-    margin-bottom: 1.5rem;
-  }
-
-  .header h1 {
-    font-size: 1.8rem;
-  }
-
-  .action-area {
-    margin-top: 1rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .novel-to-audio-container {
-    padding: 1rem 0.75rem;
-  }
-
-  .header h1 {
-    font-size: 1.5rem;
-  }
-
-  .subtitle {
-    font-size: 0.9rem;
-  }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .voice-mode-selector .el-radio-group {
-    width: 100%;
-    display: flex;
+    font-size: 1.35rem;
   }
 }
 </style>

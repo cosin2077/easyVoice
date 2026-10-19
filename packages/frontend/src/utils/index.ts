@@ -117,17 +117,22 @@ export function createAudioStreamProcessor(
   onError: (msg: string) => void,
   mimeType: string = 'audio/mpeg'
 ): AudioProcessor {
-  const mediaSource = new MediaSource()
+  if (typeof MediaSource === 'undefined' || !MediaSource.isTypeSupported(mimeType)) {
+    onError(
+      '当前浏览器不支持流式试听（MediaSource），请使用最新 Chrome/Edge，或等待生成结束后下载音频。'
+    )
+  }
+  const mediaSource = typeof MediaSource !== 'undefined' ? new MediaSource() : (null as any)
   let sourceBuffer: SourceBuffer | null = null
   let isAppending = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let blobs: { duration: number; blob: Blob }[] = []
-  let bitrate = 96_000
+  let bitrate = 48_000 // match edge output audio-24khz-48kbitrate-mono-mp3
   let finished = false
   let stopBuffering = false
-  const audioUrl = URL.createObjectURL(mediaSource)
+  const audioUrl = mediaSource ? URL.createObjectURL(mediaSource) : ''
 
-  mediaSource.addEventListener('sourceopen', async () => {
+  mediaSource?.addEventListener('sourceopen', async () => {
     if (!mediaSource.sourceBuffers.length) {
       sourceBuffer = mediaSource.addSourceBuffer(mimeType)
       sourceBuffer.mode = 'sequence'
@@ -237,14 +242,22 @@ export function createAudioStreamProcessor(
     return totalDuration
   }
   const stop = () => {
-    if (reader) {
-      reader.cancel()
-      reader = null
+    try {
+      if (reader) {
+        reader.cancel().catch(() => {})
+        reader = null
+      }
+      if (mediaSource && mediaSource.readyState === 'open') {
+        try {
+          mediaSource.endOfStream()
+        } catch {
+          /* already ended */
+        }
+      }
+      if (audioUrl) URL.revokeObjectURL(audioUrl)
+    } catch (e) {
+      console.warn('stop stream processor', e)
     }
-    if (mediaSource.readyState === 'open') {
-      mediaSource.endOfStream()
-    }
-    URL.revokeObjectURL(audioUrl)
   }
   const isActive = () => mediaSource.readyState === 'open'
   return {
