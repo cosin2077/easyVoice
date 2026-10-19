@@ -237,10 +237,12 @@
         <el-button :disabled="generating" size="large" @click="reset">重置</el-button>
       </div>
       <el-progress
-        v-if="generating"
+        v-if="generating || showDoneProgress"
         class="inline-progress"
         :stroke-width="8"
-        :percentage="generationStore.progress"
+        :percentage="progressIndeterminate ? 100 : generationStore.progress"
+        :indeterminate="progressIndeterminate"
+        :format="progressIndeterminate ? () => '生成中…' : undefined"
         :color="customColors"
       />
       <StreamButton
@@ -258,15 +260,15 @@
 <script setup lang="ts">
 import { AxiosError } from 'axios'
 import { Sparkles } from 'lucide-vue-next'
-import { ref, computed, onMounted, watch, onBeforeMount, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeMount, onBeforeUnmount, nextTick } from 'vue'
+import { GenerationRun, isAbortError } from '@/utils/generationRun'
+import { createStreamProgress, estimateSpeechSeconds } from '@/utils/streamProgress'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useGenerationStore } from '@/stores/generation'
 import { UploadFilled } from '@element-plus/icons-vue'
 import {
-  asyncSleep,
   createAudioStreamProcessor,
   mapZHVoiceName,
-  mockProgress,
 } from '@/utils'
 import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
@@ -291,6 +293,11 @@ const { audioConfig } = configStore
 const streamDuration = ref<number>(0)
 
 const generating = ref(false)
+/** short texts use one request without incremental data: show an indeterminate bar */
+const progressIndeterminate = ref(false)
+/** keep the bar visible at 100% briefly after success */
+const showDoneProgress = ref(false)
+let doneProgressTimer: ReturnType<typeof setTimeout> | undefined
 const previewLoading = ref(false)
 const showStreamButton = ref(false)
 
@@ -324,9 +331,9 @@ const handleClose = (realClose: () => void) => {
       type: 'warning',
     }).then(() => {
       realClose()
-      generating.value = false
-      generationStore.updateProgress(0)
-      processor.value!.stop()
+      run.cancel()
+      processor.value?.stop?.()
+      resetGeneratingUi()
       showStreamButton.value = false
     })
   } else {
@@ -410,36 +417,21 @@ const applySuggestedVoice = () => {
   updateConfig('selectedVoice', v)
 }
 
-let abortCtrl: AbortController | null = null
-/**
- * One generation run at a time. States are mutually exclusive:
- * running -> done (success: toast + list item) | cancelled (info toast, nothing added).
- * A stop that arrives after the run already finished is ignored, and a late
- * completion of a cancelled run is dropped.
- */
-const run = { id: 0, state: 'idle' as 'idle' | 'running' | 'done' | 'cancelled' }
-const startRun = () => {
-  run.id += 1
-  run.state = 'running'
-  return run.id
-}
-const isLive = (id: number) => run.id === id && run.state === 'running'
-const finishRun = (id: number) => {
-  if (!isLive(id)) return false
-  run.state = 'done'
-  return true
+/** One generation run at a time; see utils/generationRun.ts for the state machine. */
+const run = new GenerationRun()
+const resetGeneratingUi = () => {
+  showDoneProgress.value = false
+  generating.value = false
+  generationStore.updateProgress(0)
 }
 const cancelGenerate = () => {
-  if (run.state !== 'running') return
-  if (processor.value?.isFinished?.()) return // already complete; let success path win
-  run.state = 'cancelled'
-  abortCtrl?.abort()
-  abortCtrl = null
+  // already complete (body fully read) -> let the success path win
+  if (processor.value?.isFinished?.() && run.state === 'running') return
+  if (!run.cancel()) return
   processor.value?.stop?.()
   showStreamButton.value = false
   streamDuration.value = 0
-  generating.value = false
-  generationStore.updateProgress(0)
+  resetGeneratingUi()
   ElMessage.info('已停止生成')
 }
 
@@ -664,7 +656,7 @@ const handleGenerate = async (event: Event) => {
   }
 }
 const updateAudioList = (data: GenerateResponse, runId: number) => {
-  if (!finishRun(runId)) return
+  if (!run.finish(runId)) return
   const audioItem = {
     ...data,
     audio: data.audio,
@@ -679,6 +671,11 @@ const updateAudioList = (data: GenerateResponse, runId: number) => {
   }
   const newAudioList = [...generationStore.audioList, audioItem]
   generationStore.updateAudioList(newAudioList)
+  progressIndeterminate.value = false
+  generationStore.updateProgress(100)
+  showDoneProgress.value = true
+  clearTimeout(doneProgressTimer)
+  doneProgressTimer = setTimeout(() => (showDoneProgress.value = false), 1500)
   if ((data as any).warning) ElMessage.warning((data as any).warning)
   else ElMessage.success('语音生成成功！')
   playSuccessSound()
@@ -696,34 +693,35 @@ const updateAudioList = (data: GenerateResponse, runId: number) => {
     })
   }
 }
+const failRun = (runId: number, error: unknown) => {
+  if (!run.fail(runId)) return // cancelled/superseded: stay silent
+  resetGeneratingUi()
+  if (isAbortError(error)) return
+  console.error('生成失败:', error)
+  if (typeof error === 'string') ElMessage.error(error)
+  else commonErrorHandler(error)
+}
+
 const generateAudio = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
 
+  processor.value?.stop?.()
   generating.value = true
+  progressIndeterminate.value = true
   generationStore.updateProgress(0)
-  const runId = startRun()
-  abortCtrl = new AbortController()
+  const { id: runId, signal } = run.start()
 
   try {
     const params = buildParams(inputText)
-    const { data } = await generateTTS(params, abortCtrl.signal)
+    const { data } = await generateTTS(params, signal)
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
     }
+    generationStore.updateProgress(100)
     updateAudioList(data, runId)
   } catch (error) {
-    if (!isLive(runId)) return
-    run.state = 'idle'
-    if ((error as any)?.name === 'CanceledError' || (error as any)?.code === 'ERR_CANCELED' || (error as any)?.name === 'AbortError') {
-      console.info('generation aborted')
-    } else {
-      console.error('生成失败:', error)
-      commonErrorHandler(error)
-    }
-    generating.value = false
-  } finally {
-    abortCtrl = null
+    failRun(runId, error)
   }
 }
 
@@ -731,17 +729,20 @@ const generateAudioTask = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
   processor.value?.stop?.()
+  processor.value = null
   generating.value = true
+  progressIndeterminate.value = false
   generationStore.updateProgress(0)
   streamDuration.value = 0
-  const runId = startRun()
+  const { id: runId, signal } = run.start()
 
   try {
     const params = buildParams(inputText)
-    abortCtrl = new AbortController()
-    const streamResult = await createTaskStream(params, abortCtrl.signal)
+    const streamResult = await createTaskStream(params, signal)
+    if (!run.isLive(runId)) return
     // JSON cache/short-circuit response
     if (streamResult && typeof streamResult === 'object' && 'code' in (streamResult as any) && (streamResult as any).data) {
+      generationStore.updateProgress(100)
       updateAudioList((streamResult as any).data, runId)
       return
     }
@@ -749,38 +750,23 @@ const generateAudioTask = async () => {
     if (streamed.warning === 'ai-fallback') {
       ElMessage.warning('AI 分角暂不可用，已用默认音色朗读（请检查 API 地址 / Key / 模型）')
     }
-    const stream = streamed.stream
-    const streamFileId = (() => {
-      const id = streamed.fileId
-      if (!id) return id
-      try {
-        return decodeURIComponent(id)
-      } catch {
-        return id
-      }
-    })()
-    console.log('typeof stream:', typeof stream, 'fileId:', streamFileId)
+    const streamFileId = streamed.fileId
     showStreamButton.value = true
-    const onStart = () => {
-      console.log('call onStart...')
-    }
-    const progress = mockProgress(2)
+    const progress = createStreamProgress(estimateSpeechSeconds(params.text, audioConfig.rate))
     const onProgress = () => {
-      if (!isLive(runId)) return
-    run.state = 'idle'
+      if (!run.isLive(runId)) return
       // exact decoded length streamed so far (MP3 frame count), not audio.duration (Infinity under MSE)
-      streamDuration.value = processor.value?.getLoadedDuration?.() || 0
-      generationStore.updateProgress(progress.increase())
+      const loaded = processor.value?.getLoadedDuration?.() || 0
+      streamDuration.value = loaded
+      generationStore.updateProgress(progress.update(loaded))
     }
     const onFinished = (newAudioUrl: string, blobs: Blob[]) => {
-      if (!isLive(runId)) return
-    run.state = 'idle'
+      if (!run.isLive(runId)) return
       const finalDuration = processor.value?.getLoadedDuration?.() || 0
       const audioEl = audioPlayerRef.value?.audioRef
-      const resumeAt = audioEl?.currentTime || 0
-      const wasPlaying = audioEl ? !audioEl.paused : false
       if (audioEl) {
-        audioEl.src = newAudioUrl
+        const resumeAt = audioEl.currentTime || 0
+        const wasPlaying = !audioEl.paused
         audioEl.addEventListener(
           'loadedmetadata',
           () => {
@@ -790,6 +776,7 @@ const generateAudioTask = async () => {
           },
           { once: true }
         )
+        audioEl.src = newAudioUrl
       }
       streamDuration.value = finalDuration
       const name = streamFileId || `${params.voice}-${params.text.slice(0, 10)}-${Date.now()}`
@@ -800,39 +787,25 @@ const generateAudioTask = async () => {
         id: name,
         name,
         blobs,
+        duration: finalDuration,
         ...(srtName ? { srt: srtName } : {}),
       }
-      generationStore.updateProgress(100)
+      generationStore.updateProgress(progress.done())
       updateAudioList(result as any, runId)
     }
-    const onError = (msg: string) => {
-      if (!isLive(runId)) return
-      run.state = 'idle'
-      generating.value = false
-      console.error(msg)
-      ElMessage.error(msg)
-    }
+    const onError = (msg: string) => failRun(runId, msg)
     processor.value = createAudioStreamProcessor(
-      stream as unknown as ReadableStream,
-      onStart,
+      streamed.stream as unknown as ReadableStream,
+      () => {},
       onProgress,
       onFinished,
       onError
     )
-    await asyncSleep(100)
-    audioPlayerRef.value!.audioRef!.src = processor.value!.audioUrl
+    await nextTick()
+    const audioEl = audioPlayerRef.value?.audioRef
+    if (audioEl && processor.value.audioUrl && run.isLive(runId)) audioEl.src = processor.value.audioUrl
   } catch (error) {
-    if (!isLive(runId)) return
-    run.state = 'idle'
-    if ((error as any)?.name === 'CanceledError' || (error as any)?.code === 'ERR_CANCELED' || (error as any)?.name === 'AbortError') {
-      console.info('generation aborted')
-    } else {
-      console.error('生成失败:', error)
-      commonErrorHandler(error)
-    }
-    generating.value = false
-  } finally {
-    abortCtrl = null
+    failRun(runId, error)
   }
 }
 const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
@@ -999,7 +972,7 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
 }
-.action-area :deep(.el-button--primary) {
+.action-row :deep(.el-button--primary) {
   background: var(--ev-accent);
   border-color: var(--ev-accent);
   font-weight: 500;

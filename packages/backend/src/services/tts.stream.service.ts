@@ -173,6 +173,9 @@ async function streamSegments(
   const outputStream = new PassThrough()
   let cancelled = false
   let current: Readable | null = null
+  // settles as soon as the client goes away, so no await below can outlive the request
+  let onCancel: () => void = () => {}
+  const cancelledP = new Promise<void>((resolve) => (onCancel = resolve))
 
   streamToResponse(res, outputStream, {
     headers: {
@@ -193,6 +196,7 @@ async function streamSegments(
       task.endTask?.(task.id)
       logger.info(`Streaming ${task.id} closed (client disconnect / cancel)`)
       current?.destroy()
+      onCancel()
     },
   })
 
@@ -202,7 +206,7 @@ async function streamSegments(
     for await (const seg of rest) {
       if (cancelled) break
       const subtitlePath = segmentSubtitlePath(tmpDir, index)
-      const audio = (await safeRunWithRetry(
+      const pending = safeRunWithRetry(
         () =>
           generateSingleVoiceStream({ ...seg, output, outputType: 'stream', subtitlePath }) as Promise<Readable>,
         {
@@ -211,12 +215,19 @@ async function streamSegments(
           onError: (err, attempt) =>
             logger.warn(`Segment ${index + 1} failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`),
         }
-      )) as Readable
+      ) as Promise<Readable>
+      const audio = await Promise.race([pending, cancelledP.then(() => null)])
+      if (cancelled || !audio) {
+        // cancelled while Edge was still connecting: drop that segment's stream when it arrives
+        pending.then((a) => a?.destroy()).catch(() => {})
+        break
+      }
       current = audio
       await new Promise<void>((resolve, reject) => {
         audio.on('end', resolve)
-        audio.on('error', reject)
+        audio.on('error', (e) => (cancelled ? resolve() : reject(e)))
         audio.on('close', () => (cancelled ? resolve() : undefined))
+        cancelledP.then(() => resolve())
         audio.pipe(outputStream, { end: false })
       })
       current = null
