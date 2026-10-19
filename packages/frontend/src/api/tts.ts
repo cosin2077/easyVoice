@@ -122,7 +122,8 @@ export const createTaskStream = async (data: TaskRequest, signal?: AbortSignal) 
     const responseData = JSON.parse(text)
     return responseData
   }
-  return { stream: response.data as ReadableStream, fileId }
+  const warning = response.headers['x-generate-tts-warning'] as string | undefined
+  return { stream: response.data as ReadableStream, fileId, warning }
 }
 
 export const downloadFile = (file: string) => `${api.defaults.baseURL}/download/${encodeURIComponent(file)}`

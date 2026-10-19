@@ -243,13 +243,14 @@
         :percentage="generationStore.progress"
         :color="customColors"
       />
+      <StreamButton
+        ref="audioPlayerRef"
+        v-if="showStreamButton"
+        :duration="streamDuration"
+        :streaming="generating"
+        @close="handleClose"
+      />
     </div>
-    <StreamButton
-      ref="audioPlayerRef"
-      v-if="showStreamButton"
-      :duration="streamDuration"
-      @close="handleClose"
-    />
     <DownloadList />
   </div>
 </template>
@@ -266,7 +267,6 @@ import {
   createAudioStreamProcessor,
   mapZHVoiceName,
   mockProgress,
-  toFixed,
 } from '@/utils'
 import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
@@ -346,17 +346,11 @@ const reset = () => {
 const updateConfig = (prop: keyof AudioConfig, value: string) => {
   configStore.updateConfig(prop, value)
 }
-const betterShowCN = (voiceList: Voice[]) => {
-  return voiceList.map((voice) => {
-    const zh = audioConfig.selectedLanguage?.includes('zh-')
-      ? mapZHVoiceName(voice.Name)
-      : undefined
-    return {
-      ...voice,
-      cnName: zh || friendlyVoiceName(voice.Name, voice.Gender),
-    }
-  })
-}
+const betterShowCN = (voiceList: Voice[]) =>
+  voiceList.map((voice) => ({
+    ...voice,
+    cnName: friendlyVoiceName(voice.Name, voice.Gender, mapZHVoiceName(voice.Name)),
+  }))
 const langQuery = ref('')
 const onLangFilter = (q: string) => {
   langQuery.value = q || ''
@@ -383,7 +377,7 @@ const languageGroups = computed(() => {
   })
 })
 const voiceDisplay = (voice: Voice) =>
-  voice.cnName || friendlyVoiceName(voice.Name, voice.Gender)
+  voice.cnName || friendlyVoiceName(voice.Name, voice.Gender, mapZHVoiceName(voice.Name))
 
 const SAMPLE_TEXT =
   '春江潮水连海平，海上明月共潮生。\n滟滟随波千万里，何处春江无月明。'
@@ -417,10 +411,33 @@ const applySuggestedVoice = () => {
 }
 
 let abortCtrl: AbortController | null = null
+/**
+ * One generation run at a time. States are mutually exclusive:
+ * running -> done (success: toast + list item) | cancelled (info toast, nothing added).
+ * A stop that arrives after the run already finished is ignored, and a late
+ * completion of a cancelled run is dropped.
+ */
+const run = { id: 0, state: 'idle' as 'idle' | 'running' | 'done' | 'cancelled' }
+const startRun = () => {
+  run.id += 1
+  run.state = 'running'
+  return run.id
+}
+const isLive = (id: number) => run.id === id && run.state === 'running'
+const finishRun = (id: number) => {
+  if (!isLive(id)) return false
+  run.state = 'done'
+  return true
+}
 const cancelGenerate = () => {
+  if (run.state !== 'running') return
+  if (processor.value?.isFinished?.()) return // already complete; let success path win
+  run.state = 'cancelled'
   abortCtrl?.abort()
   abortCtrl = null
   processor.value?.stop?.()
+  showStreamButton.value = false
+  streamDuration.value = 0
   generating.value = false
   generationStore.updateProgress(0)
   ElMessage.info('已停止生成')
@@ -646,7 +663,8 @@ const handleGenerate = async (event: Event) => {
     generateAudioTask()
   }
 }
-const updateAudioList = (data: GenerateResponse) => {
+const updateAudioList = (data: GenerateResponse, runId: number) => {
+  if (!finishRun(runId)) return
   const audioItem = {
     ...data,
     audio: data.audio,
@@ -661,7 +679,8 @@ const updateAudioList = (data: GenerateResponse) => {
   }
   const newAudioList = [...generationStore.audioList, audioItem]
   generationStore.updateAudioList(newAudioList)
-  ElMessage.success('语音生成成功！')
+  if ((data as any).warning) ElMessage.warning((data as any).warning)
+  else ElMessage.success('语音生成成功！')
   playSuccessSound()
   generating.value = false
 
@@ -683,6 +702,7 @@ const generateAudio = async () => {
 
   generating.value = true
   generationStore.updateProgress(0)
+  const runId = startRun()
   abortCtrl = new AbortController()
 
   try {
@@ -691,8 +711,10 @@ const generateAudio = async () => {
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
     }
-    updateAudioList(data)
+    updateAudioList(data, runId)
   } catch (error) {
+    if (!isLive(runId)) return
+    run.state = 'idle'
     if ((error as any)?.name === 'CanceledError' || (error as any)?.code === 'ERR_CANCELED' || (error as any)?.name === 'AbortError') {
       console.info('generation aborted')
     } else {
@@ -711,6 +733,8 @@ const generateAudioTask = async () => {
   processor.value?.stop?.()
   generating.value = true
   generationStore.updateProgress(0)
+  streamDuration.value = 0
+  const runId = startRun()
 
   try {
     const params = buildParams(inputText)
@@ -718,10 +742,13 @@ const generateAudioTask = async () => {
     const streamResult = await createTaskStream(params, abortCtrl.signal)
     // JSON cache/short-circuit response
     if (streamResult && typeof streamResult === 'object' && 'code' in (streamResult as any) && (streamResult as any).data) {
-      updateAudioList((streamResult as any).data)
+      updateAudioList((streamResult as any).data, runId)
       return
     }
-    const streamed = streamResult as { stream: ReadableStream; fileId?: string }
+    const streamed = streamResult as { stream: ReadableStream; fileId?: string; warning?: string }
+    if (streamed.warning === 'ai-fallback') {
+      ElMessage.warning('AI 分角暂不可用，已用默认音色朗读（请检查 API 地址 / Key / 模型）')
+    }
     const stream = streamed.stream
     const streamFileId = (() => {
       const id = streamed.fileId
@@ -739,24 +766,36 @@ const generateAudioTask = async () => {
     }
     const progress = mockProgress(2)
     const onProgress = () => {
-      let duration = 0
-      if (!processor.value?.isActive()) {
-        duration = audioPlayerRef.value!.audioRef!.duration
-      } else {
-        duration = processor.value!.getLoadedDuration?.()
-      }
-      if (!Number.isNaN(duration)) {
-        streamDuration.value = toFixed(duration)
-      }
+      if (!isLive(runId)) return
+    run.state = 'idle'
+      // exact decoded length streamed so far (MP3 frame count), not audio.duration (Infinity under MSE)
+      streamDuration.value = processor.value?.getLoadedDuration?.() || 0
       generationStore.updateProgress(progress.increase())
     }
     const onFinished = (newAudioUrl: string, blobs: Blob[]) => {
-      audioPlayerRef.value!.audioRef!.src = newAudioUrl
+      if (!isLive(runId)) return
+    run.state = 'idle'
+      const finalDuration = processor.value?.getLoadedDuration?.() || 0
+      const audioEl = audioPlayerRef.value?.audioRef
+      const resumeAt = audioEl?.currentTime || 0
+      const wasPlaying = audioEl ? !audioEl.paused : false
+      if (audioEl) {
+        audioEl.src = newAudioUrl
+        audioEl.addEventListener(
+          'loadedmetadata',
+          () => {
+            audioEl.currentTime = resumeAt
+            if (wasPlaying) audioEl.play().catch(() => {})
+            audioPlayerRef.value?.refresh?.()
+          },
+          { once: true }
+        )
+      }
+      streamDuration.value = finalDuration
       const name = streamFileId || `${params.voice}-${params.text.slice(0, 10)}-${Date.now()}`
-      generating.value = false
       const srtName = typeof name === 'string' && name.endsWith('.mp3') ? name.replace(/\.mp3$/, '.srt') : undefined
       const result = {
-        audio: audioPlayerRef.value!.audioRef!.src,
+        audio: newAudioUrl,
         file: name,
         id: name,
         name,
@@ -764,17 +803,14 @@ const generateAudioTask = async () => {
         ...(srtName ? { srt: srtName } : {}),
       }
       generationStore.updateProgress(100)
-      updateAudioList(result)
-      audioPlayerRef.value!.audioRef?.addEventListener(
-        'loadedmetadata',
-        () => {
-          streamDuration.value = audioPlayerRef.value!.audioRef!.duration
-        },
-        { once: true }
-      )
+      updateAudioList(result as any, runId)
     }
     const onError = (msg: string) => {
+      if (!isLive(runId)) return
+      run.state = 'idle'
+      generating.value = false
       console.error(msg)
+      ElMessage.error(msg)
     }
     processor.value = createAudioStreamProcessor(
       stream as unknown as ReadableStream,
@@ -785,8 +821,9 @@ const generateAudioTask = async () => {
     )
     await asyncSleep(100)
     audioPlayerRef.value!.audioRef!.src = processor.value!.audioUrl
-    ;(globalThis as any).processor = processor
   } catch (error) {
+    if (!isLive(runId)) return
+    run.state = 'idle'
     if ((error as any)?.name === 'CanceledError' || (error as any)?.code === 'ERR_CANCELED' || (error as any)?.name === 'AbortError') {
       console.info('generation aborted')
     } else {

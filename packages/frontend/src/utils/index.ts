@@ -1,20 +1,21 @@
 export const asyncSleep = (delay = 200) => new Promise((resolve) => setTimeout(resolve, delay))
 
+// Chinese display names (gender comes from the voice list, not from this table)
 const zhVoiceMap = {
-  'zh-CN-XiaoxiaoNeural': 'zh-CN-晓晓', // 标准普通话女声
-  'zh-CN-XiaoyiNeural': 'zh-CN-晓伊', // 普通话男声
-  'zh-CN-YunjianNeural': 'zh-CN-云健', // 普通话男声，剑指坚韧风格
-  'zh-CN-YunxiNeural': 'zh-CN-云希', // 普通话男声，温和自然
-  'zh-CN-YunxiaNeural': 'zh-CN-云夏', // 普通话女声，清新夏日感
-  'zh-CN-YunyangNeural': 'zh-CN-云扬', // 普通话男声，阳刚有力
-  'zh-CN-liaoning-XiaobeiNeural': 'zh-CN-辽宁-晓北', // 辽宁方言女声，亲切东北风
-  'zh-CN-shaanxi-XiaoniNeural': 'zh-CN-陕西-晓妮', // 陕西方言女声，带秦腔韵味
-  'zh-HK-HiuGaaiNeural': 'zh-HK-曉佳', // 粤语女声，优雅港风
-  'zh-HK-HiuMaanNeural': 'zh-HK-曉曼', // 粤语女声，温柔细腻
-  'zh-HK-WanLungNeural': 'zh-HK-雲龍', // 粤语男声，沉稳有力
-  'zh-TW-HsiaoChenNeural': 'zh-TW-曉臻', // 台湾普通话女声，清晨般清新
-  'zh-TW-HsiaoYuNeural': 'zh-TW-曉雨', // 台湾普通话女声，柔和优雅
-  'zh-TW-YunJheNeural': 'zh-TW-雲哲', // 台湾普通话男声，睿智沉稳
+  'zh-CN-XiaoxiaoNeural': '晓晓',
+  'zh-CN-XiaoyiNeural': '晓伊',
+  'zh-CN-YunjianNeural': '云健',
+  'zh-CN-YunxiNeural': '云希',
+  'zh-CN-YunxiaNeural': '云夏',
+  'zh-CN-YunyangNeural': '云扬',
+  'zh-CN-liaoning-XiaobeiNeural': '晓北（东北话）',
+  'zh-CN-shaanxi-XiaoniNeural': '晓妮（陕西话）',
+  'zh-HK-HiuGaaiNeural': '曉佳（粤语）',
+  'zh-HK-HiuMaanNeural': '曉曼（粤语）',
+  'zh-HK-WanLungNeural': '雲龍（粤语）',
+  'zh-TW-HsiaoChenNeural': '曉臻（台湾）',
+  'zh-TW-HsiaoYuNeural': '曉雨（台湾）',
+  'zh-TW-YunJheNeural': '雲哲（台湾）',
 } as const
 
 type VoiceKey = keyof typeof zhVoiceMap
@@ -26,6 +27,7 @@ export const mapZHVoiceName = (name: string): string | undefined => {
   return undefined
 }
 import { ref, type Ref } from 'vue'
+import { Mp3DurationCounter } from './mp3'
 interface AudioController {
   play: () => Promise<void>
   pause: () => void
@@ -99,6 +101,7 @@ interface AudioProcessor {
   getLoadedDuration: () => number // 返回duration
   downloadAudio: () => void // 返回duration
   finished: boolean // 是否结束缓冲流
+  isFinished: () => boolean // 流是否已完整读完
 }
 
 /**
@@ -126,9 +129,11 @@ export function createAudioStreamProcessor(
   let sourceBuffer: SourceBuffer | null = null
   let isAppending = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-  let blobs: { duration: number; blob: Blob }[] = []
-  let bitrate = 48_000 // match edge output audio-24khz-48kbitrate-mono-mp3
+  let blobs: { blob: Blob }[] = []
+  // exact duration from MP3 frame headers (the old fixed 48 kbps guess was 2x off for 96 kbps)
+  const counter = new Mp3DurationCounter()
   let finished = false
+  let stopped = false
   let stopBuffering = false
   const audioUrl = mediaSource ? URL.createObjectURL(mediaSource) : ''
 
@@ -156,6 +161,7 @@ export function createAudioStreamProcessor(
     reader = stream.getReader()
     const cleanup = () => {
       reader = null
+      if (stopped) return // user cancelled: never report success
       if (!sourceBuffer?.updating && mediaSource.readyState === 'open') {
         mediaSource.endOfStream()
       }
@@ -164,6 +170,7 @@ export function createAudioStreamProcessor(
         { type: mimeType }
       )
       const audioNewUrl = URL.createObjectURL(audioBlob)
+      finished = true
       onFinished(
         audioNewUrl,
         blobs.map((b) => b.blob)
@@ -179,12 +186,13 @@ export function createAudioStreamProcessor(
         if (value) {
           await appendBuffer(value.buffer)
           const blob = new Blob([value.buffer], { type: mimeType })
-          const blobDuration = (blob.size * 8) / bitrate
-          blobs.push({ blob, duration: blobDuration })
+          counter.push(value)
+          blobs.push({ blob })
           onProgress()
         }
       }
     } catch (error) {
+      if (stopped) return
       console.error('Error reading stream:', error)
       if (mediaSource.readyState === 'open') {
         mediaSource.endOfStream('network')
@@ -236,11 +244,9 @@ export function createAudioStreamProcessor(
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
-  const getLoadedDuration = () => {
-    const totalDuration = blobs.reduce((acc, blob) => acc + blob.duration, 0)
-    return totalDuration
-  }
+  const getLoadedDuration = () => counter.duration
   const stop = () => {
+    stopped = true
     try {
       if (reader) {
         reader.cancel().catch(() => {})
@@ -258,7 +264,8 @@ export function createAudioStreamProcessor(
       console.warn('stop stream processor', e)
     }
   }
-  const isActive = () => mediaSource.readyState === 'open'
+  const isActive = () => !!mediaSource && mediaSource.readyState === 'open'
+  const isFinished = () => finished
   return {
     audioUrl,
     appendBuffer,
@@ -267,6 +274,7 @@ export function createAudioStreamProcessor(
     getLoadedDuration,
     downloadAudio,
     finished,
+    isFinished,
   }
 }
 
