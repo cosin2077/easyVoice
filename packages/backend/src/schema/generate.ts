@@ -2,7 +2,6 @@ import { config, DIRECT_GEN_LIMIT, LIMIT_TEXT_LENGTH, LIMIT_TEXT_LENGTH_ERROR_ME
 import { NextFunction, Response, Request } from 'express'
 import { z } from 'zod'
 import { logger } from '../utils/logger'
-import { openai } from '../utils/openai'
 import { assertSafeOpenaiBaseUrl } from '../utils/ssrf'
 
 export const edgeSchema = z.object({
@@ -59,11 +58,8 @@ const commonValidate = (req: Request, res: Response, next: NextFunction, schema:
         allowPrivate: process.env.ALLOW_PRIVATE_OPENAI_URL !== 'false',
       })
     }
-    openai.config({
-      apiKey: req.body.openaiKey,
-      baseURL: req.body.openaiBaseUrl,
-      model: req.body.openaiModel,
-    })
+    // NOTE: no global openai.config() here — that leaked one user's key/baseURL into
+    // concurrent requests. The per-request config travels with the task params (llm).
     if (LIMIT_TEXT_LENGTH) {
       const allTxt = req.body.text
       if (allTxt?.length > LIMIT_TEXT_LENGTH) {

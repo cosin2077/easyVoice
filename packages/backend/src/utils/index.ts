@@ -154,6 +154,8 @@ export function streamToResponse(
   })
 
   const handleDisconnect = () => {
+    // 'close' also fires after a normal finish; only treat it as a disconnect if unfinished.
+    if (res.writableFinished) return
     if (!isClientDisconnected) {
       isClientDisconnected = true
       logger.info('Client disconnected')

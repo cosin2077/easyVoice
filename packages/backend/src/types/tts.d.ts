@@ -7,6 +7,8 @@ interface TTSResult {
   audio: string
   srt: string
   partial?: boolean
+  /** user-facing note, e.g. AI casting fell back to the default voice */
+  warning?: string
 }
 
 interface TTSParams {

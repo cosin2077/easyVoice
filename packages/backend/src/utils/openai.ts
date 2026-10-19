@@ -28,8 +28,8 @@ export function createOpenAIClient() {
     apiKey: currentConfig?.apiKey ? currentConfig?.apiKey?.slice(0, 10) + '***' : undefined,
   })
   // 设置 headers
-  const getHeaders = () => ({
-    Authorization: `Bearer ${currentConfig.apiKey}`,
+  const getHeaders = (cfg: OpenAIConfig = currentConfig) => ({
+    Authorization: `Bearer ${cfg.apiKey}`,
     'Content-Type': 'application/json',
   })
 
@@ -43,10 +43,10 @@ export function createOpenAIClient() {
     customConfig?: Partial<OpenAIConfig>
   ): Promise<ChatCompletionResponse> {
     try {
-      const mergedConfig = {
-        ...currentConfig,
-        ...customConfig,
-      }
+      const overrides = Object.fromEntries(
+        Object.entries(customConfig || {}).filter(([, v]) => v !== undefined && v !== '')
+      ) as Partial<OpenAIConfig>
+      const mergedConfig: OpenAIConfig = { ...currentConfig, ...overrides }
 
       const response = await fetcher.post<ChatCompletionResponse>(
         `${mergedConfig.baseURL}${mergedConfig.baseURL?.endsWith('/') ? '' : '/'}chat/completions`,
@@ -59,16 +59,15 @@ export function createOpenAIClient() {
           ...request,
         },
         {
-          headers: getHeaders(),
+          headers: getHeaders(mergedConfig),
           timeout: mergedConfig.timeout,
         }
       )
 
       return response.data
     } catch (error) {
-      console.log(error)
       if (error instanceof AxiosError) {
-        console.log(`createChatCompletion`, error.response?.data?.error)
+        logger.warn(`createChatCompletion failed: ${error.response?.status} ${JSON.stringify(error.response?.data?.error ?? '').slice(0, 300)}`)
       }
       throw new Error(
         `Chat completion request failed: ${error instanceof Error ? error.message : String(error)}`
@@ -106,7 +105,7 @@ export function createOpenAIClient() {
       ...currentConfig,
       ...newConfig,
     }
-    logger.debug(`openai currentConfig:`, currentConfig)
+    logger.debug(`openai config updated`, { baseURL: currentConfig.baseURL, model: currentConfig.model })
   }
 
   return {

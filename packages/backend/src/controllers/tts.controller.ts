@@ -6,7 +6,8 @@ import fs from 'fs/promises'
 import { ALLOWED_EXTENSIONS, AUDIO_DIR } from '../config'
 import { EdgeSchema } from '../schema/generate'
 import taskManager from '../utils/taskManager'
-function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
+function formatBody(body: EdgeSchema & { openaiBaseUrl?: string; openaiKey?: string; openaiModel?: string }) {
+  const { text, pitch, voice, volume, rate, useLLM } = body
   const positivePercent = (value: string | undefined) => {
     if (value === '0%' || value === '0' || value === undefined) return '+0%'
     return value
@@ -18,17 +19,23 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
   return {
     text: text.trim(),
     pitch: positiveHz(pitch),
-    voice: positivePercent(voice),
+    voice: (voice || '').trim(),
     rate: positivePercent(rate),
     volume: positivePercent(volume),
     useLLM,
+    // per-request LLM endpoint (validated + SSRF-checked in schema middleware)
+    llm: useLLM
+      ? { baseURL: body.openaiBaseUrl, apiKey: body.openaiKey, model: body.openaiModel }
+      : undefined,
   }
 }
 export async function createTask(req: Request, res: Response, next: NextFunction) {
   try {
     logger.debug('Generating audio with body:', req.body)
     const formattedBody = formatBody(req.body)
-    const task = taskManager.createTask(formattedBody)
+    // never put the API key into task fields (tasks are readable via GET /task/:id)
+    const { llm: _llm, ...taskFields } = formattedBody
+    const task = taskManager.createTask(taskFields)
     logger.info(`Generated task ID: ${task.id}`)
 
     generateTTS(formattedBody, task)
