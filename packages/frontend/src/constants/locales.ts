@@ -151,15 +151,145 @@ export function localeLabel(code: string): string {
   return LOCALE_LABELS[code] || code
 }
 
-/** Group key for select optgroup: language family display. */
+/** Group key: geographic region (avoids single-option 日语/韩语 groups). */
 export function localeGroup(code: string): string {
+  const REGION: Record<string, string> = {
+  "bg-BG": "欧洲",
+  "bs-BA": "欧洲",
+  "ca-ES": "欧洲",
+  "cs-CZ": "欧洲",
+  "cy-GB": "欧洲",
+  "da-DK": "欧洲",
+  "de-AT": "欧洲",
+  "de-CH": "欧洲",
+  "de-DE": "欧洲",
+  "el-GR": "欧洲",
+  "en-GB": "欧洲",
+  "en-IE": "欧洲",
+  "es-ES": "欧洲",
+  "et-EE": "欧洲",
+  "fi-FI": "欧洲",
+  "fr-BE": "欧洲",
+  "fr-CH": "欧洲",
+  "fr-FR": "欧洲",
+  "ga-IE": "欧洲",
+  "gl-ES": "欧洲",
+  "hr-HR": "欧洲",
+  "hu-HU": "欧洲",
+  "is-IS": "欧洲",
+  "it-IT": "欧洲",
+  "lt-LT": "欧洲",
+  "lv-LV": "欧洲",
+  "mk-MK": "欧洲",
+  "mt-MT": "欧洲",
+  "nb-NO": "欧洲",
+  "nl-BE": "欧洲",
+  "nl-NL": "欧洲",
+  "pl-PL": "欧洲",
+  "pt-PT": "欧洲",
+  "ro-RO": "欧洲",
+  "ru-RU": "欧洲",
+  "sk-SK": "欧洲",
+  "sl-SI": "欧洲",
+  "sq-AL": "欧洲",
+  "sr-RS": "欧洲",
+  "sv-SE": "欧洲",
+  "uk-UA": "欧洲",
+  "zh-CN": "东亚",
+  "zh-TW": "东亚",
+  "zh-HK": "东亚",
+  "ja-JP": "东亚",
+  "ko-KR": "东亚",
+  "th-TH": "东南亚",
+  "vi-VN": "东南亚",
+  "id-ID": "东南亚",
+  "ms-MY": "东南亚",
+  "fil-PH": "东南亚",
+  "km-KH": "东南亚",
+  "lo-LA": "东南亚",
+  "my-MM": "东南亚",
+  "jv-ID": "东南亚",
+  "su-ID": "东南亚",
+  "hi-IN": "南亚",
+  "bn-IN": "南亚",
+  "bn-BD": "南亚",
+  "ta-IN": "南亚",
+  "te-IN": "南亚",
+  "ml-IN": "南亚",
+  "kn-IN": "南亚",
+  "gu-IN": "南亚",
+  "mr-IN": "南亚",
+  "pa-IN": "南亚",
+  "ur-IN": "南亚",
+  "ne-NP": "南亚",
+  "si-LK": "南亚",
+  "ar-AE": "中东与非洲",
+  "ar-BH": "中东与非洲",
+  "ar-DZ": "中东与非洲",
+  "ar-EG": "中东与非洲",
+  "ar-IQ": "中东与非洲",
+  "ar-JO": "中东与非洲",
+  "ar-KW": "中东与非洲",
+  "ar-LB": "中东与非洲",
+  "ar-LY": "中东与非洲",
+  "ar-MA": "中东与非洲",
+  "ar-OM": "中东与非洲",
+  "ar-QA": "中东与非洲",
+  "ar-SA": "中东与非洲",
+  "ar-SY": "中东与非洲",
+  "ar-TN": "中东与非洲",
+  "ar-YE": "中东与非洲",
+  "he-IL": "中东与非洲",
+  "fa-IR": "中东与非洲",
+  "ps-AF": "中东与非洲",
+  "am-ET": "中东与非洲",
+  "sw-KE": "中东与非洲",
+  "sw-TZ": "中东与非洲",
+  "so-SO": "中东与非洲",
+  "zu-ZA": "中东与非洲",
+  "af-ZA": "中东与非洲",
+  "en-ZA": "中东与非洲",
+  "en-KE": "中东与非洲",
+  "en-NG": "中东与非洲",
+  "en-TZ": "中东与非洲",
+  "en-US": "美洲",
+  "en-CA": "美洲",
+  "fr-CA": "美洲",
+  "es-MX": "美洲",
+  "es-AR": "美洲",
+  "es-BO": "美洲",
+  "es-CL": "美洲",
+  "es-CO": "美洲",
+  "es-CR": "美洲",
+  "es-CU": "美洲",
+  "es-DO": "美洲",
+  "es-EC": "美洲",
+  "es-GQ": "美洲",
+  "es-GT": "美洲",
+  "es-HN": "美洲",
+  "es-NI": "美洲",
+  "es-PA": "美洲",
+  "es-PE": "美洲",
+  "es-PR": "美洲",
+  "es-PY": "美洲",
+  "es-SV": "美洲",
+  "es-UY": "美洲",
+  "es-VE": "美洲",
+  "pt-BR": "美洲",
+  "en-AU": "亚太英语",
+  "en-NZ": "亚太英语",
+  "en-SG": "亚太英语",
+  "en-HK": "亚太英语",
+  "en-PH": "亚太英语"
+}
+  if (REGION[code]) return REGION[code]
   const lang = code.split('-')[0]
-  const map: Record<string, string> = {
-    zh: '中文', en: '英语', ja: '日语', ko: '韩语', fr: '法语', de: '德语',
-    es: '西班牙语', pt: '葡萄牙语', ru: '俄语', ar: '阿拉伯语', hi: '印度语言',
-    th: '东南亚', vi: '东南亚', id: '东南亚', ms: '东南亚', fil: '东南亚',
-  }
-  return map[lang] || '其他语言'
+  if (lang === 'zh' || lang === 'ja' || lang === 'ko') return '东亚'
+  if (lang === 'ar' || lang === 'he' || lang === 'fa') return '中东与非洲'
+  if (lang === 'hi' || lang === 'ta' || lang === 'te' || lang === 'bn') return '南亚'
+  if (lang === 'en') return '亚太英语'
+  if (lang === 'es' || lang === 'pt') return '美洲'
+  return '其他'
 }
 
 export function buildLanguageOptions(voices: { Name: string }[]) {
@@ -182,4 +312,30 @@ export function buildLanguageOptions(voices: { Name: string }[]) {
     name: localeLabel(code),
     group: localeGroup(code),
   }))
+}
+
+/** Ranked filter: language name/code prefix first, then includes; deprioritize country-only hits. */
+export function filterLanguageOptions(
+  query: string,
+  options: { code: string; name: string; group: string }[]
+) {
+  const q = query.trim().toLowerCase()
+  if (!q) return options
+  const scored = options.map((o) => {
+    const name = o.name.toLowerCase()
+    const code = o.code.toLowerCase()
+    const lang = code.split('-')[0]
+    const labelLang = name.split('（')[0]
+    let score = 100
+    if (labelLang.startsWith(q) || labelLang === q) score = 0
+    else if (code.startsWith(q) || lang.startsWith(q)) score = 1
+    else if (name.startsWith(q)) score = 2
+    else if (labelLang.includes(q) || lang.includes(q)) score = 3
+    else if (code.includes(q)) score = 4
+    else if (name.includes(q)) score = 5 // country substring etc.
+    else score = 99
+    return { o, score }
+  }).filter((x) => x.score < 99)
+  scored.sort((a, b) => a.score - b.score || a.o.name.localeCompare(b.o.name, 'zh'))
+  return scored.map((x) => x.o)
 }

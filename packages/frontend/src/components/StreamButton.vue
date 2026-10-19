@@ -27,7 +27,7 @@
       />
     </div>
     <div class="time-display">
-      <span>{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+      <span>{{ formatTime(currentTime) }}<template v-if="displayDuration > 0"> / {{ formatTime(displayDuration) }}</template></span>
     </div>
     <span class="close" @click="closeThisCard">
       <el-icon><Close /></el-icon>
@@ -91,11 +91,18 @@ const stop = () => {
   }
 }
 
+const displayDuration = ref(0)
 const updateProgress = () => {
-  if (audioRef.value) {
-    currentTime.value = audioRef.value.currentTime
-    progress.value = (currentTime.value / props.duration) * 100
-  }
+  if (!audioRef.value) return
+  currentTime.value = audioRef.value.currentTime
+  const d =
+    Number.isFinite(audioRef.value.duration) && audioRef.value.duration > 0
+      ? audioRef.value.duration
+      : Number.isFinite(props.duration) && props.duration > 0
+        ? props.duration
+        : 0
+  displayDuration.value = d
+  progress.value = d > 0 ? (currentTime.value / d) * 100 : 0
 }
 
 const onended = () => {
@@ -104,21 +111,24 @@ const onended = () => {
 
 const seek = (value: Arrayable<number>) => {
   if (Array.isArray(value)) return
-  if (audioRef.value) {
-    audioRef.value.currentTime = (value / 100) * props.duration
+  const d = displayDuration.value || props.duration
+  if (audioRef.value && d > 0) {
+    audioRef.value.currentTime = (value / 100) * d
   }
 }
 const input = debounce((value: Arrayable<number>) => {
   if (Array.isArray(value)) return
-  if (audioRef.value) {
-    audioRef.value.currentTime = (value / 100) * props.duration
+  const d = displayDuration.value || props.duration
+  if (audioRef.value && d > 0) {
+    audioRef.value.currentTime = (value / 100) * d
   }
 }, 100)
 
 const formatTime = (time: number) => {
-  const minutes = Math.floor(time / 60)
-  const seconds = Math.floor(time % 60)
-  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+  if (!Number.isFinite(time) || time < 0) return '0:00'
+  const m = Math.floor(time / 60)
+  const sec = Math.floor(time % 60)
+  return `${m}:${sec.toString().padStart(2, '0')}`
 }
 defineExpose({
   audioRef,
@@ -189,4 +199,40 @@ defineExpose({
 .close:hover {
   transform: scale(1.1);
 }
+
+.tts-audio-player {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(420px, calc(100vw - 24px));
+  margin: 0 !important;
+  padding: 14px 16px 12px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #d4d4d4;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+}
+.controls { display: flex; justify-content: center; gap: 10px; }
+.controls .el-button { color: #1a1a1a; }
+.time-display {
+  text-align: center;
+  font-size: 13px;
+  color: #3a3a3a;
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+.close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  color: #525252;
+  cursor: pointer;
+}
+.close:hover { color: #1a1a1a; }
+.progress-slider :deep(.el-slider__runway) { background: #e5e5e5; }
+.progress-slider :deep(.el-slider__bar) { background: var(--el-color-primary); }
+
 </style>

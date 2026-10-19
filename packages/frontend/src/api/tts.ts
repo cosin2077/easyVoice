@@ -69,8 +69,8 @@ export const getVoiceList = async () => {
   return response.data
 }
 
-export const generateTTS = async (data: GenerateRequest) => {
-  const response = await api.post<ResponseWrapper<GenerateResponse>>('/generate', data)
+export const generateTTS = async (data: GenerateRequest, signal?: AbortSignal) => {
+  const response = await api.post<ResponseWrapper<GenerateResponse>>('/generate', data, { signal })
   if (response.data?.code !== 200 || !response.data?.success) {
     throw new Error(response.data?.message || '生成语音失败')
   }
@@ -91,7 +91,7 @@ export const createTask = async (data: TaskRequest) => {
   return response.data
 }
 
-export const createTaskStream = async (data: TaskRequest) => {
+export const createTaskStream = async (data: TaskRequest, signal?: AbortSignal) => {
   const response = await api.post<ReadableStream | ResponseWrapper<GenerateResponse>>(
     `/createStream`,
     data,
@@ -99,6 +99,7 @@ export const createTaskStream = async (data: TaskRequest) => {
       responseType: 'stream',
       adapter: 'fetch',
       timeout: 0,
+      signal,
     }
   )
   const ttsType = response.headers['x-generate-tts-type']

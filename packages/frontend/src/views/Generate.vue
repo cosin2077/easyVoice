@@ -17,10 +17,15 @@
           <el-input
             v-model="audioConfig.inputText"
             type="textarea"
-            placeholder="请输入或粘贴文本"
+            placeholder="在此粘贴小说、对话或旁白… 也可用下方「填入示例」"
             :rows="12"
             resize="none"
+            class="main-textarea"
           />
+          <div class="text-toolbar">
+            <el-button size="small" text type="primary" @click="fillSample">填入示例</el-button>
+            <span class="hint">支持 .txt 拖拽上传 · 长文本将自动流式生成</span>
+          </div>
           <div class="upload-area">
             <el-upload
               drag
@@ -53,16 +58,10 @@
           <div class="voice-mode-selector">
             <el-radio-group v-model="audioConfig.voiceMode" size="large">
               <el-radio-button label="preset">预设语音</el-radio-button>
-              <el-tooltip
-                content="通过AI推荐不同的角色语音！(实验性功能，结果取决于模型能力！)"
-                placement="top"
-                effect="light"
-              >
-                <el-radio-button label="ai">
+              <el-radio-button label="ai">
                   AI 推荐
-                  <Sparkles class="sparkles-icon" :size="24" :stroke-width="1.25" />
+                  <Sparkles class="sparkles-icon" :size="16" :stroke-width="1.75" />
                 </el-radio-button>
-              </el-tooltip>
             </el-radio-group>
           </div>
 
@@ -72,8 +71,10 @@
               <el-form-item label="语言">
                 <el-select
                   v-model="audioConfig.selectedLanguage"
-                  placeholder="搜索或选择语言"
+                  placeholder="搜索语言 / 代码"
                   filterable
+                  :filter-method="onLangFilter"
+                  @visible-change="(v:boolean)=>!v && onLangFilter('')"
                   @change="filterVoices"
                 >
                   <el-option-group
@@ -86,7 +87,10 @@
                       :key="lang.code"
                       :label="lang.name"
                       :value="lang.code"
-                    />
+                    >
+                      <span class="lang-opt">{{ lang.name }}</span>
+                      <span class="lang-code">{{ lang.code }}</span>
+                    </el-option>
                   </el-option-group>
                 </el-select>
               </el-form-item>
@@ -108,17 +112,12 @@
                   <el-option
                     v-for="voice in filteredVoices"
                     :key="voice.Name"
-                    :label="voice.cnName"
+                    :label="voiceDisplay(voice)"
                     :value="voice.Name"
                   >
                     <div class="voice-option">
-                      <span>{{ voice.cnName || voice.Name }}</span>
-                      <Sparkles
-                        :size="16"
-                        :stroke-width="1.25"
-                        style="margin-left: 10px; color: red"
-                        v-if="voice.Name === 'zh-CN-YunxiNeural'"
-                      />
+                      <span>{{ voiceDisplay(voice) }}</span>
+                      <span class="voice-meta">{{ voice.Name.split('-').slice(0,2).join('-') }}</span>
                     </div>
                   </el-option>
                 </el-select>
@@ -153,48 +152,52 @@
           </div>
 
           <div v-else class="ai-settings">
-            <el-form label-position="top">
-              <el-form-item label="OpenAI API URL">
+            <p class="ai-help">
+              用大模型按角色/旁白自动分配音色与语速。兼容 OpenAI Chat Completions；密钥仅保存在本机浏览器（localStorage），不会上传到 EasyVoice 服务器以外的地址（请求直达你填写的 API）。
+            </p>
+            <el-form label-position="top" require-asterisk-position="right">
+              <el-form-item label="API Base URL" required>
                 <el-input
                   v-model="audioConfig.openaiBaseUrl"
                   clearable
                   placeholder="https://api.openai.com/v1"
                 />
               </el-form-item>
-
-              <el-form-item label="API Key">
+              <el-form-item label="API Key" required>
                 <el-input
                   v-model="audioConfig.openaiKey"
                   type="password"
                   show-password
                   clearable
-                  placeholder="sk-..."
+                  placeholder="sk-…"
+                  autocomplete="off"
                 />
               </el-form-item>
-
-              <el-form-item label="模型">
-                <el-input v-model="audioConfig.openaiModel" clearable placeholder="gpt-4o..." />
+              <el-form-item label="模型" required>
+                <el-input v-model="audioConfig.openaiModel" clearable placeholder="gpt-4o-mini" />
               </el-form-item>
             </el-form>
           </div>
 
           <div class="preview-section">
-            <el-form-item label="试听文本">
-              <el-input
-                v-model="audioConfig.previewText"
-                placeholder="输入短文本进行试听"
-                :disabled="!canPreview"
-              />
+            <el-form-item label="试听文本" class="preview-field">
+              <div class="preview-row">
+                <el-input
+                  v-model="audioConfig.previewText"
+                  placeholder="短句试听"
+                  :disabled="!canPreview"
+                  clearable
+                />
+                <el-button
+                  type="primary"
+                  @click="previewAudio"
+                  :disabled="!canPreview || previewLoading"
+                  :loading="previewLoading"
+                >
+                  试听
+                </el-button>
+              </div>
             </el-form-item>
-            <el-button
-              type="primary"
-              @click="previewAudio"
-              :disabled="!canPreview || previewLoading"
-              :loading="previewLoading"
-              :icon="Service"
-            >
-              试听
-            </el-button>
             <audio
               ref="audioPlayer"
               v-show="audioConfig.previewAudioUrl"
@@ -206,25 +209,37 @@
         </el-card>
       </el-col>
     </el-row>
-    <div class="action-area">
-      <el-button
-        type="primary"
-        size="large"
-        @click="handleGenerate"
-        :loading="generating"
-        :disabled="!canGenerate"
-      >
-        生成语音
-      </el-button>
-      <el-button :disabled="generating" type="danger" size="large" @click="reset">
-        重置配置
-      </el-button>
+    <div v-if="langMismatch" class="mismatch-banner">
+      <span>{{ langMismatch }}</span>
+      <el-button size="small" type="primary" text @click="applySuggestedVoice">一键切换音色</el-button>
     </div>
-    <div class="progress-bar">
+    <div class="action-area" :class="{ sticky: true }">
+      <div class="action-row">
+        <el-button
+          v-if="!generating"
+          type="primary"
+          size="large"
+          class="primary-cta"
+          @click="handleGenerate"
+          :disabled="!canGenerate"
+        >
+          生成语音
+        </el-button>
+        <el-button
+          v-else
+          type="danger"
+          size="large"
+          class="primary-cta"
+          @click="cancelGenerate"
+        >
+          停止生成
+        </el-button>
+        <el-button :disabled="generating" size="large" @click="reset">重置</el-button>
+      </div>
       <el-progress
         v-if="generating"
-        style="margin: 0px auto; max-width: 400px"
-        :stroke-width="12"
+        class="inline-progress"
+        :stroke-width="8"
         :percentage="generationStore.progress"
         :color="customColors"
       />
@@ -245,7 +260,7 @@ import { Sparkles } from 'lucide-vue-next'
 import { ref, computed, onMounted, watch, onBeforeMount, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useGenerationStore } from '@/stores/generation'
-import { UploadFilled, Service } from '@element-plus/icons-vue'
+import { UploadFilled } from '@element-plus/icons-vue'
 import {
   asyncSleep,
   createAudioStreamProcessor,
@@ -256,7 +271,8 @@ import {
 import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
-import { buildLanguageOptions } from '@/constants/locales'
+import { buildLanguageOptions, filterLanguageOptions } from '@/constants/locales'
+import { friendlyVoiceName, looksLikeChinese, looksLikeEnglish } from '@/utils/format'
 import DownloadList from '@/components/DownloadList.vue'
 import Notification from '@/assets/notification.mp3'
 import StreamButton from '@/components/StreamButton.vue'
@@ -331,25 +347,85 @@ const updateConfig = (prop: keyof AudioConfig, value: string) => {
   configStore.updateConfig(prop, value)
 }
 const betterShowCN = (voiceList: Voice[]) => {
-  if (audioConfig.selectedLanguage?.includes('zh-')) {
-    return voiceList.map((voice) => {
-      return {
-        ...voice,
-        cnName: mapZHVoiceName(voice.Name) ?? voice.Name,
-      }
-    })
-  }
-  return voiceList
+  return voiceList.map((voice) => {
+    const zh = audioConfig.selectedLanguage?.includes('zh-')
+      ? mapZHVoiceName(voice.Name)
+      : undefined
+    return {
+      ...voice,
+      cnName: zh || friendlyVoiceName(voice.Name, voice.Gender),
+    }
+  })
 }
+const langQuery = ref('')
+const onLangFilter = (q: string) => {
+  langQuery.value = q || ''
+}
+const filteredLangOptions = computed(() =>
+  filterLanguageOptions(langQuery.value, languages.value as any)
+)
 const languageGroups = computed(() => {
   const map = new Map<string, { code: string; name: string; group?: string }[]>()
-  for (const lang of languages.value as any[]) {
-    const g = lang.group || '其他语言'
+  for (const lang of filteredLangOptions.value as any[]) {
+    const g = lang.group || '其他'
     if (!map.has(g)) map.set(g, [])
     map.get(g)!.push(lang)
   }
-  return [...map.entries()].map(([label, options]) => ({ label, options }))
+  const entries = [...map.entries()]
+  // Flatten groups with a single locale: use language name as group label (e.g. 日语)
+  return entries.map(([label, options]) => {
+    if (options.length === 1) {
+      const only = options[0]
+      const langName = (only.name || '').split('（')[0] || label
+      return { label: langName, options }
+    }
+    return { label, options }
+  })
 })
+const voiceDisplay = (voice: Voice) =>
+  voice.cnName || friendlyVoiceName(voice.Name, voice.Gender)
+
+const SAMPLE_TEXT =
+  '春江潮水连海平，海上明月共潮生。\n滟滟随波千万里，何处春江无月明。'
+const fillSample = () => updateConfig('inputText', SAMPLE_TEXT)
+
+const suggestedVoice = ref('')
+const langMismatch = computed(() => {
+  const text = audioConfig.inputText || ''
+  const voice = audioConfig.selectedVoice || ''
+  if (audioConfig.voiceMode !== 'preset' || !text.trim() || !voice) {
+    suggestedVoice.value = ''
+    return ''
+  }
+  if (looksLikeChinese(text) && voice.startsWith('en')) {
+    suggestedVoice.value = 'zh-CN-XiaoxiaoNeural'
+    return '检测到中文文本，当前却是英文音色。'
+  }
+  if (looksLikeEnglish(text) && voice.startsWith('zh')) {
+    suggestedVoice.value = 'en-US-JennyNeural'
+    return '检测到英文文本，当前却是中文音色。'
+  }
+  suggestedVoice.value = ''
+  return ''
+})
+const applySuggestedVoice = () => {
+  if (!suggestedVoice.value) return
+  const v = suggestedVoice.value
+  const loc = v.split('-').slice(0, 2).join('-')
+  updateConfig('selectedLanguage', loc)
+  updateConfig('selectedVoice', v)
+}
+
+let abortCtrl: AbortController | null = null
+const cancelGenerate = () => {
+  abortCtrl?.abort()
+  abortCtrl = null
+  processor.value?.stop?.()
+  generating.value = false
+  generationStore.updateProgress(0)
+  ElMessage.info('已停止生成')
+}
+
 
 const filteredVoices = computed(() => {
   return betterShowCN(
@@ -368,9 +444,9 @@ const canGenerate = computed(() => {
 
   if (voiceMode === 'preset') {
     return !!selectedVoice
-  } else {
-    return (!!openaiBaseUrl && !!openaiKey && !!openaiModel) || true
   }
+  return !!(openaiBaseUrl && openaiKey && openaiModel)
+
 })
 
 const canPreview = computed(() => {
@@ -541,13 +617,30 @@ const previewAudio = async () => {
   }
 }
 
-const handleGenerate = (event: Event) => {
+const handleGenerate = async (event: Event) => {
   confettiElement.value = event.target as HTMLElement
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
+  if (langMismatch.value) {
+    try {
+      await ElMessageBox.confirm(
+        langMismatch.value + ' 仍要继续，或先一键切换音色？',
+        '语言与音色不匹配',
+        {
+          confirmButtonText: '一键切换并继续',
+          cancelButtonText: '仍用当前音色',
+          distinguishCancelAndClose: true,
+          type: 'warning',
+        }
+      )
+      applySuggestedVoice()
+    } catch (e) {
+      if (e === 'close') return
+    }
+  }
   if (inputText.length < 200) {
     console.warn('[handleGenerate]Input text is too short, generating directly...')
-    generateAudio() // for test
+    generateAudio()
   } else {
     console.warn('[handleGenerate]Input text is long, creating task...')
     generateAudioTask()
@@ -560,6 +653,7 @@ const updateAudioList = (data: GenerateResponse) => {
     file: data.file,
     size: data.size,
     srt: data.srt,
+    name: (audioConfig.inputText || '').replace(/\s+/g, ' ').trim().slice(0, 24),
     isDownloading: false,
     isSrtLoading: false,
     isPlaying: false,
@@ -589,18 +683,25 @@ const generateAudio = async () => {
 
   generating.value = true
   generationStore.updateProgress(0)
+  abortCtrl = new AbortController()
 
   try {
     const params = buildParams(inputText)
-    const { data } = await generateTTS(params)
+    const { data } = await generateTTS(params, abortCtrl.signal)
     if (!data) {
       throw new Error(`no data returned from generateTTS`)
     }
     updateAudioList(data)
   } catch (error) {
-    console.error('生成失败:', error)
-    commonErrorHandler(error)
+    if ((error as any)?.name === 'CanceledError' || (error as any)?.code === 'ERR_CANCELED' || (error as any)?.name === 'AbortError') {
+      console.info('generation aborted')
+    } else {
+      console.error('生成失败:', error)
+      commonErrorHandler(error)
+    }
     generating.value = false
+  } finally {
+    abortCtrl = null
   }
 }
 
@@ -613,7 +714,8 @@ const generateAudioTask = async () => {
 
   try {
     const params = buildParams(inputText)
-    const streamResult = await createTaskStream(params)
+    abortCtrl = new AbortController()
+    const streamResult = await createTaskStream(params, abortCtrl.signal)
     // JSON cache/short-circuit response
     if (streamResult && typeof streamResult === 'object' && 'code' in (streamResult as any) && (streamResult as any).data) {
       updateAudioList((streamResult as any).data)
@@ -685,9 +787,15 @@ const generateAudioTask = async () => {
     audioPlayerRef.value!.audioRef!.src = processor.value!.audioUrl
     ;(globalThis as any).processor = processor
   } catch (error) {
-    console.error('生成失败:', error)
-    commonErrorHandler(error)
+    if ((error as any)?.name === 'CanceledError' || (error as any)?.code === 'ERR_CANCELED' || (error as any)?.name === 'AbortError') {
+      console.info('generation aborted')
+    } else {
+      console.error('生成失败:', error)
+      commonErrorHandler(error)
+    }
     generating.value = false
+  } finally {
+    abortCtrl = null
   }
 }
 const beforeUnloadHandler = async (event: BeforeUnloadEvent) => {
@@ -876,4 +984,119 @@ onMounted(async () => {
     font-size: 1.35rem;
   }
 }
+
+.main-textarea :deep(textarea) {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a1a1a;
+}
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 6px;
+  flex-wrap: wrap;
+}
+.text-toolbar .hint,
+.upload-area :deep(.el-upload__tip),
+.ai-help {
+  font-size: 13px;
+  color: #525252;
+  line-height: 1.45;
+}
+.upload-area :deep(.el-upload__text) {
+  font-size: 14px;
+  color: #3a3a3a;
+}
+.lang-opt { float: left; }
+.lang-code {
+  float: right;
+  color: #8a8a8a;
+  font-size: 12px;
+  margin-left: 12px;
+}
+.voice-meta {
+  color: #6b6b6b;
+  font-size: 12px;
+}
+.preview-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.preview-row .el-input { flex: 1; }
+.preview-field { width: 100%; }
+.ai-help {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #f4f5fb;
+  border-radius: 8px;
+  border: 1px solid #e7e9f5;
+}
+.ai-settings {
+  min-height: 280px;
+}
+.sparkles-icon { color: var(--ev-accent); opacity: 0.9; }
+.mismatch-banner {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  background: #fff8e8;
+  border: 1px solid #f0e0b2;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: #5c4b1f;
+}
+.action-area.sticky {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid var(--ev-border);
+  border-radius: var(--ev-radius);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.primary-cta { min-width: 148px; }
+.inline-progress { margin-top: 12px; }
+.settings-card, .input-card {
+  margin-bottom: 0;
+}
+.el-form-item { margin-bottom: 14px; }
+:deep(.el-form-item__label) {
+  font-size: 13px;
+  color: #3a3a3a;
+  font-weight: 500;
+}
+:deep(.el-option-group__title) {
+  font-size: 12px;
+  color: #6b6b6b;
+  font-weight: 600;
+  padding: 8px 12px 4px;
+}
+@media (max-width: 640px) {
+  .novel-to-audio-container { padding-bottom: 96px; }
+  .action-area.sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    margin-left: -4px;
+    margin-right: -4px;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.06);
+  }
+  .primary-cta { flex: 1; width: 100%; }
+  .action-row { width: 100%; }
+  .action-row .el-button { flex: 1; }
+  .main-textarea :deep(textarea) { font-size: 16px; }
+  .text-toolbar .hint { font-size: 13px; }
+}
+
 </style>

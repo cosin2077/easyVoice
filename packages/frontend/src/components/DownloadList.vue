@@ -3,16 +3,7 @@
     <!-- 下载列表标题 -->
     <div class="download-header">
       <span class="header-title">下载列表 ({{ store.audioList.length }})</span>
-      <span class="header-title-tips">
-        <el-tooltip
-          class="box-item"
-          effect="dark"
-          content="刷新页面将删除所有音频，请确保已下载所有需要的音频文件。"
-          placement="top"
-        >
-          <el-icon><WarningFilled /></el-icon>
-        </el-tooltip>
-      </span>
+      <span class="header-tip">刷新页面会清空列表，请先下载需要的文件</span>
     </div>
 
     <!-- 下载列表容器 -->
@@ -25,7 +16,7 @@
       >
         <!-- 文件信息 -->
         <div class="file-info">
-          <span class="filename">{{ item.file }}</span>
+          <span class="filename" :title="item.file">{{ displayName(item) }}</span>
           <span class="file-size">{{ formatFileSize(item.size || 0) }}</span>
         </div>
 
@@ -33,7 +24,7 @@
         <div class="actions">
           <el-button
             type="success"
-            size="small"
+            size="default"
             round
             @click="playAudio(item, index)"
             :icon="item.isPlaying ? VideoPause : VideoPlay"
@@ -47,26 +38,26 @@
           </el-button>
           <el-button
             type="primary"
-            size="small"
+            size="default"
             round
             @click="downloadAudio(item, index)"
             :disabled="item.isDownloading"
             :loading="item.isDownloading"
             :icon="Service"
           >
-            {{ item.isDownloading ? '下载中' : '下载' }}
+            {{ item.isDownloading ? '下载中' : 'MP3' }}
           </el-button>
           <el-button
             v-if="item.srt"
             type="primary"
-            size="small"
+            size="default"
             round
             @click="downloadSrt(item, index)"
             :disabled="item.isSrtLoading"
             :loading="item.isSrtLoading"
             :icon="ChatLineSquare"
           >
-            {{ item.isSrtLoading ? '下载中' : '下载' }}
+            {{ item.isSrtLoading ? '下载中' : '字幕 SRT' }}
           </el-button>
           <el-tooltip content="删除" placement="top" :disabled="item.isDownloading" effect="dark">
             <el-icon class="delete-icon" @click="removeDownloadItem(item)">
@@ -104,11 +95,13 @@ import {
   VideoPlay,
   ChatLineSquare,
   Service,
-  WarningFilled,
 } from '@element-plus/icons-vue'
 import { useAudio } from '@/utils/index'
 import type { Audio } from '../stores/generation'
 
+import { friendlyDownloadLabel } from '@/utils/format'
+const displayName = (item: any) =>
+  friendlyDownloadLabel(item.file || item.name, item.name || item.id)
 const store = useGenerationStore()
 
 const playAudio = async (item: Audio, _: number) => {
@@ -350,4 +343,9 @@ const clearAll = () => {
   opacity: 0;
   transform: translateY(5px);
 }
+
+.header-tip { font-size: 12px; color: #6b6b6b; margin-left: 10px; }
+.filename { font-size: 14px; color: #1a1a1a; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions .el-button { min-height: 32px; }
+.download-item { padding: 12px 8px; }
 </style>

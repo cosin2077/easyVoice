@@ -280,6 +280,7 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
 
   const progress = () => Number(((completedSegments / totalSegments) * 100).toFixed(2))
   const outputStream = new PassThrough()
+  let clientCancelled = false
 
   streamToResponse(res, outputStream, {
     headers: {
@@ -298,12 +299,21 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       }, 200)
     },
     onClose: () => {
+      clientCancelled = true
       task?.endTask?.(task.id)
-      logger.info(`Streaming ${task.id} closed`)
+      logger.info(`Streaming ${task.id} closed (client disconnect / cancel)`)
+      try {
+        if (outputStream.writable) outputStream.destroy()
+      } catch {}
     },
   })
 
   const processSegment = async (index: number, maxRetries = SEGMENT_MAX_RETRIES): Promise<void> => {
+    if (clientCancelled) {
+      logger.info(`Streaming ${task.id} cancelled before segment ${index + 1}`)
+      try { if (outputStream.writable) outputStream.end() } catch {}
+      return
+    }
     if (index >= totalSegments) {
       outputStream.end()
       task?.endTask?.(task.id)
@@ -334,6 +344,11 @@ async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<v
       completedSegments++
       logger.info(`processing text:\n ${segment.text.slice(0, 10)}...`)
       logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
+      if (clientCancelled) {
+        logger.info(`Streaming ${task.id} cancelled after segment ${index + 1}`)
+        try { if (outputStream.writable) outputStream.end() } catch {}
+        return
+      }
       await processSegment(index + 1)
     } catch (err) {
       const error = err as Error
