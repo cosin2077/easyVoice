@@ -6,7 +6,7 @@
     </div>
 
     <el-row :gutter="20">
-      <el-col :span="16">
+      <el-col :xs="24" :sm="24" :md="16">
         <el-card class="input-card">
           <template #header>
             <div class="card-header">
@@ -41,7 +41,7 @@
       </el-col>
 
       <!-- 右侧：语音设置和控制 -->
-      <el-col :span="8">
+      <el-col :xs="24" :sm="24" :md="8">
         <el-card class="settings-card">
           <template #header>
             <div class="card-header">
@@ -834,6 +834,24 @@ onMounted(async () => {
 }
 .generate-section :deep(.el-button--primary:hover) {
   filter: brightness(1.05);
+}
+
+
+.action-area {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.action-area :deep(.el-button--primary) {
+  background: var(--ev-accent);
+  border-color: var(--ev-accent);
+  font-weight: 500;
+  min-width: 140px;
+}
+.progress-bar {
+  margin-top: 1rem;
 }
 
 .progress-wrap {
