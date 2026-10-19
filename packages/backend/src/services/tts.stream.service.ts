@@ -6,15 +6,11 @@ import { getPrompt } from '../llm/prompt/generateSegment'
 import { ensureDir, generateId, getLangConfig, safeRunWithRetry, streamToResponse } from '../utils'
 import { preprocessTextForTts } from './textNormalize'
 import { splitText } from './text.service'
-import { generateSingleVoiceStream } from './edge-tts.service'
+import { generateSingleVoiceBuffer, generateSingleVoiceStream } from './edge-tts.service'
 import { EdgeSchema } from '../schema/generate'
 import audioCacheInstance from './audioCache.service'
 import taskManager, { Task } from '../utils/taskManager'
 import { buildSrtFromSegments, removeDirQuiet, segmentSubtitlePath } from './subtitle.service'
-
-/** Set KEEP_TTS_TMP=true to keep per-segment subtitle json (debug / sync audits). */
-const cleanupTmp = (dir: string) =>
-  process.env.KEEP_TTS_TMP === 'true' ? Promise.resolve() : removeDirQuiet(dir)
 import {
   CastSegment,
   defaultVoiceFor,
@@ -24,6 +20,10 @@ import {
   isEnglishVoiceMismatch,
   LlmConfig,
 } from './tts.shared'
+
+/** Set KEEP_TTS_TMP=true to keep per-segment subtitle json (debug / sync audits). */
+const cleanupTmp = (dir: string) =>
+  process.env.KEEP_TTS_TMP === 'true' ? Promise.resolve() : removeDirQuiet(dir)
 
 type StreamParams = Required<EdgeSchema> & { llm?: LlmConfig }
 
@@ -206,31 +206,57 @@ async function streamSegments(
     for await (const seg of rest) {
       if (cancelled) break
       const subtitlePath = segmentSubtitlePath(tmpDir, index)
-      const pending = safeRunWithRetry(
-        () =>
-          generateSingleVoiceStream({ ...seg, output, outputType: 'stream', subtitlePath }) as Promise<Readable>,
-        {
-          retries: SEGMENT_MAX_RETRIES,
-          baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
-          onError: (err, attempt) =>
-            logger.warn(`Segment ${index + 1} failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`),
-        }
-      ) as Promise<Readable>
-      const audio = await Promise.race([pending, cancelledP.then(() => null)])
-      if (cancelled || !audio) {
-        // cancelled while Edge was still connecting: drop that segment's stream when it arrives
-        pending.then((a) => a?.destroy()).catch(() => {})
-        break
+      const retryOpts = {
+        retries: SEGMENT_MAX_RETRIES,
+        baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
+        onError: (err: unknown, attempt: number) =>
+          logger.warn(`Segment ${index + 1} failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`),
       }
-      current = audio
-      await new Promise<void>((resolve, reject) => {
-        audio.on('end', resolve)
-        audio.on('error', (e) => (cancelled ? resolve() : reject(e)))
-        audio.on('close', () => (cancelled ? resolve() : undefined))
-        cancelledP.then(() => resolve())
-        audio.pipe(outputStream, { end: false })
-      })
-      current = null
+      if (index === 0) {
+        // First segment is piped live for low time-to-first-audio. Only connection
+        // failures are retryable here; once bytes are on the wire a mid-stream drop
+        // fails the request (see catch below) instead of silently truncating.
+        const pending = safeRunWithRetry(
+          () =>
+            generateSingleVoiceStream({ ...seg, output, outputType: 'stream', subtitlePath }) as Promise<Readable>,
+          retryOpts
+        ) as Promise<Readable>
+        const audio = await Promise.race([pending, cancelledP.then(() => null)])
+        if (cancelled || !audio) {
+          // cancelled while Edge was still connecting: drop that segment's stream when it arrives
+          pending.then((a) => a?.destroy()).catch(() => {})
+          break
+        }
+        current = audio
+        await new Promise<void>((resolve, reject) => {
+          audio.on('end', resolve)
+          audio.on('error', (e) => (cancelled ? resolve() : reject(e)))
+          audio.on('close', () => (cancelled ? resolve() : undefined))
+          cancelledP.then(() => resolve())
+          audio.pipe(outputStream, { end: false })
+        })
+        current = null
+      } else {
+        // Later segments: synthesize the whole segment (retrying any WebSocket drop,
+        // including mid-segment 1006s) and only then append it. Playback is already
+        // far behind the producer, so this costs no audible latency but guarantees
+        // every segment is either complete or retried — never half-written.
+        const pending = safeRunWithRetry(
+          () => generateSingleVoiceBuffer({ ...seg, output, subtitlePath }),
+          retryOpts
+        )
+        const buf = await Promise.race([pending, cancelledP.then(() => null)])
+        if (cancelled || !buf) {
+          pending.catch(() => {})
+          break
+        }
+        if (!outputStream.write(buf)) {
+          await Promise.race([
+            new Promise<void>((resolve) => outputStream.once('drain', () => resolve())),
+            cancelledP,
+          ])
+        }
+      }
       if (cancelled) break
       jsonPaths.push(subtitlePath)
       logger.info(`Segment ${index + 1} streamed: ${seg.text.slice(0, 12)}…`)
@@ -239,7 +265,10 @@ async function streamSegments(
   } catch (err) {
     const error = err as Error
     logger.error(`Stream segment ${index + 1} failed: ${error.message}`)
-    if (!cancelled) outputStream.emit('error', error)
+    if (!cancelled) {
+      outputStream.emit('error', error)
+      task.endTask?.(task.id)
+    }
     await cleanupTmp(tmpDir)
     return
   }

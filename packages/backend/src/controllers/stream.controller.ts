@@ -42,7 +42,7 @@ export async function createTaskStream(req: Request, res: Response, next: NextFu
       streamWithLimit(res, path.join(__dirname, '../../mock/flying.mp3'), 1280) // Mock stream with limit
       return
     }
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio with body:', { ...req.body, openaiKey: req.body?.openaiKey ? '***' : undefined })
     const formattedBody = formatBody(req.body)
     // never put the API key into task fields (tasks are readable via GET /task/:id)
     const { llm: _llm, ...taskFields } = formattedBody

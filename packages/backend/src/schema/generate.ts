@@ -97,6 +97,9 @@ export const validateEdge = (req: Request, res: Response, next: NextFunction) =>
   }
   commonValidate(req, res, next, edgeSchema)
 }
+const normBase = (u?: string) => (u || '').trim().replace(/\/+$/, '').toLowerCase()
+export const sameBaseUrl = (a?: string, b?: string) => !!normBase(a) && normBase(a) === normBase(b)
+
 export const validateLLM = (req: Request, res: Response, next: NextFunction) => {
   const { useLLM, text } = req.body
   const isGenerate = req.url.includes('/generate')
@@ -114,7 +117,9 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
   if (!req.body?.openaiBaseUrl && OPENAI_BASE_URL) {
     req.body.openaiBaseUrl = OPENAI_BASE_URL
   }
-  if (!req.body?.openaiKey && OPENAI_API_KEY) {
+  // Only lend the server key to the server's own endpoint: a client-supplied base URL
+  // without its own key must never receive OPENAI_API_KEY (key exfiltration).
+  if (!req.body?.openaiKey && OPENAI_API_KEY && sameBaseUrl(req.body?.openaiBaseUrl, OPENAI_BASE_URL)) {
     req.body.openaiKey = OPENAI_API_KEY
   }
   if (!req.body?.openaiModel && MODEL_NAME) {

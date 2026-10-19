@@ -31,7 +31,7 @@ function formatBody(body: EdgeSchema & { openaiBaseUrl?: string; openaiKey?: str
 }
 export async function createTask(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio with body:', { ...req.body, openaiKey: req.body?.openaiKey ? '***' : undefined })
     const formattedBody = formatBody(req.body)
     // never put the API key into task fields (tasks are readable via GET /task/:id)
     const { llm: _llm, ...taskFields } = formattedBody
@@ -102,7 +102,7 @@ export async function getTaskStats(_req: Request, res: Response, next: NextFunct
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio with body:', { ...req.body, openaiKey: req.body?.openaiKey ? '***' : undefined })
     const formattedBody = formatBody(req.body)
     let result = await generateTTS(formattedBody)
     const responseResult = {

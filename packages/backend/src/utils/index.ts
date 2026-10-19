@@ -177,6 +177,14 @@ export function streamToResponse(
   inputStream.on('error', (err: Error) => {
     if (isClientDisconnected) return
     logger.error('Input stream error:', err)
+    if (res.headersSent) {
+      // Binary body already flowing: appending an error string would corrupt the file
+      // and a clean end would look like success. Abort so the client sees a failure.
+      isClientDisconnected = true
+      outputStream.destroy()
+      res.destroy(err)
+      return
+    }
     try {
       if (!res.headersSent) {
         res.status(500)

@@ -51,6 +51,15 @@ export const generateSingleVoiceStream = async (
   return runEdgeTTS({ ...params, outputType: 'stream' })
 }
 
+/** Whole segment in memory (used to retry mid-segment WebSocket drops safely). */
+export const generateSingleVoiceBuffer = async (
+  params: Omit<EdgeSchema, 'useLLM'> & { output: string; subtitlePath?: string }
+): Promise<Buffer> => {
+  const buf = await runEdgeTTS({ ...params, outputType: 'buffer' })
+  if (!Buffer.isBuffer(buf) || !buf.length) throw new Error('Empty audio from Edge TTS')
+  return buf
+}
+
 /**
  * Convert one segment subtitle json (v2 or legacy array) into an SRT file.
  * Always (re)writes: a stale SRT from an earlier run must never win.
