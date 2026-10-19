@@ -39,3 +39,6 @@ export const LIMIT_TEXT_LENGTH_ERROR_MESSAGE = process.env.LIMIT_TEXT_LENGTH_ERR
 export const USE_HELMET = process.env.USE_HELMET === 'true' || false
 export const USE_LIMIT = process.env.USE_LIMIT === 'true' || false
 export const DIRECT_GEN_LIMIT = process.env.DIRECT_GEN_LIMIT || 200
+
+export const SEGMENT_MAX_RETRIES = parseInt(process.env.SEGMENT_MAX_RETRIES || '3', 10) || 3
+export const SEGMENT_RETRY_BASE_DELAY_MS = parseInt(process.env.SEGMENT_RETRY_BASE_DELAY_MS || '1000', 10) || 1000

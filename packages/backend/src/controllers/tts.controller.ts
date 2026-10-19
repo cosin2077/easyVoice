@@ -158,10 +158,23 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
   }
 }
 
+function normalizeVoiceEntry(v: any) {
+  const toArr = (x: unknown) =>
+    Array.isArray(x) ? x : typeof x === 'string' ? x.split(',').map((s) => s.trim()).filter(Boolean) : []
+  return {
+    ...v,
+    ContentCategories: toArr(v.ContentCategories),
+    VoicePersonalities: toArr(v.VoicePersonalities),
+  }
+}
+
 export async function getVoiceList(req: Request, res: Response, next: NextFunction) {
   try {
     logger.debug('Fetching voice list...')
-    const voices = require('../llm/prompt/voice.json')
+    // Full Edge voice catalog (all locales). voice.json is a zh/en subset kept for LLM prompts.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const raw = require('../llm/prompt/voiceList.json') as any[]
+    const voices = Array.isArray(raw) ? raw.map(normalizeVoiceEntry) : []
     res.json({
       code: 200,
       data: voices,

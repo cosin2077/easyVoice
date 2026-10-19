@@ -1,7 +1,7 @@
 {
   "name": "@easy-voice/frontend",
   "private": true,
-  "version": "0.0.18",
+  "version": "0.0.19",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -41,5 +41,8 @@
     "vite": "^6.2.0",
     "vitest": "^3.0.8",
     "vue-tsc": "^2.2.4"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

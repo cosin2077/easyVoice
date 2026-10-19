@@ -249,6 +249,7 @@ import {
 import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
+import { buildLanguageOptions } from '@/constants/locales'
 import DownloadList from '@/components/DownloadList.vue'
 import Notification from '@/assets/notification.mp3'
 import StreamButton from '@/components/StreamButton.vue'
@@ -278,15 +279,7 @@ const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
 const processor = ref<ReturnType<typeof createAudioStreamProcessor> | null>(null)
 
-const languages = ref([
-  { code: 'zh-CN', name: '中文（简体）' },
-  { code: 'zh-TW', name: '中文（繁体）' },
-  { code: 'zh-HK', name: '中文（香港）' },
-  { code: 'en-US', name: '英语（美国）' },
-  { code: 'en-GB', name: '英语（英国）' },
-  { code: 'en-AU', name: '英语（澳大利亚）' },
-  { code: 'en-CA', name: '英语（加拿大）' },
-])
+const languages = ref(buildLanguageOptions(defaultVoiceList))
 const customColors = [
   { color: '#f5222d', percentage: 10 }, // 红色 (开始/较低)
   { color: '#fa541c', percentage: 20 }, // 橘红
@@ -602,15 +595,16 @@ const generateAudioTask = async () => {
 
   try {
     const params = buildParams(inputText)
-    const stream = await createTaskStream(params)
-    if (!(stream instanceof ReadableStream)) {
-      if (stream.code && stream.data) {
-        updateAudioList(stream.data)
-        return
-      }
+    const streamResult = await createTaskStream(params)
+    // JSON cache/short-circuit response
+    if (streamResult && typeof streamResult === 'object' && 'code' in (streamResult as any) && (streamResult as any).data) {
+      updateAudioList((streamResult as any).data)
+      return
     }
-    console.log('typeof stream:', typeof stream)
-    console.log('stream instanceof ReadableStream :', stream instanceof ReadableStream)
+    const streamed = streamResult as { stream: ReadableStream; fileId?: string }
+    const stream = streamed.stream
+    const streamFileId = streamed.fileId
+    console.log('typeof stream:', typeof stream, 'fileId:', streamFileId)
     showStreamButton.value = true
     const onStart = () => {
       console.log('call onStart...')
@@ -630,14 +624,16 @@ const generateAudioTask = async () => {
     }
     const onFinished = (newAudioUrl: string, blobs: Blob[]) => {
       audioPlayerRef.value!.audioRef!.src = newAudioUrl
-      const name = `${params.voice}-${params.text.slice(0, 10)}-${Date.now()}`
+      const name = streamFileId || `${params.voice}-${params.text.slice(0, 10)}-${Date.now()}`
       generating.value = false
+      const srtName = typeof name === 'string' && name.endsWith('.mp3') ? name.replace(/\.mp3$/, '.srt') : undefined
       const result = {
         audio: audioPlayerRef.value!.audioRef!.src,
         file: name,
         id: name,
         name,
         blobs,
+        ...(srtName ? { srt: srtName } : {}),
       }
       generationStore.updateProgress(100)
       updateAudioList(result)
@@ -704,6 +700,9 @@ onMounted(async () => {
   try {
     const response = await getVoiceList()
     voiceList.value = response?.data!
+    if (response?.data?.length) {
+      languages.value = buildLanguageOptions(response.data)
+    }
   } catch (error) {
     handle429(error)
   }
