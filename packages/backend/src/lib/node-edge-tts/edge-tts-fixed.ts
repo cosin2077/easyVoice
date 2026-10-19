@@ -4,7 +4,15 @@ import { WebSocket } from 'ws'
 import { parse, resolve } from 'path'
 import { access, writeFile } from 'node:fs/promises'
 import { HttpsProxyAgent } from 'https-proxy-agent'
-import { generateSecMsGecToken, TRUSTED_CLIENT_TOKEN, CHROMIUM_FULL_VERSION } from './drm'
+import {
+  adjustClockSkew,
+  CHROMIUM_MAJOR_VERSION,
+  connectId,
+  generateMuid,
+  generateSecMsGecToken,
+  SEC_MS_GEC_VERSION,
+  TRUSTED_CLIENT_TOKEN,
+} from './drm'
 import { Readable } from 'node:stream'
 import { ensureDir, escapeSSML } from '../../utils'
 
@@ -73,16 +81,35 @@ class EdgeTTS {
     this.timeout = timeout
   }
 
-  async _connectWebSocket(): Promise<WebSocket> {
+  async _connectWebSocket(retryOn403 = true): Promise<WebSocket> {
+    try {
+      return await this._openWebSocket()
+    } catch (err) {
+      // 403 通常是 Sec-MS-GEC 过期/本机时钟偏差：用服务器 Date 校正后重试一次
+      const serverDate = (err as { serverDate?: string }).serverDate
+      if (retryOn403 && (err as { statusCode?: number }).statusCode === 403 && adjustClockSkew(serverDate)) {
+        return this._connectWebSocket(false)
+      }
+      throw err
+    }
+  }
+
+  _openWebSocket(): Promise<WebSocket> {
     const wsConnect = new WebSocket(
-      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${generateSecMsGecToken()}&Sec-MS-GEC-Version=1-${CHROMIUM_FULL_VERSION}`,
+      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&ConnectionId=${connectId()}&Sec-MS-GEC=${generateSecMsGecToken()}&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}`,
       {
         host: 'speech.platform.bing.com',
         origin: 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-          +" (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
-          + " Edg/143.0.0.0",
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' +
+            ` (KHTML, like Gecko) Chrome/${CHROMIUM_MAJOR_VERSION}.0.0.0 Safari/537.36` +
+            ` Edg/${CHROMIUM_MAJOR_VERSION}.0.0.0`,
+          'Accept-Encoding': 'gzip, deflate, br, zstd',
+          'Accept-Language': 'en-US,en;q=0.9',
+          Pragma: 'no-cache',
+          'Cache-Control': 'no-cache',
+          Cookie: `muid=${generateMuid()};`,
         },
         agent: this.proxy ? new HttpsProxyAgent(this.proxy) : undefined,
       }
@@ -93,6 +120,19 @@ class EdgeTTS {
         wsConnect.close()
         reject(new Error('WebSocket connection timed out'))
       }, this.timeout)
+
+      wsConnect.on('unexpected-response', (_req, res) => {
+        clearTimeout(timeoutId)
+        const err = new Error(`WebSocket error: Unexpected server response: ${res.statusCode}`) as Error & {
+          statusCode?: number
+          serverDate?: string
+        }
+        err.statusCode = res.statusCode
+        err.serverDate = res.headers['date']
+        res.resume()
+        wsConnect.terminate()
+        reject(err)
+      })
 
       wsConnect.on('open', () => {
         clearTimeout(timeoutId)
