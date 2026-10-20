@@ -33,4 +33,8 @@ describe('textNormalize', () => {
     expect(out.includes('春江')).toBe(true)
     expect(out.includes('潮水')).toBe(true)
   })
+
+  test('numbers are left to Edge by default (no 三零零元 / 一.五)', () => {
+    expect(preprocessTextForTts('价格300元，共2000人，增长1.5倍')).toBe('价格300元，共2000人，增长1.5倍')
+  })
 })

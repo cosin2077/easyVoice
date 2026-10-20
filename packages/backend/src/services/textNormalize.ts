@@ -69,7 +69,9 @@ export function normalizeChineseNumbers(text: string): string {
 
 export function preprocessTextForTts(text: string, opts: { normalizeNumbers?: boolean } = {}): string {
   let out = materializePausesForEdge(text)
-  if (opts.normalizeNumbers !== false) {
+  // Off by default: Edge already reads quantities/years/decimals correctly, and the
+  // digit-by-digit helper turned 300元 into 三零零元 and 1.5 into 一.五 (v0.0.20 regression).
+  if (opts.normalizeNumbers === true) {
     // Only apply CN digit reading when text has CJK
     if (/[\u3400-\u9fff]/.test(out)) out = normalizeChineseNumbers(out)
   }
