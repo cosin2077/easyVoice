@@ -69,6 +69,17 @@ export const getVoiceList = async () => {
   return response.data
 }
 
+export interface LlmServerConfig {
+  available: boolean
+  model: string
+  host: string
+}
+/** Server-side AI config (model + host only; the key never leaves the server). */
+export const getLlmConfig = async () => {
+  const response = await api.get<ResponseWrapper<LlmServerConfig>>('/llmConfig')
+  return response.data?.data ?? { available: false, model: '', host: '' }
+}
+
 export const generateTTS = async (data: GenerateRequest, signal?: AbortSignal) => {
   const response = await api.post<ResponseWrapper<GenerateResponse>>('/generate', data, { signal })
   if (response.data?.code !== 200 || !response.data?.success) {

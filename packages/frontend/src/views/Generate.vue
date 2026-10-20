@@ -24,7 +24,7 @@
           />
           <div class="text-toolbar">
             <el-button size="small" text type="primary" @click="fillSample">填入示例</el-button>
-            <span class="hint">支持 .txt 拖拽上传 · 长文本将自动流式生成</span>
+            <span class="hint">支持 .txt 拖拽上传 · 长文本自动流式生成 · 插入停顿写 <code class="kbd">(((停顿2秒)))</code></span>
           </div>
           <div class="upload-area">
             <el-upload
@@ -153,28 +153,39 @@
 
           <div v-else class="ai-settings">
             <p class="ai-help">
-              用大模型按角色/旁白自动分配音色与语速。兼容 OpenAI Chat Completions；密钥仅保存在本机浏览器（localStorage），不会上传到 EasyVoice 服务器以外的地址（请求直达你填写的 API）。
+              用大模型按角色 / 旁白自动分配音色与语速，兼容 OpenAI Chat Completions。密钥只保存在本机浏览器，生成时随请求交给 EasyVoice 服务端去调用该 API，服务端不会保存。
             </p>
+            <div v-if="serverLlm.available" class="server-llm">
+              <span class="server-llm-dot" />
+              <span>
+                服务器已配置 AI：<b>{{ serverLlm.model }}</b> · {{ serverLlm.host }}。<span class="muted">Key 留空即直接使用（密钥不会下发到浏览器）。</span>
+              </span>
+            </div>
             <el-form label-position="top" require-asterisk-position="right">
-              <el-form-item label="API Base URL" required>
+              <el-form-item label="API Base URL" :required="!usingServerLlm">
                 <el-input
                   v-model="audioConfig.openaiBaseUrl"
                   clearable
-                  placeholder="https://api.openai.com/v1"
+                  :disabled="usingServerLlm"
+                  :placeholder="usingServerLlm ? '使用服务器配置' : 'https://api.openai.com/v1'"
                 />
               </el-form-item>
-              <el-form-item label="API Key" required>
+              <el-form-item label="API Key" :required="!serverLlm.available">
                 <el-input
                   v-model="audioConfig.openaiKey"
                   type="password"
                   show-password
                   clearable
-                  placeholder="sk-…"
+                  :placeholder="serverLlm.available ? '留空使用服务器配置' : 'sk-…'"
                   autocomplete="off"
                 />
               </el-form-item>
-              <el-form-item label="模型" required>
-                <el-input v-model="audioConfig.openaiModel" clearable placeholder="gpt-4o-mini" />
+              <el-form-item label="模型" :required="!usingServerLlm">
+                <el-input
+                  v-model="audioConfig.openaiModel"
+                  clearable
+                  :placeholder="usingServerLlm ? `默认 ${serverLlm.model}` : 'gpt-4o-mini'"
+                />
               </el-form-item>
             </el-form>
           </div>
@@ -241,7 +252,7 @@
         :stroke-width="8"
         :percentage="progressIndeterminate ? 100 : generationStore.progress"
         :indeterminate="progressIndeterminate"
-        :format="progressIndeterminate ? () => '生成中…' : undefined"
+        :format="progressText"
         :color="customColors"
       />
       <StreamButton
@@ -273,7 +284,7 @@ import confetti from 'canvas-confetti'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
 import { buildLanguageOptions, filterLanguageOptions } from '@/constants/locales'
-import { friendlyVoiceName, looksLikeChinese, looksLikeEnglish } from '@/utils/format'
+import { formatTime, friendlyVoiceName, looksLikeChinese, looksLikeEnglish } from '@/utils/format'
 import DownloadList from '@/components/DownloadList.vue'
 import Notification from '@/assets/notification.mp3'
 import StreamButton from '@/components/StreamButton.vue'
@@ -282,7 +293,9 @@ import {
   getVoiceList,
   type Voice,
   type GenerateResponse,
+  type LlmServerConfig,
   createTaskStream,
+  getLlmConfig,
 } from '@/api/tts'
 
 const generationStore = useGenerationStore()
@@ -436,6 +449,11 @@ const filteredVoices = computed(() => {
   )
 })
 
+/** Server-side AI endpoint (OPENAI_* env). Exposes model + host only. */
+const serverLlm = ref<LlmServerConfig>({ available: false, model: '', host: '' })
+/** No key typed and the server has its own endpoint: use it (key stays on the server). */
+const usingServerLlm = computed(() => serverLlm.value.available && !audioConfig.openaiKey.trim())
+
 const canGenerate = computed(() => {
   const { inputText, voiceMode, openaiBaseUrl, openaiKey, openaiModel, selectedVoice } = audioConfig
   if (!inputText.trim()) return false
@@ -443,9 +461,25 @@ const canGenerate = computed(() => {
   if (voiceMode === 'preset') {
     return !!selectedVoice
   }
+  if (usingServerLlm.value) return true
   return !!(openaiBaseUrl && openaiKey && openaiModel)
-
 })
+
+/** Elapsed time for the current run (#11). */
+const elapsedSec = ref(0)
+let elapsedTimer: ReturnType<typeof setInterval> | undefined
+watch(generating, (on) => {
+  clearInterval(elapsedTimer)
+  if (!on) return
+  const t0 = Date.now()
+  elapsedSec.value = 0
+  elapsedTimer = setInterval(() => (elapsedSec.value = (Date.now() - t0) / 1000), 250)
+})
+const progressText = (pct: number) => {
+  const t = formatTime(elapsedSec.value)
+  if (!generating.value) return `完成 · 用时 ${t}`
+  return progressIndeterminate.value ? `生成中… ${t}` : `${Math.floor(pct)}% · ${t}`
+}
 
 const canPreview = computed(() => {
   const { voiceMode, selectedVoice } = audioConfig
@@ -586,9 +620,14 @@ const buildParams = (text: string) => {
     params.volume = `${volume > 0 ? '+' : ''}${volume}%`
   } else {
     params.useLLM = true
-    params.openaiBaseUrl = openaiBaseUrl
-    params.openaiKey = openaiKey
-    params.openaiModel = openaiModel
+    if (usingServerLlm.value) {
+      // server key is only lent to the server's own base URL, so send no URL/key
+      if (openaiModel.trim()) params.openaiModel = openaiModel.trim()
+    } else {
+      params.openaiBaseUrl = openaiBaseUrl
+      params.openaiKey = openaiKey
+      params.openaiModel = openaiModel
+    }
   }
   return params
 }
@@ -824,10 +863,14 @@ onBeforeMount(() => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnloadHandler)
+  clearInterval(elapsedTimer)
   processor.value?.stop?.()
 })
 onMounted(async () => {
   successAudio.value = new Audio(Notification)
+  getLlmConfig()
+    .then((c) => (serverLlm.value = c))
+    .catch(() => {})
   try {
     const response = await getVoiceList()
     voiceList.value = response?.data!
@@ -987,6 +1030,15 @@ onMounted(async () => {
   font-size: 14px;
   color: #3a3a3a;
 }
+.kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border: 1px solid var(--ev-border);
+  border-radius: 4px;
+  background: #fafafa;
+  color: #3a3a3a;
+}
 .lang-opt { float: left; }
 .lang-code {
   float: right;
@@ -1014,6 +1066,34 @@ onMounted(async () => {
 }
 .ai-settings {
   min-height: 280px;
+}
+.server-llm {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: -4px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--ev-border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #3a3a3a;
+  line-height: 1.5;
+}
+.server-llm b { font-weight: 600; color: #1a1a1a; }
+.server-llm .muted { color: #6b6b6b; }
+.server-llm-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ev-accent);
+  transform: translateY(-1px);
+}
+.inline-progress :deep(.el-progress__text) {
+  min-width: 96px;
+  font-size: 13px !important;
+  color: #525252;
+  font-variant-numeric: tabular-nums;
 }
 .sparkles-icon { color: var(--ev-accent); opacity: 0.9; }
 .voice-mode-selector :deep(.el-radio-button.is-active .sparkles-icon) { color: inherit; opacity: 1; }
