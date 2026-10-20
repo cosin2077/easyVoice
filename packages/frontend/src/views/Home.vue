@@ -205,7 +205,7 @@ const triggerConfettiAndGo = (event) => {
   width: 24px;
   height: 24px;
   margin-right: 10px;
-  color: #007aff;
+  color: var(--ev-accent);
 }
 .feature-card h3 {
   font-size: 20px;
@@ -213,7 +213,7 @@ const triggerConfettiAndGo = (event) => {
 }
 .feature-card p {
   font-size: 14px;
-  color: #666;
+  color: #4a4a4a;
 }
 .cta {
   text-align: center;
@@ -263,5 +263,31 @@ const triggerConfettiAndGo = (event) => {
   .feature-cards {
     grid-template-columns: 1fr;
   }
+}
+
+.faq :deep(.el-collapse-item__header) {
+  font-size: 15px;
+  color: #1a1a1a;
+  height: auto;
+  line-height: 1.5;
+  padding: 18px 8px;
+}
+.faq :deep(.el-collapse-item__content) {
+  font-size: 14px;
+  color: #3a3a3a;
+  line-height: 1.7;
+  padding: 4px 8px 22px;
+}
+.faq :deep(.el-collapse-item) {
+  margin-bottom: 4px;
+}
+.feature-card p {
+  color: #4a4a4a !important;
+  font-size: 14px !important;
+  line-height: 1.55;
+}
+.cta p, .cta h3 {
+  color: #3a3a3a;
+  font-size: 15px;
 }
 </style>

@@ -1,3 +1,60 @@
+/* Design tokens: one restrained accent, neutrals for everything else. */
+:root {
+  --ev-bg: #f7f7f8;
+  --ev-accent: #5e6ad2;
+  --ev-accent-hover: #6f7ad8;
+  --ev-accent-active: #4b55a8;
+  --ev-danger: #c9474b;
+
+  /* Element Plus: map primary to the single accent so every primary
+     button / radio / slider / progress / link shares it. */
+  --el-color-primary: var(--ev-accent);
+  --el-color-primary-light-3: #8e97e0;
+  --el-color-primary-light-5: #aeb4e8;
+  --el-color-primary-light-7: #cfd2f2;
+  --el-color-primary-light-8: #dfe1f6;
+  --el-color-primary-light-9: #eff0fa;
+  --el-color-primary-dark-2: var(--ev-accent-active);
+  --el-border-radius-base: 6px;
+}
+
+/* Primary: keep the accent solid on hover/focus (EP default washes it out to light-3). */
+.el-button--primary {
+  --el-button-hover-bg-color: var(--ev-accent-hover);
+  --el-button-hover-border-color: var(--ev-accent-hover);
+  --el-button-active-bg-color: var(--ev-accent-active);
+  --el-button-active-border-color: var(--ev-accent-active);
+  font-weight: 500;
+}
+.el-button--primary.is-text,
+.el-button--primary.is-link {
+  --el-button-hover-bg-color: var(--el-color-primary-light-9);
+  --el-button-hover-text-color: var(--ev-accent-active);
+}
+
+/* Secondary action: neutral ghost. */
+.el-button.ev-ghost {
+  --el-button-text-color: #3a3a3a;
+  --el-button-bg-color: #fff;
+  --el-button-border-color: #e3e3e6;
+  --el-button-hover-text-color: #1a1a1a;
+  --el-button-hover-bg-color: #f4f4f6;
+  --el-button-hover-border-color: #d4d4d8;
+  --el-button-active-bg-color: #ececef;
+  --el-button-active-border-color: #c8c8ce;
+  font-weight: 500;
+}
+/* Destructive: subtle text, red only on intent (hover/focus). */
+.el-button.ev-danger-text {
+  --el-button-text-color: #6b6b6b;
+  --el-button-hover-text-color: var(--ev-danger);
+  --el-button-active-color: var(--ev-danger);
+  --el-button-hover-link-text-color: var(--ev-danger);
+  --el-fill-color-light: #fbeeee;
+  --el-fill-color: #f8e3e3;
+  font-weight: 500;
+}
+
 
 :root {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -12,14 +69,16 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--ev-accent);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--ev-accent-active);
 }
 
 body {
+  background: var(--ev-bg);
+  color: #1a1a1a;
   margin: 0;
 }
 
@@ -40,7 +99,7 @@ button {
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--ev-accent);
 }
 button:focus,
 button:focus-visible {

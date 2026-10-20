@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatTime } from '@/utils/format'
 import Hero from '@/assets/hero.mp3'
 import { VideoPause, CaretRight, ChatLineRound } from '@element-plus/icons-vue'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
@@ -137,7 +138,7 @@ const voiceSegments = [
   {
     voice: '卢白撷',
     start: 69.81,
-    end: Infinity,
+    end: 9999, // until metadata; clamped in formatTime/segmentStyle
     avatar: zhCNYunyangNeural,
     color: getVoiceColor('卢白撷', 0.3),
     textColor: getVoiceColor('卢白撷'),
@@ -149,6 +150,10 @@ onMounted(() => {
   audio.value.addEventListener('timeupdate', updateProgress)
   audio.value.addEventListener('loadedmetadata', () => {
     duration.value = audio.value!.duration
+    const last = voiceSegments[voiceSegments.length - 1]
+    if (last && (!Number.isFinite(last.end) || last.end > duration.value)) {
+      last.end = duration.value
+    }
   })
   audio.value.addEventListener('ended', () => {
     isPlaying.value = false
@@ -212,8 +217,9 @@ const seek = (event: MouseEvent) => {
 }
 
 const segmentStyle = (segment: (typeof voiceSegments)[0]) => {
-  const startPercent = (segment.start / duration.value) * 100
-  const endPercent = Math.min((segment.end / duration.value) * 100, 100)
+  const dur = duration.value > 0 ? duration.value : 1
+  const startPercent = (segment.start / dur) * 100
+  const endPercent = Math.min((Math.min(segment.end, dur) / dur) * 100, 100)
   return {
     left: `${startPercent}%`,
     width: `${endPercent - startPercent}%`,
@@ -225,7 +231,7 @@ const getSegmentColor = (voice: string) => {
   if (voice in voiceColors) {
     return voiceColors[voice as VoiceColor]
   }
-  return '#007aff'
+  return 'var(--ev-accent)'
 }
 
 const jumpToVoice = (voice: string) => {
@@ -236,11 +242,6 @@ const jumpToVoice = (voice: string) => {
   }
 }
 
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs < 10 ? '0' : ''}${secs}`
-}
 
 defineExpose({
   togglePlay,
@@ -407,7 +408,7 @@ defineExpose({
 
 .progress-filled {
   height: 100%;
-  background: #007aff;
+  background: var(--ev-accent);
   border-top-left-radius: 2px;
   border-bottom-left-radius: 2px;
   position: absolute;
@@ -419,7 +420,7 @@ defineExpose({
 .progress-thumb {
   width: 12px;
   height: 12px;
-  background: #007aff;
+  background: var(--ev-accent);
   border-radius: 50%;
   position: absolute;
   top: 50%;

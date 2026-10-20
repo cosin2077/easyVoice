@@ -3,16 +3,7 @@
     <!-- 下载列表标题 -->
     <div class="download-header">
       <span class="header-title">下载列表 ({{ store.audioList.length }})</span>
-      <span class="header-title-tips">
-        <el-tooltip
-          class="box-item"
-          effect="dark"
-          content="刷新页面将删除所有音频，请确保已下载所有需要的音频文件。"
-          placement="top"
-        >
-          <el-icon><WarningFilled /></el-icon>
-        </el-tooltip>
-      </span>
+      <span class="header-tip">刷新页面会清空列表，请先下载需要的文件</span>
     </div>
 
     <!-- 下载列表容器 -->
@@ -25,19 +16,17 @@
       >
         <!-- 文件信息 -->
         <div class="file-info">
-          <span class="filename">{{ item.file }}</span>
+          <span class="filename" :title="item.file">{{ displayName(item) }}</span>
           <span class="file-size">{{ formatFileSize(item.size || 0) }}</span>
         </div>
 
         <!-- 操作区域 -->
         <div class="actions">
           <el-button
-            type="success"
+            class="ev-ghost play-button"
             size="small"
-            round
             @click="playAudio(item, index)"
             :icon="item.isPlaying ? VideoPause : VideoPlay"
-            class="play-button"
           >
             <transition name="text-fade" mode="out-in">
               <span :key="item.isPlaying ? 'playing' : 'play'">
@@ -46,27 +35,25 @@
             </transition>
           </el-button>
           <el-button
-            type="primary"
+            class="ev-ghost"
             size="small"
-            round
             @click="downloadAudio(item, index)"
             :disabled="item.isDownloading"
             :loading="item.isDownloading"
             :icon="Service"
           >
-            {{ item.isDownloading ? '下载中' : '下载' }}
+            {{ item.isDownloading ? '下载中' : 'MP3' }}
           </el-button>
           <el-button
             v-if="item.srt"
-            type="primary"
+            class="ev-ghost"
             size="small"
-            round
             @click="downloadSrt(item, index)"
             :disabled="item.isSrtLoading"
             :loading="item.isSrtLoading"
             :icon="ChatLineSquare"
           >
-            {{ item.isSrtLoading ? '下载中' : '下载' }}
+            {{ item.isSrtLoading ? '下载中' : '字幕 SRT' }}
           </el-button>
           <el-tooltip content="删除" placement="top" :disabled="item.isDownloading" effect="dark">
             <el-icon class="delete-icon" @click="removeDownloadItem(item)">
@@ -79,11 +66,11 @@
 
     <!-- 批量操作 -->
     <div class="batch-actions">
-      <el-button type="primary" size="small" round @click="downloadAll">
+      <el-button class="ev-ghost" size="small" @click="downloadAll">
         <el-icon><Download /></el-icon>
         全部下载
       </el-button>
-      <el-button type="danger" size="small" round @click="clearAll">
+      <el-button class="ev-danger-text" text size="small" @click="clearAll">
         <el-icon><Delete /></el-icon>
         清空列表
       </el-button>
@@ -104,11 +91,13 @@ import {
   VideoPlay,
   ChatLineSquare,
   Service,
-  WarningFilled,
 } from '@element-plus/icons-vue'
 import { useAudio } from '@/utils/index'
 import type { Audio } from '../stores/generation'
 
+import { friendlyDownloadLabel } from '@/utils/format'
+const displayName = (item: any) =>
+  friendlyDownloadLabel(item.file || item.name, item.name || item.id)
 const store = useGenerationStore()
 
 const playAudio = async (item: Audio, _: number) => {
@@ -176,7 +165,6 @@ const downloadAudio = (item: Audio, _: number) => {
   commonDownload(item, item.file, '音频', 'isDownloading')
 }
 const downloadSrt = (item: Audio, _: number) => {
-  console.log('item.srt', item.srt)
   if (!item.srt) return
   commonDownload(item, item.srt, '字幕', 'isSrtLoading')
 }
@@ -270,7 +258,7 @@ const clearAll = () => {
 }
 
 .download-item.downloading {
-  background: #e6f7ff;
+  background: #f4f4f6;
 }
 
 .file-info {
@@ -310,7 +298,7 @@ const clearAll = () => {
 }
 
 .delete-icon:hover {
-  color: #f56c6c;
+  color: var(--ev-danger);
 }
 
 .batch-actions {
@@ -320,23 +308,8 @@ const clearAll = () => {
   padding-top: 12px;
   border-top: 1px solid #f0f0f0;
 }
-/* 按钮样式优化 */
 .play-button {
-  transition: all 0.3s ease;
-  padding: 6px 16px; /* 稍微增加内边距 */
-}
-
-.play-button:hover {
-  transform: scale(1.05); /* 悬浮时轻微放大 */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* 添加阴影 */
-}
-
-.play-button:deep(.el-icon) {
-  transition: transform 0.2s ease; /* 图标动画 */
-}
-
-.play-button:hover:deep(.el-icon) {
-  transform: scale(1.1); /* 图标悬浮放大 */
+  min-width: 72px;
 }
 
 /* 文字切换动画 */
@@ -350,4 +323,9 @@ const clearAll = () => {
   opacity: 0;
   transform: translateY(5px);
 }
+
+.header-tip { font-size: 12px; color: #6b6b6b; margin-left: 10px; }
+.filename { font-size: 14px; color: #1a1a1a; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions .el-button { margin: 0; }
+.download-item { padding: 12px 8px; }
 </style>

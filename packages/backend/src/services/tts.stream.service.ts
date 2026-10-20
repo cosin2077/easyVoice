@@ -1,497 +1,304 @@
-import path, { resolve } from 'path'
-import { Response } from 'express'
-import fs, { readdir } from 'fs/promises'
-import ffmpeg from 'fluent-ffmpeg'
-import { AUDIO_DIR, STATIC_DOMAIN, EDGE_API_LIMIT, SEGMENT_MAX_RETRIES, SEGMENT_RETRY_BASE_DELAY_MS } from '../config'
+import path from 'path'
+import { Readable, PassThrough } from 'stream'
+import { AUDIO_DIR, SEGMENT_MAX_RETRIES, SEGMENT_RETRY_BASE_DELAY_MS } from '../config'
 import { logger } from '../utils/logger'
 import { getPrompt } from '../llm/prompt/generateSegment'
-import {
-  ensureDir,
-  generateId,
-  getLangConfig,
-  readJson,
-  safeRunWithRetry,
-  streamToResponse,
-} from '../utils'
-import { parseLLMJsonContent, shouldRejectEnglishVoice } from '../utils/langGuard'
-import { openai } from '../utils/openai'
+import { ensureDir, generateId, getLangConfig, safeRunWithRetry, streamToResponse } from '../utils'
+import { preprocessTextForTts } from './textNormalize'
 import { splitText } from './text.service'
-import { generateSingleVoiceStream, generateSrt } from './edge-tts.service'
+import { generateSingleVoiceBuffer, generateSingleVoiceStream } from './edge-tts.service'
 import { EdgeSchema } from '../schema/generate'
-import { MapLimitController } from '../controllers/concurrency.controller'
 import audioCacheInstance from './audioCache.service'
-import { mergeSubtitleFiles, SubtitleFile, SubtitleFiles } from '../utils/subtitle'
 import taskManager, { Task } from '../utils/taskManager'
-import { Readable, PassThrough } from 'stream'
-import { createWriteStream } from 'fs'
+import { buildSrtFromSegments, removeDirQuiet, segmentSubtitlePath } from './subtitle.service'
+import {
+  CastSegment,
+  defaultVoiceFor,
+  ErrorMessages,
+  fetchLLMSegment,
+  formatLlmSegments,
+  isEnglishVoiceMismatch,
+  LlmConfig,
+} from './tts.shared'
 
-// 错误消息枚举
-enum ErrorMessages {
-  ENG_MODEL_INVALID_TEXT = 'English model cannot process non-English text',
-  API_FETCH_FAILED = 'Failed to fetch TTS parameters from API',
-  INVALID_API_RESPONSE = 'Invalid API response: no TTS parameters returned',
-  PARAMS_PARSE_FAILED = 'Failed to parse TTS parameters',
-  INVALID_PARAMS_FORMAT = 'Invalid TTS parameters format',
-  TTS_GENERATION_FAILED = 'TTS generation failed',
-  INCOMPLETE_RESULT = 'Incomplete TTS result',
-}
+/** Set KEEP_TTS_TMP=true to keep per-segment subtitle json (debug / sync audits). */
+const cleanupTmp = (dir: string) =>
+  process.env.KEEP_TTS_TMP === 'true' ? Promise.resolve() : removeDirQuiet(dir)
+
+type StreamParams = Required<EdgeSchema> & { llm?: LlmConfig }
 
 /**
  * 流式生成文本转语音 (TTS) 的音频和字幕
  */
-export async function generateTTSStream(params: Required<EdgeSchema>, task: Task) {
-  const { text, pitch, voice, rate, volume, useLLM } = params
-  const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
-  const { lang, voiceList } = await getLangConfig(segment.text)
-  logger.debug(`Language detected lang: `, lang)
-  task!.context!.segment = segment
-  task!.context!.lang = lang
-  task!.context!.voiceList = voiceList
-  const { res } = task.context as Required<NonNullable<Task['context']>>
-  if (!validateLangAndVoice(lang, voice, segment.text, res)) {
-    task?.endTask?.(task.id)
-    return
-  }
+export async function generateTTSStream(params: StreamParams, task: Task) {
+  const res = task.context?.res
+  try {
+    const { pitch, voice, rate, volume, useLLM } = params
+    const text = preprocessTextForTts(params.text)
+    const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
+    const { lang, voiceList } = await getLangConfig(segment.text)
+    task.context!.segment = segment
+    task.context!.lang = lang
+    task.context!.voiceList = voiceList
 
-  // 检查缓存, 如果有缓存则直接返回
-  const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
-  const cache = await audioCacheInstance.getAudio(cacheKey)
-  if (cache) {
-    const data = {
-      ...cache,
-      file: path.parse(cache.audio).base,
-      srt: path.parse(cache.srt).base,
-      text: '',
+    if (!useLLM && isEnglishVoiceMismatch(lang, voice, segment.text)) {
+      res?.status(400).send({ code: 400, success: false, message: ErrorMessages.ENG_MODEL_INVALID_TEXT })
+      task.endTask?.(task.id)
+      return
     }
-    logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
-    task.context?.res?.setHeader('x-generate-tts-type', 'application/json')
-    task.context?.res?.setHeader('Access-Control-Expose-Headers', 'x-generate-tts-type')
-    task.context?.res?.json({ code: 200, data, success: true })
-    task.endTask?.(task.id)
-    return
-  }
 
-  if (useLLM) {
-    generateWithLLMStream(task)
-  } else {
-    generateWithoutLLMStream({ ...params, output: segment.id }, task)
-  }
-}
-export async function generateTTSStreamJson(formatedBody: Required<EdgeSchema>[], task: Task) {
-  const { segment } = task.context as Required<NonNullable<Task['context']>>
-  const output = path.resolve(AUDIO_DIR, segment.id)
-  const segments = formatedBody
-  logger.info(`generateTTSStreamJson splitText length: ${formatedBody.length} `)
-  const buildSegments = segments.map((segment) => ({ ...segment, output }))
-  logger.info('buildSegments:', buildSegments)
-  buildSegmentList(buildSegments, task)
-}
+    const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
+    const cache = !useLLM ? await audioCacheInstance.getAudio(cacheKey) : null
+    if (cache) {
+      logger.info(`Cache hit: ${voice} ${text.slice(0, 10)}`)
+      res?.setHeader('x-generate-tts-type', 'application/json')
+      res?.setHeader('Access-Control-Expose-Headers', 'x-generate-tts-type')
+      res?.json({
+        code: 200,
+        success: true,
+        data: { ...cache, file: path.parse(cache.audio).base, srt: path.parse(cache.srt).base, text: '' },
+      })
+      task.endTask?.(task.id)
+      return
+    }
 
-/**
- * 使用 LLM 生成 TTS
- */
-async function generateWithLLMStream(task: Task) {
-  const { segment, voiceList, lang, res } = task.context as Required<NonNullable<Task['context']>>
-  const { text, id } = segment
-  const { length, segments } = splitText(text.trim())
-  const formatLlmSegments = (llmSegments: any) =>
-    llmSegments
-      .filter((segment: any) => segment.text)
-      .map((segment: any) => ({
-        ...segment,
-        voice: segment.name,
-      }))
-  if (length <= 1) {
-    const prompt = getPrompt(lang, voiceList, segments[0])
-    logger.debug(`Prompt for LLM: ${prompt}`)
-    const llmResponse = await fetchLLMSegment(prompt)
-    let llmSegments = llmResponse?.result || llmResponse?.segments || []
-    if (!Array.isArray(llmSegments)) {
-      throw new Error(
-        'LLM response is not an array, please switch to Edge TTS mode or use another model'
+    const chunks = splitText(segment.text).segments
+    if (useLLM) {
+      const fallbackVoice = voice && voice.includes('-') ? voice : defaultVoiceFor(lang, text)
+      const state: { warning?: string } = {}
+      await streamSegments(
+        task,
+        castWithLLM(chunks, { lang, voiceList, fallbackVoice, llm: params.llm, task, state }),
+        () => state.warning
       )
+    } else {
+      await streamSegments(task, fromList(chunks.map((t) => ({ text: t, voice, rate, pitch, volume }))))
     }
-    buildSegmentList(formatLlmSegments(llmSegments), task)
-  } else {
-    const output = resolve(AUDIO_DIR, id)
-    let count = 0
-    logger.info('Splitting text into multiple segments:', segments.length)
-    const getProgress = () => {
-      return Number(((count / segments.length) * 100).toFixed(2))
-    }
-    const localStream = createWriteStream(output)
-    const outputStream = new PassThrough()
-    outputStream.pipe(res)
-    outputStream.pipe(localStream)
-
-    for (let seg of segments) {
-      count++
-      const prompt = getPrompt(lang, voiceList, seg)
-      logger.debug(`Prompt for LLM: ${prompt}`)
-      const llmResponse = await fetchLLMSegment(prompt)
-      let llmSegments = llmResponse?.result || llmResponse?.segments || []
-      if (!Array.isArray(llmSegments)) {
-        throw new Error(
-          'LLM response is not an array, please switch to Edge TTS mode or use another model'
-        )
-      }
-      for (let segment of formatLlmSegments(llmSegments)) {
-        const stream = (await generateSingleVoiceStream({
-          ...segment,
-          output,
-          outputType: 'stream',
-        })) as Readable
-        stream.pipe(outputStream, { end: false })
-        await new Promise((resolve) => {
-          stream.on('end', resolve)
-        })
-      }
-      logger.info(`Progress: ${getProgress()}%`)
-    }
-    outputStream.end()
-    setTimeout(() => {
-      handleSrt(output)
-    }, 200)
-  }
-}
-const buildFinal = async (finalSegments: TTSResult[], id: string) => {
-  const subtitleFiles: SubtitleFiles = await Promise.all(
-    finalSegments.map((file) => {
-      const base = path.basename(file.audio)
-      const jsonPath = path.resolve(AUDIO_DIR, base.replace('.mp3', ''), 'all_splits.mp3.json')
-      return readJson<SubtitleFile>(jsonPath)
-    })
-  )
-
-  const mergedJson = mergeSubtitleFiles(subtitleFiles)
-  const finalDir = path.resolve(AUDIO_DIR, id.replace('.mp3', ''))
-  await ensureDir(finalDir)
-  const finalJson = path.resolve(finalDir, '[merged]all_splits.mp3.json')
-  await fs.writeFile(finalJson, JSON.stringify(mergedJson, null, 2))
-  await generateSrt(finalJson, path.resolve(AUDIO_DIR, id.replace('.mp3', '.srt')))
-  const fileList = finalSegments.map((segment) =>
-    path.resolve(AUDIO_DIR, path.parse(segment.audio).base)
-  )
-  const outputFile = path.resolve(AUDIO_DIR, id)
-  await concatDirAudio({ inputDir: finalDir, fileList, outputFile })
-  return {
-    audio: `${STATIC_DOMAIN}/${id}`,
-    srt: `${STATIC_DOMAIN}/${id.replace('.mp3', '.srt')}`,
+  } catch (err) {
+    failStream(task, err as Error)
   }
 }
 
-async function generateWithoutLLMStream(params: TTSParams, task: Task) {
-  const { segment } = task.context as Required<NonNullable<Task['context']>>
-  const { text } = segment
-  const { length, segments } = splitText(text)
-  logger.info(`splitText length: ${length} `)
-  if (length <= 1) {
-    buildSegment(params, task)
-  } else {
-    const buildSegments = segments.map((segment) => ({ ...params, text: segment }))
-    buildSegmentList(buildSegments, task)
+/** /generateJson: caller supplies the exact segment list. */
+export async function generateTTSStreamJson(formatedBody: Required<EdgeSchema>[], task: Task) {
+  try {
+    await streamSegments(
+      task,
+      fromList(formatedBody.map(({ text, voice, rate, pitch, volume }) => ({ text, voice, rate, pitch, volume })))
+    )
+  } catch (err) {
+    failStream(task, err as Error)
+  }
+}
+
+async function* fromList(list: CastSegment[]): AsyncGenerator<CastSegment> {
+  for (const s of list) yield s
+}
+
+/**
+ * Cast each text chunk with the LLM lazily (so audio for chunk 1 streams while chunk 2
+ * is being cast). If the LLM fails for a chunk, read that chunk with the fallback voice
+ * instead of aborting the whole stream.
+ */
+async function* castWithLLM(
+  chunks: string[],
+  opts: {
+    lang: string
+    voiceList: VoiceConfig[]
+    fallbackVoice: string
+    llm?: LlmConfig
+    task: Task
+    state: { warning?: string }
+  }
+): AsyncGenerator<CastSegment> {
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    let cast: CastSegment[] = []
+    try {
+      const resp = await fetchLLMSegment(getPrompt(opts.lang, opts.voiceList, chunk), opts.llm)
+      cast = formatLlmSegments(resp?.segments || [], {
+        voiceList: opts.voiceList,
+        fallbackVoice: opts.fallbackVoice,
+      })
+      logger.info(
+        `LLM cast chunk ${i + 1}/${chunks.length}: ${cast.length} segments ` +
+          JSON.stringify(cast.map((c) => [c.character || '-', c.voice, c.rate, c.pitch, c.text.slice(0, 24)]))
+      )
+    } catch (err) {
+      logger.warn(`LLM casting failed for chunk ${i + 1}, fallback voice: ${(err as Error).message}`)
+      opts.state.warning = 'ai-fallback'
+    }
+    if (!cast.length) {
+      cast = [{ text: chunk, voice: opts.fallbackVoice, rate: '+0%', pitch: '+0Hz', volume: '+0%' }]
+    }
+    for (const s of cast) yield s
+    opts.task.updateProgress?.(opts.task.id, Number((((i + 1) / chunks.length) * 100).toFixed(2)))
   }
 }
 
 /**
- * 生成单个片段的音频和字幕
+ * Single streaming engine for every stream path (plain / LLM / json).
+ * Segments are synthesized sequentially and piped into one HTTP response + local mp3.
+ * Each segment writes `<id>_tmp/seg-NNNN.json` containing word cues AND its frame-accurate
+ * audio duration; the SRT is built from those in index order *before* the response ends,
+ * so the client can fetch it as soon as the audio stream completes.
  */
-async function buildSegment(params: TTSParams, task: Task, dir: string = '') {
-  const { segment } = task.context as Required<NonNullable<Task['context']>>
-  const output = path.resolve(AUDIO_DIR, dir, segment.id)
-  const stream = (await safeRunWithRetry(
-    () =>
-      generateSingleVoiceStream({
-        ...params,
-        output,
-        outputType: 'stream',
-      }) as Promise<Readable>,
-    {
-      retries: SEGMENT_MAX_RETRIES,
-      baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
-      onError: (err, attempt) =>
-        logger.warn(
-          `stream buildSegment failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`
-        ),
-    }
-  )) as Readable
-  const { res } = task.context as Required<NonNullable<Task['context']>>
-
-  streamToResponse(res, stream, {
-    headers: {
-      'content-type': 'application/octet-stream',
-      'x-generate-tts-type': 'stream',
-      'x-generate-tts-id': segment.id,
-      'Access-Control-Expose-Headers': 'x-generate-tts-type, x-generate-tts-id',
-    },
-    fileName: segment.id,
-    onError: (err) => `Custom error: ${err.message}`,
-    onEnd: () => {
-      task?.endTask?.(task.id)
-      logger.info(`Streaming ${task.id} finished`)
-      setTimeout(() => {
-        handleSrt(output)
-      }, 200)
-    },
-  })
-}
-
-/**
- * 生成多个片段并合并的 TTS
- */
-
-interface SegmentError extends Error {
-  segmentIndex: number
-  attempt: number
-}
-export async function handleSrt(audioPath: string, stream = true) {
-  if (!stream) {
-    const tempJsonPath = audioPath + '.json'
-    await generateSrt(tempJsonPath, audioPath.replace('.mp3', '.srt'))
-    return
-  }
-  const { dir, base } = path.parse(audioPath)
-  const tmpDir = audioPath + '_tmp'
-  await ensureDir(tmpDir)
-
-  const fileList = (await readdir(tmpDir))
-    .filter((file) => file.includes(base) && file.includes('.json'))
-    .sort((a, b) => Number(a.split('.json.')?.[1] || 0) - Number(b.split('.json.')?.[1] || 0))
-    .map((file) => path.join(tmpDir, file))
-  if (!fileList.length) return
-  concatDirSrt({ jsonFiles: fileList, inputDir: tmpDir, outputFile: audioPath })
-}
-async function buildSegmentList(segments: BuildSegment[], task: Task): Promise<void> {
+async function streamSegments(
+  task: Task,
+  source: AsyncIterable<CastSegment>,
+  getWarning?: () => string | undefined
+): Promise<void> {
   const { res, segment } = task.context as Required<NonNullable<Task['context']>>
-  const { id: outputId } = segment
-  const totalSegments = segments.length
-  const output = path.resolve(AUDIO_DIR, outputId)
-  let completedSegments = 0
-  if (!totalSegments) {
-    task?.endTask?.(task.id)
-    return void res.status(400).end('No segments provided')
+  // Pull the first segment before sending headers so a first-chunk AI fallback can be flagged.
+  const iterator = source[Symbol.asyncIterator]()
+  const first = await iterator.next()
+  const rest: AsyncIterable<CastSegment> = {
+    [Symbol.asyncIterator]: () => {
+      let pendingFirst = !first.done
+      return {
+        next: () => {
+          if (pendingFirst) {
+            pendingFirst = false
+            return Promise.resolve(first)
+          }
+          return iterator.next()
+        },
+      }
+    },
   }
-
-  const progress = () => Number(((completedSegments / totalSegments) * 100).toFixed(2))
+  const warning = getWarning?.()
+  const output = path.resolve(AUDIO_DIR, segment.id)
+  const tmpDir = output + '_tmp'
+  await ensureDir(tmpDir)
   const outputStream = new PassThrough()
+  let cancelled = false
+  let current: Readable | null = null
+  // settles as soon as the client goes away, so no await below can outlive the request
+  let onCancel: () => void = () => {}
+  const cancelledP = new Promise<void>((resolve) => (onCancel = resolve))
 
   streamToResponse(res, outputStream, {
     headers: {
       'content-type': 'application/octet-stream',
       'x-generate-tts-type': 'stream',
       'x-generate-tts-id': segment.id,
-      'Access-Control-Expose-Headers': 'x-generate-tts-type, x-generate-tts-id',
+      ...(warning ? { 'x-generate-tts-warning': warning } : {}),
+      'Access-Control-Expose-Headers': 'x-generate-tts-type, x-generate-tts-id, x-generate-tts-warning',
     },
     onError: (err) => `Custom error: ${err.message}`,
     fileName: segment.id,
     onEnd: () => {
-      task?.endTask?.(task.id)
+      task.endTask?.(task.id)
       logger.info(`Streaming ${task.id} finished`)
-      setTimeout(() => {
-        handleSrt(output)
-      }, 200)
     },
     onClose: () => {
-      task?.endTask?.(task.id)
-      logger.info(`Streaming ${task.id} closed`)
+      cancelled = true
+      task.endTask?.(task.id)
+      logger.info(`Streaming ${task.id} closed (client disconnect / cancel)`)
+      current?.destroy()
+      onCancel()
     },
   })
 
-  const processSegment = async (index: number, maxRetries = SEGMENT_MAX_RETRIES): Promise<void> => {
-    if (index >= totalSegments) {
-      outputStream.end()
-      task?.endTask?.(task.id)
-      return
-    }
-
-    const segment = segments[index]
-    try {
-      // TODO: Concurrency of streaming flow
-      const audioStream = (await safeRunWithRetry(
-        () =>
-          generateSingleVoiceStream({
-            ...segment,
-            outputType: 'stream',
-            output,
-          }) as Promise<Readable>,
-        {
-          retries: maxRetries,
-          baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
-          onError: (err, attempt) =>
-            logger.warn(
-              `Segment ${index + 1} failed (attempt ${attempt}/${maxRetries}): ${(err as Error).message}`
-            ),
+  const jsonPaths: string[] = []
+  let index = 0
+  try {
+    for await (const seg of rest) {
+      if (cancelled) break
+      const subtitlePath = segmentSubtitlePath(tmpDir, index)
+      const retryOpts = {
+        retries: SEGMENT_MAX_RETRIES,
+        baseDelayMs: SEGMENT_RETRY_BASE_DELAY_MS,
+        onError: (err: unknown, attempt: number) =>
+          logger.warn(`Segment ${index + 1} failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`),
+      }
+      if (index === 0) {
+        // First segment is piped live for low time-to-first-audio. Only connection
+        // failures are retryable here; once bytes are on the wire a mid-stream drop
+        // fails the request (see catch below) instead of silently truncating.
+        const pending = safeRunWithRetry(
+          () =>
+            generateSingleVoiceStream({ ...seg, output, outputType: 'stream', subtitlePath }) as Promise<Readable>,
+          retryOpts
+        ) as Promise<Readable>
+        const audio = await Promise.race([pending, cancelledP.then(() => null)])
+        if (cancelled || !audio) {
+          // cancelled while Edge was still connecting: drop that segment's stream when it arrives
+          pending.then((a) => a?.destroy()).catch(() => {})
+          break
         }
-      )) as Readable
-      await audioStream.pipe(outputStream, { end: false })
-      await new Promise((resolve) => audioStream.on('end', resolve))
-      completedSegments++
-      logger.info(`processing text:\n ${segment.text.slice(0, 10)}...`)
-      logger.info(`Segment ${index + 1}/${totalSegments} completed. Progress: ${progress()}%`)
-      await processSegment(index + 1)
-    } catch (err) {
-      const error = err as Error
-      logger.error(`Segment ${index + 1} failed after ${maxRetries} retries: ${error.message}`)
-      outputStream.emit(
-        'error',
-        Object.assign(error, { segmentIndex: index, attempt: maxRetries } as SegmentError)
-      )
+        current = audio
+        await new Promise<void>((resolve, reject) => {
+          audio.on('end', resolve)
+          audio.on('error', (e) => (cancelled ? resolve() : reject(e)))
+          audio.on('close', () => (cancelled ? resolve() : undefined))
+          cancelledP.then(() => resolve())
+          audio.pipe(outputStream, { end: false })
+        })
+        current = null
+      } else {
+        // Later segments: synthesize the whole segment (retrying any WebSocket drop,
+        // including mid-segment 1006s) and only then append it. Playback is already
+        // far behind the producer, so this costs no audible latency but guarantees
+        // every segment is either complete or retried — never half-written.
+        const pending = safeRunWithRetry(
+          () => generateSingleVoiceBuffer({ ...seg, output, subtitlePath }),
+          retryOpts
+        )
+        const buf = await Promise.race([pending, cancelledP.then(() => null)])
+        if (cancelled || !buf) {
+          pending.catch(() => {})
+          break
+        }
+        if (!outputStream.write(buf)) {
+          await Promise.race([
+            new Promise<void>((resolve) => outputStream.once('drain', () => resolve())),
+            cancelledP,
+          ])
+        }
+      }
+      if (cancelled) break
+      jsonPaths.push(subtitlePath)
+      logger.info(`Segment ${index + 1} streamed: ${seg.text.slice(0, 12)}…`)
+      index++
     }
-  }
-
-  try {
-    await processSegment(0)
   } catch (err) {
-    logger.error(`Audio processing aborted: ${(err as Error).message}`)
-    !res.headersSent && res.status(500).end('Internal server error')
+    const error = err as Error
+    logger.error(`Stream segment ${index + 1} failed: ${error.message}`)
+    if (!cancelled) {
+      outputStream.emit('error', error)
+      task.endTask?.(task.id)
+    }
+    await cleanupTmp(tmpDir)
+    return
   }
-}
 
-/**
- * 并发执行任务
- */
-async function runConcurrentTasks(tasks: (() => Promise<any>)[], limit: number): Promise<any[]> {
-  logger.debug(`Running ${tasks.length} tasks with a limit of ${limit}`)
-  const controller = new MapLimitController(tasks, limit, () =>
-    logger.info('All concurrent tasks completed')
-  )
-  const { results, cancelled } = await controller.run()
-  logger.info(`Tasks completed: ${results.length}, cancelled: ${cancelled}`)
-  logger.debug(`Task results:`, results)
-  return results
-}
-
-/**
- * 验证语言和语音参数
- */
-function validateLangAndVoice(lang: string, voice: string, text: string, res: Response): boolean {
-  if (shouldRejectEnglishVoice(lang, voice, text)) {
-    res.status(400).send({
-      code: 400,
-      success: false,
-      message: ErrorMessages.ENG_MODEL_INVALID_TEXT,
-    })
-    return false
+  if (cancelled) {
+    logger.info(`Streaming ${task.id} cancelled after ${index} segment(s); skipping SRT`)
+    await cleanupTmp(tmpDir)
+    return
   }
-  return true
-}
-
-/**
- * 从 LLM 获取分段参数
- */
-async function fetchLLMSegment(prompt: string): Promise<any> {
-  const response = await openai.createChatCompletion({
-    messages: [
-      {
-        role: 'system',
-        content: 'You are a helpful assistant. And you can return valid json object',
-      },
-      { role: 'user', content: prompt },
-    ],
-    // temperature: 0.7,
-    // max_tokens: 500,
-    response_format: { type: 'json_object' },
-  })
-
-  if (!response.choices[0].message.content) {
-    throw new Error(ErrorMessages.INVALID_API_RESPONSE)
-  }
-  return parseLLMResponse(response)
-}
-
-/**
- * 解析 LLM 响应
- */
-function parseLLMResponse(response: any): TTSParams {
-  const raw = response.choices[0].message.content
-  let params: TTSParams
   try {
-    params = parseLLMJsonContent(raw) as TTSParams
-  } catch {
-    throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
-  }
-  if (!params || typeof params !== 'object') {
-    throw new Error(ErrorMessages.INVALID_PARAMS_FORMAT)
-  }
-  return params
-}
-
-/**
- * 验证 TTS 结果
- */
-function validateTTSResult(result: TTSResult, segmentId: string): void {
-  if (!result.audio) {
-    throw new Error(`${ErrorMessages.INCOMPLETE_RESULT} for segment ${segmentId}`)
-  }
-}
-
-/**
- * 拼接音频文件
- */
-export async function concatDirAudio({
-  fileList,
-  outputFile,
-  inputDir,
-}: ConcatAudioParams): Promise<void> {
-  const mp3Files = sortAudioDir(fileList!, '.mp3')
-  if (!mp3Files.length) throw new Error('No MP3 files found in input directory')
-
-  const tempListPath = path.resolve(inputDir, 'file_list.txt')
-  await fs.writeFile(tempListPath, mp3Files.map((file) => `file '${file}'`).join('\n'))
-
-  await new Promise<void>((resolve, reject) => {
-    ffmpeg()
-      .input(tempListPath)
-      .inputFormat('concat')
-      .inputOption('-safe', '0')
-      .audioCodec('copy')
-      .output(outputFile)
-      .on('end', () => resolve())
-      .on('error', (err) => reject(new Error(`Concat failed: ${err.message}`)))
-      .run()
-  })
-}
-
-/**
- * 拼接字幕文件
- */
-export async function concatDirSrt({
-  fileList,
-  outputFile,
-  inputDir,
-  jsonFiles,
-}: ConcatAudioParams): Promise<void> {
-  const _jsonFiles =
-    jsonFiles ||
-    sortAudioDir(
-      fileList!.map((file) => `${file}.json`),
-      '.json'
+    const srtPath = output.replace(/\.mp3$/, '.srt')
+    const { durationMs, cues } = await buildSrtFromSegments(
+      jsonPaths.map((json) => ({ json })),
+      srtPath
     )
-  if (!_jsonFiles.length) throw new Error('No JSON files found for subtitles')
-
-  const subtitleFiles: SubtitleFiles = await Promise.all(
-    _jsonFiles.map((file) => readJson<SubtitleFile>(file))
-  )
-  const mergedJson = mergeSubtitleFiles(subtitleFiles)
-  const tempJsonPath = path.resolve(inputDir, 'all_splits.mp3.json')
-  await fs.writeFile(tempJsonPath, JSON.stringify(mergedJson, null, 2))
-  await generateSrt(tempJsonPath, outputFile.replace('.mp3', '.srt'))
+    logger.info(`SRT built: ${cues} cues, ${(durationMs / 1000).toFixed(2)}s over ${jsonPaths.length} segment(s)`)
+  } catch (err) {
+    logger.error(`SRT build failed: ${(err as Error).message}`)
+  }
+  await cleanupTmp(tmpDir)
+  outputStream.end()
 }
 
-/**
- * 按文件名排序音频文件
- */
-function sortAudioDir(fileList: string[], ext: string = '.mp3'): string[] {
-  return fileList
-    .filter((file) => path.extname(file).toLowerCase() === ext)
-    .sort(
-      (a, b) => Number(path.parse(a).name.split('_')[0]) - Number(path.parse(b).name.split('_')[0])
-    )
-}
-
-export interface ConcatAudioParams {
-  fileList?: string[]
-  outputFile: string
-  inputDir: string
-  jsonFiles?: string[]
+function failStream(task: Task, error: Error) {
+  logger.error(`Stream task ${task.id} failed: ${error.message}`)
+  const res = task.context?.res
+  task.endTask?.(task.id)
+  if (res && !res.headersSent) {
+    res.status(500).json({ code: 500, success: false, message: error.message })
+  } else if (res && !res.writableEnded) {
+    res.end()
+  }
 }

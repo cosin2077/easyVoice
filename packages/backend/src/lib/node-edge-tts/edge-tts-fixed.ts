@@ -15,6 +15,8 @@ import {
 } from './drm'
 import { Readable } from 'node:stream'
 import { ensureDir, escapeSSML } from '../../utils'
+import { Mp3FrameCounter } from '../../utils/mp3'
+import { alignCueText, ticksToMs, toSegmentDoc } from '../../utils/subtitle'
 
 interface SubLine {
   part: string
@@ -27,6 +29,8 @@ interface TtsOptions {
   outputType?: 'stream' | 'buffer' | 'file' // 返回类型：流、Buffer 或写入文件
   audioPath?: string // 如果是文件输出，则需要路径
   saveSubtitles?: boolean // 是否保存字幕
+  /** Explicit subtitle json path (deterministic ordering for multi-segment jobs). */
+  subtitlePath?: string
 }
 type configure = {
   voice?: string
@@ -190,40 +194,38 @@ class EdgeTTS {
       return subPath
     }
   }
-  async _saveSubFile(subFile: SubLine[], text: string, audioPath: string, outputType?: string) {
-    let subPath = audioPath + '.json'
-    if (outputType === 'stream') {
+  async _saveSubFile(
+    subFile: SubLine[],
+    text: string,
+    audioPath: string,
+    outputType: string | undefined,
+    durationMs: number,
+    explicitPath?: string
+  ) {
+    let subPath = explicitPath || audioPath + '.json'
+    if (!explicitPath && outputType === 'stream') {
+      // legacy naming: <audio>_tmp/<base>.srt.json[.N]
       const tmpDir = audioPath + '_tmp'
       await ensureDir(tmpDir)
       const { base } = parse(audioPath)
-      audioPath = resolve(tmpDir, base)
-      subPath = await this.getSrtPath(audioPath)
+      subPath = await this.getSrtPath(resolve(tmpDir, base))
     }
-
-    let subChars = text.split('')
-    let subCharIndex = 0
-    subFile.forEach((cue: SubLine, index: number) => {
-      let fullPart = ''
-      let stepIndex = 0
-      for (let sci = subCharIndex; sci < subChars.length; sci++) {
-        if (subChars[sci] === cue.part[stepIndex]) {
-          fullPart = fullPart + subChars[sci]
-          stepIndex += 1
-        } else if (subChars[sci] === subFile?.[index + 1]?.part?.[0]) {
-          subCharIndex = sci
-          break
-        } else {
-          fullPart = fullPart + subChars[sci]
-        }
-      }
-      cue.part = fullPart
+    const cues = alignCueText(text, subFile)
+    await writeFile(subPath, JSON.stringify(toSegmentDoc(cues, durationMs), null, 2), {
+      encoding: 'utf-8',
     })
-    console.log('save subtitles to file: ', subPath)
-    await writeFile(subPath, JSON.stringify(subFile, null, '  '), { encoding: 'utf-8' })
+    return subPath
   }
 
   async ttsPromise(text: string, options: TtsOptions = {}): Promise<Readable | Buffer | void> {
-    const { outputType = 'buffer', audioPath, saveSubtitles = this.saveSubtitles } = options
+    const {
+      outputType = 'buffer',
+      audioPath,
+      saveSubtitles = this.saveSubtitles,
+      subtitlePath,
+    } = options
+    const frameCounter = new Mp3FrameCounter()
+    let turnEnded = false
 
     if (outputType === 'file' && !audioPath) {
       throw new Error('audioPath is required when outputType is "file"')
@@ -265,8 +267,8 @@ class EdgeTTS {
       })
     }
 
-    // 设置超时
-    const timeout = setTimeout(() => {
+    // 空闲超时：每收到一条消息就重新计时（此前只覆盖首包，中途卡住会永久挂起）
+    const onTimeout = () => {
       _wsConnect.close()
       if (readableStream) readableStream.destroy(new Error('WebSocket timed out'))
       if (outputType === 'file') {
@@ -274,15 +276,18 @@ class EdgeTTS {
         rejectFile?.(new Error('WebSocket timed out'))
       }
       if (outputType === 'buffer') rejectBuffer?.(new Error('WebSocket timed out'))
-    }, this.timeout)
+    }
+    let timeout = setTimeout(onTimeout, this.timeout)
 
     // 处理 WebSocket 消息
     _wsConnect.on('message', (data: Buffer, isBinary: boolean) => {
       clearTimeout(timeout)
+      if (!turnEnded) timeout = setTimeout(onTimeout, this.timeout)
       if (isBinary) {
         const separator = 'Path:audio\r\n'
         const index = data.indexOf(separator) + separator.length
         const audioData = data.subarray(index)
+        frameCounter.push(audioData)
 
         if (outputType === 'file') {
           try {
@@ -300,29 +305,51 @@ class EdgeTTS {
       } else {
         const message = data.toString()
         if (message.includes('Path:turn.end')) {
-          if (saveSubtitles) this._saveSubFile(subFile, text, audioPath!, outputType)
+          turnEnded = true
+          clearTimeout(timeout)
+          // Persist subtitles (with frame-accurate duration) BEFORE signalling completion,
+          // so downstream merging never races the json write.
+          const saved: Promise<unknown> = saveSubtitles
+            ? this._saveSubFile(
+                subFile,
+                text,
+                audioPath!,
+                outputType,
+                frameCounter.durationMs,
+                subtitlePath
+              ).catch((err) => console.error('save subtitles failed:', (err as Error).message))
+            : Promise.resolve()
           if (outputType === 'file') {
-            audioStream!.end()
             _wsConnect.close()
-            resolveFile()
+            audioStream!.end(() => {
+              saved.then(() => resolveFile())
+            })
           } else if (outputType === 'stream' && !isStreamDestroyed) {
-            readableStream!.push(null)
-            console.log(`close edge-tts readableStream...`)
             _wsConnect.close()
+            saved.then(() => {
+              if (!isStreamDestroyed) readableStream!.push(null)
+            })
           } else if (outputType === 'buffer') {
             const audioBuffer = Buffer.concat(audioChunks)
             _wsConnect.close()
-            resolveBuffer?.(audioBuffer) // 直接调用 resolve
+            saved.then(() => resolveBuffer?.(audioBuffer))
           }
         } else if (message.includes('Path:audio.metadata')) {
           const splitTexts = message.split('\r\n')
           try {
             const metadata = JSON.parse(splitTexts[splitTexts.length - 1])
             metadata['Metadata'].forEach((element: any) => {
+              const type = element?.['Type']
+              if (type && type !== 'WordBoundary' && type !== 'SentenceBoundary') return
+              const textPart = element?.['Data']?.['text']?.['Text']
+              const offset = element?.['Data']?.['Offset']
+              const duration = element?.['Data']?.['Duration']
+              if (typeof textPart !== 'string' || typeof offset !== 'number') return
+              // Offset/Duration are 100-ns ticks relative to this request's audio start
               subFile.push({
-                part: element['Data']['text']['Text'],
-                start: Math.floor(element['Data']['Offset'] / 10000),
-                end: Math.floor((element['Data']['Offset'] + element['Data']['Duration']) / 10000),
+                part: textPart,
+                start: ticksToMs(offset),
+                end: ticksToMs(offset + (typeof duration === 'number' ? duration : 0)),
               })
             })
           } catch {
@@ -347,7 +374,7 @@ class EdgeTTS {
     // WebSocket 关闭处理
     _wsConnect.on('close', (code: number, reason: string) => {
       clearTimeout(timeout)
-      if (code !== 1000) {
+      if (code !== 1000 && !turnEnded) {
         const errMsg = `WebSocket closed unexpectedly with code ${code}: ${reason.toString()}`
         if (outputType === 'file') {
           audioStream?.end()

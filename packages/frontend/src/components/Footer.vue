@@ -29,17 +29,21 @@
 /* Footer */
 .footer {
   text-align: center;
-  padding: 20px 0;
-  font-size: 14px;
-  color: #666;
+  padding: 28px 12px 36px;
+  font-size: 13px;
+  color: #3a3a3a;
+  line-height: 1.6;
 }
+.footer p { color: #3a3a3a; font-size: 13px; }
+.footer-links { margin-bottom: 10px; }
+.footer-icon { color: #1a1a1a; font-size: 13px; }
 .footer-icon {
   /* width: 16px;
   height: 16px; */
   margin-right: 26px;
 }
 .footer a {
-  color: #007aff;
+  color: var(--ev-accent);
   text-decoration: none;
 }
 </style>

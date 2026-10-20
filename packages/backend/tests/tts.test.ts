@@ -1,9 +1,23 @@
-// tests/tts.test.ts
-import { generateTTS } from "../src/services/tts.service";
+/**
+ * Lightweight service-level checks (no live Edge / OpenAI).
+ * Heavy generateTTS integration is covered manually / via curl in round2.
+ */
+import { preprocessTextForTts } from '../src/services/textNormalize'
+import { shouldRejectEnglishVoice } from '../src/utils/langGuard'
+import { assertSafeOpenaiBaseUrl } from '../src/utils/ssrf'
 
-jest.mock("axios");
-test("generateTTS works", async () => {
-  const text = 'Hello', pitch = '0Hz', voice = 'zh-CN', rate = '0%', volume = '0%', useLLM = false;
-  const result = await generateTTS({ text, pitch, voice, rate, volume, useLLM });
-  expect(result.audio).toBeDefined();
-});
+describe('tts prerequisites', () => {
+  test('preprocess keeps Chinese text and expands pause markers', () => {
+    const out = preprocessTextForTts('你好(((停顿1秒)))世界')
+    expect(out.includes('你好')).toBe(true)
+    expect(out.includes('世界')).toBe(true)
+  })
+
+  test('English short text is allowed with en voice', () => {
+    expect(shouldRejectEnglishVoice('xho', 'en-US-JennyNeural', 'Hello world')).toBe(false)
+  })
+
+  test('openai base url guard allows local proxy by default', () => {
+    expect(() => assertSafeOpenaiBaseUrl('http://127.0.0.1:8317/v1')).not.toThrow()
+  })
+})

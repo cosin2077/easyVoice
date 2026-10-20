@@ -6,7 +6,8 @@ import fs from 'fs/promises'
 import { ALLOWED_EXTENSIONS, AUDIO_DIR } from '../config'
 import { EdgeSchema } from '../schema/generate'
 import taskManager from '../utils/taskManager'
-function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
+function formatBody(body: EdgeSchema & { openaiBaseUrl?: string; openaiKey?: string; openaiModel?: string }) {
+  const { text, pitch, voice, volume, rate, useLLM } = body
   const positivePercent = (value: string | undefined) => {
     if (value === '0%' || value === '0' || value === undefined) return '+0%'
     return value
@@ -18,17 +19,23 @@ function formatBody({ text, pitch, voice, volume, rate, useLLM }: EdgeSchema) {
   return {
     text: text.trim(),
     pitch: positiveHz(pitch),
-    voice: positivePercent(voice),
+    voice: (voice || '').trim(),
     rate: positivePercent(rate),
     volume: positivePercent(volume),
     useLLM,
+    // per-request LLM endpoint (validated + SSRF-checked in schema middleware)
+    llm: useLLM
+      ? { baseURL: body.openaiBaseUrl, apiKey: body.openaiKey, model: body.openaiModel }
+      : undefined,
   }
 }
 export async function createTask(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio with body:', { ...req.body, openaiKey: req.body?.openaiKey ? '***' : undefined })
     const formattedBody = formatBody(req.body)
-    const task = taskManager.createTask(formattedBody)
+    // never put the API key into task fields (tasks are readable via GET /task/:id)
+    const { llm: _llm, ...taskFields } = formattedBody
+    const task = taskManager.createTask(taskFields)
     logger.info(`Generated task ID: ${task.id}`)
 
     generateTTS(formattedBody, task)
@@ -95,7 +102,7 @@ export async function getTaskStats(_req: Request, res: Response, next: NextFunct
 }
 export async function generateAudio(req: Request, res: Response, next: NextFunction) {
   try {
-    logger.debug('Generating audio with body:', req.body)
+    logger.debug('Generating audio with body:', { ...req.body, openaiKey: req.body?.openaiKey ? '***' : undefined })
     const formattedBody = formatBody(req.body)
     let result = await generateTTS(formattedBody)
     const responseResult = {
@@ -128,7 +135,11 @@ export async function downloadAudio(req: Request, res: Response): Promise<void> 
 
     const safeFileName = path.basename(fileName)
     const encodedFileName = encodeURIComponent(safeFileName)
-    const filePath = path.join(AUDIO_DIR, safeFileName)
+    const filePath = path.resolve(AUDIO_DIR, safeFileName)
+    const audioRoot = path.resolve(AUDIO_DIR)
+    if (filePath !== audioRoot && !filePath.startsWith(audioRoot + path.sep)) {
+      throw new Error('Invalid file name')
+    }
 
     await fs.access(filePath, fs.constants.R_OK)
 

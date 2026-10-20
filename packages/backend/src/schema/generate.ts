@@ -2,7 +2,7 @@ import { config, DIRECT_GEN_LIMIT, LIMIT_TEXT_LENGTH, LIMIT_TEXT_LENGTH_ERROR_ME
 import { NextFunction, Response, Request } from 'express'
 import { z } from 'zod'
 import { logger } from '../utils/logger'
-import { openai } from '../utils/openai'
+import { assertSafeOpenaiBaseUrl } from '../utils/ssrf'
 
 export const edgeSchema = z.object({
   text: z.string().trim().min(5, { message: '文本最少 5 字符！' }),
@@ -53,11 +53,13 @@ export type EdgeSchema = z.infer<typeof edgeSchema>
 const commonValidate = (req: Request, res: Response, next: NextFunction, schema: z.ZodTypeAny) => {
   try {
     schema.parse(req.body)
-    openai.config({
-      apiKey: req.body.openaiKey,
-      baseURL: req.body.openaiBaseUrl,
-      model: req.body.openaiModel,
-    })
+    if (req.body.openaiBaseUrl) {
+      req.body.openaiBaseUrl = assertSafeOpenaiBaseUrl(req.body.openaiBaseUrl, {
+        allowPrivate: process.env.ALLOW_PRIVATE_OPENAI_URL !== 'false',
+      })
+    }
+    // NOTE: no global openai.config() here — that leaked one user's key/baseURL into
+    // concurrent requests. The per-request config travels with the task params (llm).
     if (LIMIT_TEXT_LENGTH) {
       const allTxt = req.body.text
       if (allTxt?.length > LIMIT_TEXT_LENGTH) {
@@ -84,7 +86,7 @@ const commonValidate = (req: Request, res: Response, next: NextFunction, schema:
 export const validateEdge = (req: Request, res: Response, next: NextFunction) => {
   const body = req.body
   const isGenerate = req.url.includes('/generate')
-  logger.info(`validateEdge`, body, req.url)
+  logger.info(`validateEdge`, { url: req.url, textLen: body?.text?.length, voice: body?.voice, useLLM: body?.useLLM })
   if (isGenerate && body.text?.length > DIRECT_GEN_LIMIT) {
     res.status(400).json({
       code: 400,
@@ -95,10 +97,13 @@ export const validateEdge = (req: Request, res: Response, next: NextFunction) =>
   }
   commonValidate(req, res, next, edgeSchema)
 }
+const normBase = (u?: string) => (u || '').trim().replace(/\/+$/, '').toLowerCase()
+export const sameBaseUrl = (a?: string, b?: string) => !!normBase(a) && normBase(a) === normBase(b)
+
 export const validateLLM = (req: Request, res: Response, next: NextFunction) => {
   const { useLLM, text } = req.body
   const isGenerate = req.url.includes('/generate')
-  logger.info(`validateLLM`, useLLM, req.url)
+  logger.info(`validateLLM`, { useLLM, url: req.url, textLen: text?.length })
   if (isGenerate && useLLM && text?.length > DIRECT_GEN_LIMIT) {
     res.status(400).json({
       code: 400,
@@ -112,7 +117,9 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
   if (!req.body?.openaiBaseUrl && OPENAI_BASE_URL) {
     req.body.openaiBaseUrl = OPENAI_BASE_URL
   }
-  if (!req.body?.openaiKey && OPENAI_API_KEY) {
+  // Only lend the server key to the server's own endpoint: a client-supplied base URL
+  // without its own key must never receive OPENAI_API_KEY (key exfiltration).
+  if (!req.body?.openaiKey && OPENAI_API_KEY && sameBaseUrl(req.body?.openaiBaseUrl, OPENAI_BASE_URL)) {
     req.body.openaiKey = OPENAI_API_KEY
   }
   if (!req.body?.openaiModel && MODEL_NAME) {
