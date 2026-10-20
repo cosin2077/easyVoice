@@ -21,29 +21,23 @@
     <!-- Features Section -->
     <section class="features">
       <h2 class="section-title">核心功能</h2>
-      <el-row :gutter="20" class="feature-list">
-        <el-col :xs="24" :sm="12" :md="8">
-          <div class="feature-item">
-            <el-icon :size="30"><Reading /></el-icon>
-            <h3>文本转语音</h3>
-            <p>一键将大型文本转换为语音</p>
-          </div>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="8">
-          <div class="feature-item">
-            <el-icon :size="30"><Microphone /></el-icon>
-            <h3>角色配音</h3>
-            <p>多种声音特性，赋予角色独特个性</p>
-          </div>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="8">
-          <div class="feature-item">
-            <el-icon :size="30"><Setting /></el-icon>
-            <h3>自定义设置</h3>
-            <p>自由调整语速与音调</p>
-          </div>
-        </el-col>
-      </el-row>
+      <div class="feature-list">
+        <div class="feature-item">
+          <el-icon :size="30"><Reading /></el-icon>
+          <h3>文本转语音</h3>
+          <p>一键将大型文本转换为语音</p>
+        </div>
+        <div class="feature-item">
+          <el-icon :size="30"><Microphone /></el-icon>
+          <h3>角色配音</h3>
+          <p>多种声音特性，赋予角色独特个性</p>
+        </div>
+        <div class="feature-item">
+          <el-icon :size="30"><Setting /></el-icon>
+          <h3>自定义设置</h3>
+          <p>自由调整语速与音调</p>
+        </div>
+      </div>
     </section>
 
     <!-- Team Section -->
@@ -85,137 +79,112 @@ const goToProjectGitHub = () => {
 };
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .about-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0 20px;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #333;
+  max-width: 1080px;
+  margin: 0 auto;
 }
 
-/* Header */
 .header {
   text-align: center;
-  padding: 60px 0;
+  padding: clamp(36px, 8vw, 60px) 0 clamp(24px, 5vw, 48px);
 }
 .title {
-  font-size: 48px;
+  font-size: clamp(30px, 6vw, 48px);
   font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a1a;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  color: var(--ev-text);
 }
 .subtitle {
-  font-size: 20px;
+  margin: 0;
+  font-size: clamp(15px, 2.4vw, 20px);
   color: #666;
 }
 
-/* Intro */
-.intro {
-  max-width: 1200px;
-  margin: 0 auto 60px;
+.intro,
+.features,
+.team {
+  margin: 0 auto clamp(32px, 7vw, 60px);
 }
-.intro-content {
+.intro-content,
+.team-content {
   background: rgba(255, 255, 255, 0.8);
   border-radius: 16px;
-  padding: 30px;
+  padding: clamp(20px, 4vw, 32px);
   text-align: center;
   backdrop-filter: blur(10px);
 }
-.intro-icon {
-  color: #007aff;
-  margin-bottom: 20px;
+.intro-icon,
+.team-icon,
+.feature-item .el-icon {
+  color: var(--ev-accent);
+  margin-bottom: 12px;
 }
 .intro-content h2 {
-  font-size: 24px;
-  margin-bottom: 15px;
-  color: #1a1a1a;
+  font-size: clamp(20px, 3vw, 24px);
+  margin: 0 0 12px;
+  color: var(--ev-text);
 }
-.intro-content p {
-  font-size: 16px;
-  color: #666;
+.intro-content p,
+.team-content p {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #555;
+}
+.intro-content p:last-child {
+  margin-bottom: 0;
 }
 
-/* Features */
-.features {
-  max-width: 1200px;
-  margin: 0 auto 60px;
-}
 .section-title {
-  font-size: 32px;
+  font-size: clamp(22px, 4vw, 32px);
   font-weight: 600;
+  letter-spacing: -0.01em;
   text-align: center;
-  margin-bottom: 40px;
-  color: #1a1a1a;
+  margin: 0 0 clamp(20px, 4vw, 40px);
+  color: var(--ev-text);
 }
 .feature-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: clamp(12px, 2vw, 20px);
   text-align: center;
 }
 .feature-item {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 20px;
   transition: transform 0.3s ease;
 }
-.feature-item:hover {
-  transform: translateY(-5px);
-}
-.feature-item .el-icon {
-  color: #007aff;
-  margin-bottom: 10px;
+@media @bp-hover {
+  .feature-item:hover {
+    transform: translateY(-4px);
+  }
 }
 .feature-item h3 {
-  font-size: 18px;
-  margin-bottom: 10px;
-  color: #1a1a1a;
+  font-size: 17px;
+  margin: 0 0 8px;
+  color: var(--ev-text);
 }
 .feature-item p {
+  margin: 0;
   font-size: 14px;
-  color: #666;
+  color: #555;
 }
 
-/* Team */
-.team {
-  max-width: 1200px;
-  margin: 0 auto 60px;
-}
-.team-content {
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 16px;
-  padding: 30px;
-  text-align: center;
-  backdrop-filter: blur(10px);
-}
-.team-icon {
-  color: #007aff;
-  margin-bottom: 20px;
-}
-.team-content p {
-  font-size: 16px;
-  color: #666;
-  margin-bottom: 20px;
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 .links .el-button {
-  margin: 0 10px;
+  margin: 0;
+  height: 44px;
+  padding: 0 20px;
 }
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .title {
-    font-size: 36px;
-  }
-  .subtitle {
-    font-size: 16px;
-  }
-  .section-title {
-    font-size: 24px;
-  }
-  .intro-content {
-    padding: 20px;
-  }
-  .feature-item {
-    margin-bottom: 15px;
-  }
+.links .el-button .el-icon {
+  margin-right: 6px;
 }
 </style>

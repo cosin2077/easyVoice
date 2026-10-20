@@ -68,37 +68,37 @@ const goToGitHub = () => {
 
 <style scoped lang="less">
 .not-found-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0 20px;
-  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #333;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  max-width: 1080px;
+  margin: 0 auto;
 }
 
-/* Header */
 .header {
   text-align: center;
-  padding: 60px 0;
-  position: relative;
+  padding: clamp(40px, 9vw, 64px) 0 clamp(28px, 6vw, 48px);
 }
 .title {
-  font-size: 72px;
+  font-size: clamp(56px, 12vw, 72px);
   font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a1a;
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+  color: var(--ev-text);
 }
 .subtitle {
-  font-size: 24px;
+  font-size: clamp(17px, 3vw, 24px);
   color: #666;
-  margin-bottom: 30px;
+  margin: 0 0 24px;
+}
+.header-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .header-actions .el-button {
-  margin: 0 10px;
-  padding: 12px 24px;
-  font-size: 16px;
+  margin: 0;
+  height: 44px;
+  padding: 0 24px;
+  font-size: 15px;
 }
 .icon {
   width: 18px;
@@ -107,85 +107,76 @@ const goToGitHub = () => {
   vertical-align: middle;
 }
 
-/* Info Section */
 .info {
-  max-width: 1200px;
-  margin: 0 auto 60px;
+  margin: 0 auto clamp(40px, 8vw, 60px);
 }
 .section-title {
-  font-size: 32px;
+  font-size: clamp(22px, 4vw, 32px);
   font-weight: 600;
   text-align: center;
-  margin-bottom: 40px;
-  color: #1a1a1a;
+  margin: 0 0 clamp(20px, 4vw, 40px);
+  color: var(--ev-text);
 }
 .info-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  grid-auto-flow: column;
-  gap: 20px;
-  margin-bottom: 40px;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: clamp(12px, 2vw, 20px);
+  margin-bottom: clamp(24px, 5vw, 40px);
 }
 .info-card {
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
-  padding: 20px;
   transition: transform 0.3s ease;
 }
-.info-card:hover {
-  transform: translateY(-5px);
+.info-card :deep(.el-card__body) {
+  padding: clamp(16px, 3vw, 24px);
+}
+@media @bp-hover {
+  .info-card:hover {
+    transform: translateY(-4px);
+  }
 }
 .card-header {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+.card-header h3 {
+  margin: 0;
 }
 .info-icon {
-  width: 24px;
-  height: 24px;
+  flex: none;
+  width: 22px;
+  height: 22px;
   margin-right: 10px;
-  color: #007aff;
+  color: var(--ev-accent);
 }
 .info-card h3 {
-  font-size: 20px;
-  color: #1a1a1a;
+  font-size: 17px;
+  color: var(--ev-text);
 }
 .info-card p {
+  margin: 0;
   font-size: 14px;
-  color: #666;
+  line-height: 1.55;
+  color: #555;
 }
 .cta {
   text-align: center;
 }
 .cta p {
-  font-size: 18px;
-  color: #444;
-  margin-bottom: 20px;
+  font-size: 15px;
+  color: var(--ev-text-2);
+  margin: 0 0 12px;
 }
 .cta h3 {
-  font-size: 24px;
-  color: #1a1a1a;
+  font-size: clamp(17px, 3vw, 22px);
+  color: var(--ev-text);
 }
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .title {
-    font-size: 48px;
-  }
-  .subtitle {
-    font-size: 18px;
-  }
-  .section-title {
-    font-size: 24px;
-  }
-  .header-actions .el-button {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-  .info-cards {
-    grid-template-columns: 1fr;
-    grid-auto-flow: row;
-  }
+.cta h3 a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ev-touch);
 }
 </style>

@@ -5,7 +5,7 @@
       <div class="progress-container">
         <div class="time current-time">{{ formatTime(currentTime) }}</div>
         <div class="progress-bar-container">
-          <div class="progress-bar" @mousedown="seek" ref="progressBar">
+          <div class="progress-bar" @pointerdown="seek" ref="progressBar">
             <!-- 添加分段颜色 -->
             <div class="progress-segments">
               <div
@@ -193,10 +193,12 @@ const updateProgress = () => {
   }
 }
 
-const seek = (event: MouseEvent) => {
+// Pointer events: one code path for mouse, touch and pen (mouse-only listeners never tracked touch drags).
+const seek = (event: PointerEvent) => {
   if (!audio.value || !progressBar.value) return
+  event.preventDefault()
 
-  const updatePosition = (e: MouseEvent) => {
+  const updatePosition = (e: PointerEvent) => {
     const rect = progressBar.value!.getBoundingClientRect()
     const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
     const percent = offsetX / rect.width
@@ -206,14 +208,16 @@ const seek = (event: MouseEvent) => {
 
   updatePosition(event)
 
-  const onMouseMove = (e: MouseEvent) => updatePosition(e)
-  const onMouseUp = () => {
-    document.removeEventListener('mousemove', onMouseMove)
-    document.removeEventListener('mouseup', onMouseUp)
+  const onMove = (e: PointerEvent) => updatePosition(e)
+  const onUp = () => {
+    document.removeEventListener('pointermove', onMove)
+    document.removeEventListener('pointerup', onUp)
+    document.removeEventListener('pointercancel', onUp)
   }
 
-  document.addEventListener('mousemove', onMouseMove)
-  document.addEventListener('mouseup', onMouseUp)
+  document.addEventListener('pointermove', onMove)
+  document.addEventListener('pointerup', onUp)
+  document.addEventListener('pointercancel', onUp)
 }
 
 const segmentStyle = (segment: (typeof voiceSegments)[0]) => {
@@ -250,10 +254,10 @@ defineExpose({
 })
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .audio-player {
   margin: 20px auto;
-  max-width: 300px;
+  width: min(300px, 100%);
   padding: 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.8);
@@ -262,8 +266,14 @@ defineExpose({
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   transition: all 0.3s ease;
 }
-.audio-player:hover {
-  transform: scale(1.1);
+@media @bp-hover {
+  .audio-player:hover {
+    transform: scale(1.1);
+  }
+  .voice-bubble:hover,
+  .voice-name:hover {
+    transform: scale(1.05);
+  }
 }
 /* 新增样式 */
 .progress-segments {
@@ -305,9 +315,6 @@ defineExpose({
   transition: all 0.3s ease;
 }
 
-.voice-bubble:hover {
-  transform: scale(1.05);
-}
 
 .bubble-avatar {
   flex-shrink: 0;
@@ -353,10 +360,6 @@ defineExpose({
   transition: all 0.3s ease;
 }
 
-.voice-name:hover {
-  /* background: #e0e0e0; */
-  transform: scale(1.05);
-}
 
 .voice-fade-enter-active,
 .voice-fade-leave-active {
@@ -400,6 +403,7 @@ defineExpose({
 
 .progress-bar {
   height: 8px;
+  touch-action: none;
   /* background: #e0e0e0; */
   border-radius: 2px;
   cursor: pointer;
@@ -434,15 +438,18 @@ defineExpose({
   opacity: 1;
 }
 
-/* 响应式调整 */
-@media (max-width: 320px) {
-  .audio-player {
-    width: 240px;
-    padding: 8px;
-  }
-
-  .time {
-    font-size: 10px;
+/* larger invisible hit area for fingers; the visible bar stays 8px */
+.progress-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  bottom: -14px;
+}
+@media @bp-touch {
+  .progress-thumb {
+    opacity: 1;
   }
 }
 </style>

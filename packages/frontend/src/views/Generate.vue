@@ -225,7 +225,7 @@
       <el-button size="small" type="primary" text @click="applySuggestedVoice">一键切换音色</el-button>
     </div>
     <div class="action-area" :class="{ sticky: true }">
-      <div class="action-row">
+      <div ref="actionRow" class="action-row">
         <el-button
           v-if="!generating"
           type="primary"
@@ -280,7 +280,7 @@ import {
   createAudioStreamProcessor,
   mapZHVoiceName,
 } from '@/utils'
-import confetti from 'canvas-confetti'
+import { celebrate } from '@/utils/celebrate'
 import { useAudioConfigStore, type AudioConfig } from '@/stores/audioConfig'
 import { defaultVoiceList, previewTextSelect } from '@/constants/voice'
 import { buildLanguageOptions, filterLanguageOptions } from '@/constants/locales'
@@ -315,7 +315,8 @@ const showStreamButton = ref(false)
 
 const successAudio = ref<HTMLAudioElement>()
 const audioPlayer = ref<HTMLAudioElement>()
-const confettiElement = ref<HTMLElement | null>(null)
+/** confetti origin: the action row persists while the generate/stop buttons swap */
+const actionRow = ref<HTMLElement | null>(null)
 
 const voiceList = ref<Voice[]>(defaultVoiceList)
 const audioPlayerRef = ref<InstanceType<typeof StreamButton> | null>(null)
@@ -652,8 +653,7 @@ const previewAudio = async () => {
   }
 }
 
-const handleGenerate = async (event: Event) => {
-  confettiElement.value = event.target as HTMLElement
+const handleGenerate = async () => {
   const { inputText } = audioConfig
   if (!inputText.trim() || !canGenerate.value) return
   if (langMismatch.value) {
@@ -707,16 +707,7 @@ const updateAudioList = (data: GenerateResponse, runId: number) => {
   playSuccessSound()
   generating.value = false
 
-  const rect = confettiElement.value?.getBoundingClientRect()
-  if (rect) {
-    const originX = (rect.left + rect.width / 2) / window.innerWidth
-    const originY = (rect.top + rect.height / 2) / window.innerHeight
-    confetti({
-      particleCount: 300,
-      spread: 360,
-      origin: { x: originX, y: originY },
-    })
-  }
+  celebrate(actionRow.value?.firstElementChild ?? actionRow.value, 300)
 }
 const failRun = (runId: number, error: unknown) => {
   if (!run.fail(runId)) return // cancelled/superseded: stay silent
@@ -883,7 +874,7 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .novel-to-audio-container {
   --ev-bg: #fafafa;
   --ev-panel: #ffffff;
@@ -891,9 +882,10 @@ onMounted(async () => {
   --ev-text: #1a1a1a;
   --ev-muted: #6b6b6b;
   --ev-radius: 10px;
-  max-width: 1080px;
+  max-width: var(--ev-page-max);
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 4rem;
+  /* horizontal gutter comes from the app shell */
+  padding: clamp(1.25rem, 4vw, 2.5rem) 0 4rem;
   color: var(--ev-text);
   background: transparent;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC',
@@ -998,12 +990,13 @@ onMounted(async () => {
   --el-button-hover-bg-color: #fdf6f6;
 }
 
-@media (max-width: 900px) {
-  .novel-to-audio-container {
-    padding: 1.25rem 0.85rem 3rem;
-  }
+@media @bp-tablet {
   .header h1 {
-    font-size: 1.35rem;
+    font-size: 1.375rem;
+  }
+  /* stacked layout: gap between the input card and the settings card */
+  .input-card {
+    margin-bottom: 16px;
   }
 }
 
@@ -1011,6 +1004,17 @@ onMounted(async () => {
   font-size: 15px;
   line-height: 1.6;
   color: #1a1a1a;
+}
+/* stacked layouts: size the editor to the screen instead of a fixed 12 rows */
+@media @bp-tablet {
+  .main-textarea :deep(textarea) {
+    height: clamp(180px, 38vh, 420px);
+  }
+}
+@media @bp-short {
+  .main-textarea :deep(textarea) {
+    height: clamp(140px, 55vh, 260px);
+  }
 }
 .text-toolbar {
   display: flex;
@@ -1031,6 +1035,7 @@ onMounted(async () => {
   color: #3a3a3a;
 }
 .kbd {
+  white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   padding: 1px 5px;
@@ -1098,6 +1103,7 @@ onMounted(async () => {
 .sparkles-icon { color: var(--ev-accent); opacity: 0.9; }
 .voice-mode-selector :deep(.el-radio-button.is-active .sparkles-icon) { color: inherit; opacity: 1; }
 .mismatch-banner {
+  flex-wrap: wrap;
   margin: 16px 0 0;
   padding: 10px 14px;
   background: #fff8e8;
@@ -1141,22 +1147,79 @@ onMounted(async () => {
   font-weight: 600;
   padding: 8px 12px 4px;
 }
-@media (max-width: 640px) {
-  .novel-to-audio-container { padding-bottom: 96px; }
+/* Touch: nobody drags files on a phone/tablet; keep the picker compact. */
+@media @bp-touch {
+  .upload-area :deep(.el-upload-dragger) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: var(--ev-touch);
+    padding: 10px 12px;
+  }
+  .upload-area :deep(.el-icon--upload) {
+    font-size: 22px;
+    margin: 0;
+    line-height: 1;
+  }
+  .upload-area :deep(.el-upload__tip) {
+    display: none;
+  }
+  .card-header :deep(.el-button) {
+    margin-right: -8px;
+  }
+  .main-textarea :deep(textarea) {
+    font-size: 16px;
+  }
+}
+
+/* Phone: the action bar docks to the bottom edge, clear of the home indicator. */
+@media @bp-phone {
+  .novel-to-audio-container {
+    padding-bottom: 1.5rem;
+  }
   .action-area.sticky {
     position: sticky;
     bottom: 0;
     z-index: 30;
-    margin-left: -4px;
-    margin-right: -4px;
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 -6px 20px rgba(0,0,0,0.06);
+    margin-left: calc(-1 * var(--ev-gutter));
+    margin-right: calc(-1 * var(--ev-gutter));
+    padding: 12px var(--ev-gutter) calc(12px + var(--ev-safe-bottom));
+    border-width: 1px 0 0;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
   }
-  .primary-cta { flex: 1; width: 100%; }
-  .action-row { width: 100%; }
-  .action-row .el-button { flex: 1; }
-  .main-textarea :deep(textarea) { font-size: 16px; }
-  .text-toolbar .hint { font-size: 13px; }
+  .action-area {
+    gap: 0;
+  }
+  .action-row {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .primary-cta {
+    flex: 1;
+    min-width: 0;
+  }
+  .action-row > .el-button:not(.primary-cta) {
+    flex: none;
+    min-width: 88px;
+  }
+  .inline-progress {
+    width: 100%;
+  }
+  .action-area :deep(.tts-audio-player) {
+    width: 100%;
+  }
+  .text-toolbar .hint {
+    font-size: 13px;
+  }
+}
+
+/* Landscape phones: a sticky bar would eat half the screen; let it scroll. */
+@media @bp-phone and @bp-short {
+  .action-area.sticky {
+    position: static;
+  }
 }
 
 </style>

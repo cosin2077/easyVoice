@@ -95,7 +95,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import confetti from 'canvas-confetti'
+import { celebrate } from '@/utils/celebrate'
 import HomeAudio from '@/components/HomeAudio.vue'
 import {
   BookOpen,
@@ -123,15 +123,7 @@ const goToGitHub = () => {
 }
 
 const triggerConfettiAndGo = (event) => {
-  const rect = event.target?.getBoundingClientRect()
-  const originX = (rect.left + rect.width / 2) / window.innerWidth
-  const originY = (rect.top + rect.height / 2) / window.innerHeight
-  console.log(originX, originY)
-  confetti({
-    particleCount: 100,
-    spread: 360,
-    origin: { x: originX, y: originY },
-  })
+  celebrate(event.currentTarget, 100)
   setTimeout(() => {
     goToGenerate()
   }, 400)
@@ -139,27 +131,40 @@ const triggerConfettiAndGo = (event) => {
 </script>
 
 <style scoped lang="less">
-/* Header */
+.home-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Hero */
 .header {
   text-align: center;
-  padding: 60px 0;
+  padding: clamp(36px, 8vw, 64px) 0 clamp(28px, 6vw, 56px);
   position: relative;
 }
 .title {
-  font-size: 48px;
+  font-size: clamp(34px, 7vw, 48px);
   font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a1a;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  color: var(--ev-text);
 }
 .subtitle {
-  font-size: 20px;
+  font-size: clamp(15px, 2.4vw, 20px);
   color: #666;
-  margin-bottom: 30px;
+  margin: 0 0 24px;
+}
+.header-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .header-actions .el-button {
-  margin: 0 10px;
-  padding: 12px 24px;
-  font-size: 16px;
+  margin: 0;
+  height: 44px;
+  padding: 0 24px;
+  font-size: 15px;
 }
 .icon {
   width: 18px;
@@ -170,124 +175,105 @@ const triggerConfettiAndGo = (event) => {
 
 /* Features */
 .features {
-  max-width: 1200px;
-  margin: 0 auto 60px;
+  margin: 0 auto clamp(40px, 8vw, 60px);
 }
 .section-title {
-  font-size: 32px;
+  font-size: clamp(22px, 4vw, 32px);
   font-weight: 600;
+  letter-spacing: -0.01em;
   text-align: center;
-  margin-bottom: 40px;
-  color: #1a1a1a;
+  margin: 0 0 clamp(20px, 4vw, 40px);
+  color: var(--ev-text);
 }
 .feature-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 40px;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  gap: clamp(12px, 2vw, 20px);
+  margin-bottom: clamp(24px, 5vw, 40px);
 }
 .feature-card {
-  border-radius: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
-  padding: 20px;
   transition: transform 0.3s ease;
 }
-.feature-card:hover {
-  transform: translateY(-5px);
+.feature-card :deep(.el-card__body) {
+  padding: clamp(16px, 3vw, 24px);
+}
+@media @bp-hover {
+  .feature-card:hover {
+    transform: translateY(-4px);
+  }
 }
 .card-header {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+}
+.card-header h3 {
+  margin: 0;
 }
 .feature-icon {
-  width: 24px;
-  height: 24px;
+  flex: none;
+  width: 22px;
+  height: 22px;
   margin-right: 10px;
   color: var(--ev-accent);
 }
 .feature-card h3 {
-  font-size: 20px;
-  color: #1a1a1a;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ev-text);
 }
 .feature-card p {
+  margin: 0;
   font-size: 14px;
+  line-height: 1.55;
   color: #4a4a4a;
 }
 .cta {
   text-align: center;
+  max-width: 720px;
+  margin: 0 auto;
 }
-.cta p {
-  font-size: 18px;
-  color: #444;
-  margin-bottom: 20px;
+.cta p,
+.cta h3 {
+  color: var(--ev-text-2);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.cta h3 {
+  font-weight: 600;
 }
 
 /* FAQ */
 .faq {
   max-width: 800px;
-  margin: 0 auto 60px;
+  margin: 0 auto clamp(40px, 8vw, 60px);
 }
 .el-collapse {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.9);
-  padding: 10px;
+  padding: 4px 12px;
+  border: 0;
 }
-.el-collapse-item__header {
-  font-size: 16px;
-  font-weight: 500;
-  padding: 10px;
-}
-.el-collapse-item__content {
-  font-size: 14px;
-  color: #666;
-  padding: 10px 20px;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .title {
-    font-size: 36px;
-  }
-  .subtitle {
-    font-size: 16px;
-  }
-  .section-title {
-    font-size: 24px;
-  }
-  .header-actions .el-button {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-  .feature-cards {
-    grid-template-columns: 1fr;
-  }
-}
-
 .faq :deep(.el-collapse-item__header) {
   font-size: 15px;
-  color: #1a1a1a;
+  color: var(--ev-text);
   height: auto;
+  min-height: 52px;
   line-height: 1.5;
-  padding: 18px 8px;
+  padding: 14px 4px;
+  text-align: left;
 }
 .faq :deep(.el-collapse-item__content) {
   font-size: 14px;
-  color: #3a3a3a;
+  color: var(--ev-text-2);
   line-height: 1.7;
-  padding: 4px 8px 22px;
+  padding: 0 4px 18px;
 }
-.faq :deep(.el-collapse-item) {
-  margin-bottom: 4px;
-}
-.feature-card p {
-  color: #4a4a4a !important;
-  font-size: 14px !important;
-  line-height: 1.55;
-}
-.cta p, .cta h3 {
-  color: #3a3a3a;
-  font-size: 15px;
+.faq :deep(.el-collapse-item__content p) {
+  margin: 0;
 }
 </style>

@@ -128,7 +128,7 @@ const input = debounce((value: Arrayable<number>) => {
 defineExpose({ audioRef, refresh })
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .tts-audio-player {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
@@ -171,14 +171,20 @@ defineExpose({ audioRef, refresh })
   color: #525252;
   margin: 0;
 }
-@media (max-width: 480px) {
+/* Phone: controls + time on the first row, a full-width scrubber below. */
+@media @bp-phone {
   .tts-audio-player {
     grid-template-columns: auto 1fr auto;
-    row-gap: 4px;
+    row-gap: 2px;
+    column-gap: 8px;
+  }
+  .time-display {
+    justify-self: end;
   }
   .progress-slider {
     grid-column: 1 / -1;
     order: 3;
+    padding: 0 10px;
   }
 }
 </style>

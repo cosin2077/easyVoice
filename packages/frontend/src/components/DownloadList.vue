@@ -56,9 +56,17 @@
             {{ item.isSrtLoading ? '下载中' : '字幕 SRT' }}
           </el-button>
           <el-tooltip content="删除" placement="top" :disabled="item.isDownloading" effect="dark">
-            <el-icon class="delete-icon" @click="removeDownloadItem(item)">
-              <CircleCloseFilled />
-            </el-icon>
+            <el-button
+              class="delete-btn"
+              text
+              circle
+              size="small"
+              aria-label="删除"
+              :disabled="item.isDownloading"
+              @click="removeDownloadItem(item)"
+            >
+              <el-icon><CircleCloseFilled /></el-icon>
+            </el-button>
           </el-tooltip>
         </div>
       </div>
@@ -212,51 +220,52 @@ const clearAll = () => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="less">
 .download-area {
   padding: 16px;
   background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--ev-border);
+  border-radius: var(--ev-radius);
   margin-top: 20px;
 }
 
 .download-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   padding-bottom: 12px;
   border-bottom: 1px solid #f0f0f0;
-  position: relative;
+}
+.header-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ev-text);
+}
+.header-tip {
+  font-size: 12px;
+  color: var(--ev-muted);
 }
 
-.header-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #303133;
-}
-.header-title-tips {
-  position: absolute;
-  top: 0px;
-  right: 20px;
-}
 .download-list {
   max-height: 320px;
-  margin: 12px 0;
-  overflow-y: auto;
-  padding: 0px 10px;
+  margin: 8px 0;
 }
 
 .download-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 8px;
+  gap: 12px;
+  padding: 10px 8px;
   border-radius: 6px;
-  transition: all 0.3s;
+  transition: background-color 0.2s;
 }
-
-.download-item:hover {
-  background: #f5f7fa;
+@media @bp-hover {
+  .download-item:hover {
+    background: #f6f6f8;
+  }
 }
-
 .download-item.downloading {
   background: #f4f4f6;
 }
@@ -268,37 +277,37 @@ const clearAll = () => {
   align-items: center;
   gap: 12px;
 }
-
 .filename {
-  color: #606266;
-  font-size: 14px;
-  max-width: 400px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
+  color: var(--ev-text);
 }
-
 .file-size {
-  color: #909399;
-  font-size: 12px;
   flex-shrink: 0;
+  font-size: 12px;
+  color: #909399;
 }
 
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: none;
 }
-
-.delete-icon {
+.actions .el-button {
+  margin: 0;
+}
+.play-button {
+  min-width: 72px;
+}
+.delete-btn {
+  --el-button-text-color: #909399;
+  --el-button-hover-text-color: var(--ev-danger);
+  --el-fill-color-light: #fbeeee;
   font-size: 18px;
-  color: #909399;
-  cursor: pointer;
-  transition: color 0.3s;
-}
-
-.delete-icon:hover {
-  color: var(--ev-danger);
 }
 
 .batch-actions {
@@ -308,8 +317,49 @@ const clearAll = () => {
   padding-top: 12px;
   border-top: 1px solid #f0f0f0;
 }
-.play-button {
-  min-width: 72px;
+.batch-actions .el-button {
+  margin: 0;
+}
+
+/* Phone: name on its own line, actions share the row below. */
+@media @bp-phone {
+  .download-area {
+    padding: 14px 12px;
+  }
+  .download-list {
+    max-height: none;
+  }
+  .download-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px 0;
+    border-radius: 0;
+  }
+  .download-item + .download-item {
+    border-top: 1px solid #f2f2f4;
+  }
+  .file-info {
+    justify-content: space-between;
+  }
+  .actions {
+    width: 100%;
+    gap: 6px;
+  }
+  .actions > .el-button:not(.delete-btn) {
+    flex: 1 1 auto;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .actions :deep(.el-icon) {
+    flex: none;
+  }
+  .delete-btn {
+    margin-left: auto;
+  }
+  .batch-actions .el-button {
+    flex: 1;
+  }
 }
 
 /* 文字切换动画 */
@@ -317,15 +367,9 @@ const clearAll = () => {
 .text-fade-leave-active {
   transition: all 0.2s ease;
 }
-
 .text-fade-enter-from,
 .text-fade-leave-to {
   opacity: 0;
   transform: translateY(5px);
 }
-
-.header-tip { font-size: 12px; color: #6b6b6b; margin-left: 10px; }
-.filename { font-size: 14px; color: #1a1a1a; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.actions .el-button { margin: 0; }
-.download-item { padding: 12px 8px; }
 </style>

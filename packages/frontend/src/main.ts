@@ -5,7 +5,7 @@ import { router } from "./router";
 import App from "./App.vue";
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import 'element-plus/dist/index.css'
-import "./style.css";
+import "./styles/base.less";
 
 const app = createApp(App);
 const pinia = createPinia();
