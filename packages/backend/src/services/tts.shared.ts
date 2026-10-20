@@ -7,6 +7,7 @@ import { openai } from '../utils/openai'
 import { parseLLMJsonContent, shouldRejectEnglishVoice } from '../utils/langGuard'
 import { normalizeLlmCasting } from '../llm/segmentSchema'
 import { MapLimitController } from '../controllers/concurrency.controller'
+import type { SpeechUnit } from './textNormalize'
 
 export enum ErrorMessages {
   ENG_MODEL_INVALID_TEXT = 'English model cannot process non-English text',
@@ -71,6 +72,17 @@ export interface CastSegment {
   pitch: string
   volume: string
   character?: string
+  /** When set, this item is pure silence of that length (text is ignored). */
+  silenceMs?: number
+}
+
+type Prosody = Pick<CastSegment, 'voice' | 'rate' | 'pitch' | 'volume'>
+
+/** Speech plan → cast list with one voice (plain / json modes). */
+export function unitsToCast(units: SpeechUnit[], prosody: Prosody): CastSegment[] {
+  return units.map((u) =>
+    u.type === 'break' ? { ...prosody, text: '', silenceMs: u.ms } : { ...prosody, text: u.text }
+  )
 }
 
 const RATE_RE = /^[+-]\d{1,3}%$/

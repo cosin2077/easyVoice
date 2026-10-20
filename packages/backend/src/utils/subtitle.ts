@@ -233,3 +233,50 @@ export function alignCueText(text: string, cues: SubtitleItem[], maxSkip = 24): 
   }
   return out
 }
+
+/**
+ * Put the user's original wording back into cues aligned on the spoken text: each spelled
+ * span (六零一零一二) is replaced by its original digits (601012). When Edge split the span
+ * across several word boundaries, those cues are merged into one cue covering their full
+ * time range, so the timing of the spelled digits is kept.
+ */
+export function restoreCueDisplay(
+  cues: SubtitleItem[],
+  spoken: string,
+  spans: { start: number; end: number; display: string }[]
+): SubtitleItem[] {
+  if (!spans.length || !cues.length) return cues
+  const chars: { c: string; cue: number }[] = []
+  cues.forEach((cue, i) => {
+    for (const c of Array.from(cue.part || '')) chars.push({ c, cue: i })
+  })
+  const nw = chars.map((ch, i) => ({ ...ch, i })).filter((ch) => !/\s/.test(ch.c))
+  const flat = nw.map((ch) => ch.c).join('')
+  const nonWsBefore = (pos: number) => spoken.slice(0, pos).replace(/\s+/g, '').length
+  const out = chars.map((ch) => ch.c)
+  // joinTo[i] = first cue of the merge group cue i belongs to
+  const joinTo = cues.map((_, i) => i)
+  let from = 0
+  for (const span of spans) {
+    const needle = spoken.slice(span.start, span.end)
+    const guess = nonWsBefore(span.start)
+    const idx = flat.startsWith(needle, guess) && guess >= from ? guess : flat.indexOf(needle, from)
+    if (idx < 0) continue
+    out[nw[idx].i] = span.display
+    for (let k = 1; k < needle.length; k++) out[nw[idx + k].i] = ''
+    const first = joinTo[nw[idx].cue]
+    for (let c = first + 1; c <= nw[idx + needle.length - 1].cue; c++) joinTo[c] = first
+    from = idx + needle.length
+  }
+  const parts = cues.map(() => '')
+  chars.forEach((ch, i) => (parts[ch.cue] += out[i]))
+  const result: SubtitleItem[] = []
+  cues.forEach((cue, i) => {
+    if (joinTo[i] !== i && result.length) {
+      const head = result[result.length - 1]
+      head.part += parts[i]
+      head.end = Math.max(head.end, cue.end)
+    } else result.push({ ...cue, part: parts[i] })
+  })
+  return result
+}

@@ -10,12 +10,13 @@ import {
 import { logger } from '../utils/logger'
 import { getPrompt } from '../llm/prompt/generateSegment'
 import { ensureDir, generateId, getLangConfig, safeRunWithRetry } from '../utils'
-import { splitText } from './text.service'
 import { generateSingleVoice, generateSrt } from './edge-tts.service'
 import { EdgeSchema } from '../schema/generate'
 import audioCacheInstance from './audioCache.service'
 import taskManager, { Task } from '../utils/taskManager'
-import { preprocessTextForTts } from './textNormalize'
+import { planSpeech, preprocessTextForTts } from './textNormalize'
+import { silentMp3 } from '../utils/mp3'
+import { toSegmentDoc } from '../utils/subtitle'
 import { buildSrtFromSegments, concatAudioFiles } from './subtitle.service'
 import {
   CastSegment,
@@ -26,6 +27,7 @@ import {
   isEnglishVoiceMismatch,
   LlmConfig,
   runConcurrentTasks,
+  unitsToCast,
 } from './tts.shared'
 
 export { ErrorMessages }
@@ -37,7 +39,9 @@ type TaskParams = Required<EdgeSchema> & { llm?: LlmConfig }
  */
 export async function generateTTS(params: TaskParams, task?: Task): Promise<TTSResult> {
   const { pitch, voice, rate, volume, useLLM } = params
-  const text = preprocessTextForTts(params.text)
+  // `text` keeps pause markers (cache identity); `spoken` is it without markers
+  const text = params.text
+  const spoken = preprocessTextForTts(text)
   const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
   if (!useLLM) {
     const cache = await audioCacheInstance.getAudio(cacheKey)
@@ -47,37 +51,43 @@ export async function generateTTS(params: TaskParams, task?: Task): Promise<TTSR
     }
   }
 
-  const segment: Segment = { id: generateId(`${useLLM ? 'aigen-' : voice}`, text), text }
+  const segment: Segment = { id: generateId(`${useLLM ? 'aigen-' : voice}`, spoken), text: spoken }
   const { lang, voiceList } = await getLangConfig(segment.text)
   if (!useLLM && isEnglishVoiceMismatch(lang, voice, segment.text)) {
     throw new Error(ErrorMessages.ENG_MODEL_INVALID_TEXT)
   }
 
-  const chunks = splitText(segment.text).segments
+  const units = planSpeech(text)
   let cast: CastSegment[]
   let warning: string | undefined
   if (useLLM) {
-    const fallbackVoice = voice && voice.includes('-') ? voice : defaultVoiceFor(lang, text)
+    const fallbackVoice = voice && voice.includes('-') ? voice : defaultVoiceFor(lang, spoken)
     cast = []
-    for (let i = 0; i < chunks.length; i++) {
+    for (let i = 0; i < units.length; i++) {
+      const unit = units[i]
+      if (unit.type === 'break') {
+        cast.push({ text: '', voice: fallbackVoice, rate, pitch, volume, silenceMs: unit.ms })
+        continue
+      }
       try {
-        const resp = await fetchLLMSegment(getPrompt(lang, voiceList, chunks[i]), params.llm)
+        const resp = await fetchLLMSegment(getPrompt(lang, voiceList, unit.text), params.llm)
         const list = formatLlmSegments(resp?.segments || [], { voiceList, fallbackVoice })
         if (!list.length) throw new Error('empty casting')
         cast.push(...list)
       } catch (err) {
         logger.warn(`LLM casting failed for chunk ${i + 1}, fallback voice: ${(err as Error).message}`)
         warning = `AI 分角失败，已用默认音色朗读（${(err as Error).message.replace(/^Chat completion request failed: /, '')}）`
-        cast.push({ text: chunks[i], voice: fallbackVoice, rate, pitch, volume })
+        cast.push({ text: unit.text, voice: fallbackVoice, rate, pitch, volume })
       }
-      task?.updateProgress?.(task.id, Number((((i + 1) / chunks.length) * 50).toFixed(2)))
+      task?.updateProgress?.(task.id, Number((((i + 1) / units.length) * 50).toFixed(2)))
     }
   } else {
-    cast = chunks.map((t) => ({ text: t, voice, rate, pitch, volume }))
+    cast = unitsToCast(units, { voice, rate, pitch, volume })
   }
+  if (!cast.length) throw new Error('Nothing to synthesize')
 
   const result =
-    cast.length === 1 && !useLLM
+    cast.length === 1 && !useLLM && !cast[0].silenceMs
       ? await buildSegment(segment, cast[0])
       : await buildSegmentList(segment, cast, task, useLLM ? 50 : 0)
   task?.updateProgress?.(task.id, 100)
@@ -128,6 +138,14 @@ async function buildSegmentList(
 
   const tasks = segments.map((seg, index) => async () => {
     const { text, pitch, voice, rate, volume } = seg
+    if (seg.silenceMs) {
+      const output = path.resolve(tmpDirPath, `${index + 1}_splits.mp3`)
+      const { buffer, durationMs } = silentMp3(seg.silenceMs)
+      await fs.writeFile(output, buffer)
+      await fs.writeFile(`${output}.json`, JSON.stringify(toSegmentDoc([], durationMs)))
+      done++
+      return output
+    }
     const cacheKey = taskManager.generateTaskId({ text, pitch, voice, rate, volume })
     const cache = await audioCacheInstance.getAudio(cacheKey)
     let audio: string

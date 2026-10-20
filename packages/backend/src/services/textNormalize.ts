@@ -1,79 +1,100 @@
 /**
- * Lightweight text normalization before TTS / LLM.
- * - Pause markers: (((停顿3秒))) / (((pause 3s))) / [pause:3s] → explicit break segments
- * - Simple number reading hints for Chinese (optional light touch)
+ * Text → speech plan.
+ *
+ * - Pause markers become real silence units (no filler text reaches Edge or the SRT):
+ *     (((停顿3秒)))  (((暂停1.5秒)))  (((pause 2s)))  [pause:500ms]  <break time="2s"/>
+ * - Numbers (applied right before Edge, see utils/numberSpeech) are left to Edge's native reading (300元, 2000人, 1.5倍, 2024年 are all read
+ *   correctly by Edge). Only *code-like* digit runs in CJK text are spelled digit by digit:
+ *   stock codes / IDs after a keyword (股票代码601012, 尾号8888), digits in brackets
+ *   (隆基绿能（601012）), numbers with leading zeros (000001) and long runs (phone numbers,
+ *   order ids) that are not followed by a unit.
  */
+import { splitText } from './text.service'
 
-export type NormalizedPart =
-  | { type: 'text'; text: string }
-  | { type: 'break'; seconds: number }
+export type NormalizedPart = { type: 'text'; text: string } | { type: 'break'; seconds: number }
+export type SpeechUnit = { type: 'text'; text: string } | { type: 'break'; ms: number }
 
-const PAUSE_RE =
-  /\(\(\(\s*(?:停顿|暂停|pause)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:秒|s|sec|seconds?)?\s*\)\)\)|\[\s*pause\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*(s|sec|seconds?)?\s*\]/gi
+export const MAX_PAUSE_SECONDS = 30
+
+const NUM = '([0-9]+(?:\\.[0-9]+)?)'
+const UNIT = '(秒钟?|s|secs?|seconds?|毫秒|ms)?'
+const PAUSE_SOURCES = [
+  `\\(\\(\\(\\s*(?:停顿|暂停|静音|pause|break)\\s*${NUM}\\s*${UNIT}\\s*\\)\\)\\)`,
+  `\\[\\s*(?:pause|break|停顿)\\s*[:：]\\s*${NUM}\\s*${UNIT}\\s*\\]`,
+  `<\\s*break\\s+time\\s*=\\s*["']?${NUM}\\s*${UNIT}["']?\\s*\\/?\\s*>`,
+]
+const PAUSE_RE = new RegExp(PAUSE_SOURCES.join('|'), 'gi')
+
+function toSeconds(value: string, unit?: string): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 0
+  return unit && /^(毫秒|ms)$/i.test(unit) ? n / 1000 : n
+}
 
 export function parsePauseMarkers(input: string): NormalizedPart[] {
   const parts: NormalizedPart[] = []
   let last = 0
-  let m: RegExpExecArray | null
   const re = new RegExp(PAUSE_RE.source, 'gi')
+  let m: RegExpExecArray | null
   while ((m = re.exec(input))) {
     if (m.index > last) {
       const chunk = input.slice(last, m.index)
       if (chunk.trim()) parts.push({ type: 'text', text: chunk })
     }
-    const sec = Number(m[1] || m[2] || 0)
-    if (sec > 0 && sec <= 30) parts.push({ type: 'break', seconds: sec })
+    // groups come in (value, unit) pairs, one pair per alternative
+    let sec = 0
+    for (let g = 1; g < m.length; g += 2) {
+      if (m[g] !== undefined) {
+        sec = toSeconds(m[g], m[g + 1])
+        break
+      }
+    }
+    if (sec > 0) parts.push({ type: 'break', seconds: Math.min(sec, MAX_PAUSE_SECONDS) })
     last = m.index + m[0].length
   }
   if (last < input.length) {
     const chunk = input.slice(last)
     if (chunk.trim()) parts.push({ type: 'text', text: chunk })
   }
-  if (!parts.length && input) parts.push({ type: 'text', text: input })
   return parts
 }
 
-/** Expand pause markers into spoken ellipsis gaps Edge can roughly honor via punctuation. */
-export function materializePausesForEdge(input: string): string {
-  return parsePauseMarkers(input)
-    .map((p) => {
-      if (p.type === 'text') return p.text
-      // Edge has no true silence API here; use long ellipsis / ideographic space runs as a pragmatic pause.
-      const beats = Math.min(12, Math.max(1, Math.round(p.seconds * 2)))
-      return '，' + '…'.repeat(beats) + '。'
-    })
-    .join('')
+/** Remove pause markers (for language detection, ids, LLM-free checks). */
+export function stripPauseMarkers(input: string): string {
+  return input.replace(new RegExp(PAUSE_RE.source, 'gi'), ' ')
 }
 
-/** Very small CN number helper: years like 2024 → 二零二四；plain integers < 10000. */
-export function normalizeChineseNumbers(text: string): string {
-  const digits = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九']
-  return text.replace(/\d+/g, (num) => {
-    if (num.length === 4 && (num.startsWith('19') || num.startsWith('20'))) {
-      return num.split('').map((d) => digits[Number(d)] || d).join('')
-    }
-    if (num.length > 6) return num
-    // fallback: digit-by-digit for clarity in IDs/phones
-    if (num.length >= 5) return num.split('').map((d) => digits[Number(d)] || d).join('')
-    const n = Number(num)
-    if (Number.isNaN(n)) return num
-    if (n < 10) return digits[n]
-    if (n < 100) {
-      const t = Math.floor(n / 10)
-      const o = n % 10
-      return (t > 1 ? digits[t] : '') + '十' + (o ? digits[o] : '')
-    }
-    return num.split('').map((d) => digits[Number(d)] || d).join('')
-  })
+export { isCodeLike, normalizeNumbersForSpeech, toSpeechText } from '../utils/numberSpeech'
+
+/**
+ * Text as the user wrote it, minus pause markers. Number reading is applied later, at the
+ * Edge layer, so subtitles keep the original digits.
+ */
+export function preprocessTextForTts(text: string): string {
+  return stripPauseMarkers(text)
 }
 
-export function preprocessTextForTts(text: string, opts: { normalizeNumbers?: boolean } = {}): string {
-  let out = materializePausesForEdge(text)
-  // Off by default: Edge already reads quantities/years/decimals correctly, and the
-  // digit-by-digit helper turned 300元 into 三零零元 and 1.5 into 一.五 (v0.0.20 regression).
-  if (opts.normalizeNumbers === true) {
-    // Only apply CN digit reading when text has CJK
-    if (/[\u3400-\u9fff]/.test(out)) out = normalizeChineseNumbers(out)
+/**
+ * Turn user text into ordered speech units: text chunks (split to Edge-friendly sizes,
+ * original wording kept) and real silences. Adjacent breaks are merged. Number reading is
+ * applied at the Edge layer (toSpeechText) so subtitles can keep the original digits.
+ */
+export function planSpeech(
+  text: string,
+  split: (t: string) => string[] = (t) => splitText(t).segments
+): SpeechUnit[] {
+  const units: SpeechUnit[] = []
+  for (const part of parsePauseMarkers(text)) {
+    if (part.type === 'break') {
+      const ms = Math.round(part.seconds * 1000)
+      const prev = units[units.length - 1]
+      if (prev?.type === 'break') prev.ms = Math.min(prev.ms + ms, MAX_PAUSE_SECONDS * 1000)
+      else units.push({ type: 'break', ms })
+      continue
+    }
+    for (const chunk of split(part.text)) {
+      if (chunk && chunk.trim()) units.push({ type: 'text', text: chunk })
+    }
   }
-  return out
+  return units
 }
