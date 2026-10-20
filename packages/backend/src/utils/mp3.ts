@@ -116,3 +116,29 @@ export function mp3DurationMs(buf: Buffer): number {
   c.push(buf)
   return c.durationMs
 }
+
+/**
+ * Digital silence in the exact format Edge TTS returns (`audio-24khz-96kbitrate-mono-mp3`:
+ * MPEG-2 Layer III, 24 kHz, 96 kbps, mono, no CRC). Each frame is 576 samples = 24 ms,
+ * 72 * 96000 / 24000 = 288 bytes. A frame whose side info is all zero (part2_3_length = 0,
+ * global_gain = 0, main_data_begin = 0) decodes to pure silence and does not borrow from
+ * the bit reservoir, so it can be concatenated byte-for-byte between Edge segments.
+ */
+export const EDGE_FRAME_MS = 24
+const EDGE_SILENT_FRAME = (() => {
+  const f = Buffer.alloc(288, 0)
+  f[0] = 0xff
+  f[1] = 0xf3 // sync, MPEG-2, Layer III, no CRC
+  f[2] = 0xa4 // bitrate idx 10 (96 kbps), sample-rate idx 1 (24 kHz), no padding
+  f[3] = 0xc0 // mono
+  return f
+})()
+
+/** Silent MP3 of `ms` milliseconds (rounded to whole 24 ms frames). */
+export function silentMp3(ms: number): { buffer: Buffer; durationMs: number } {
+  const frames = Math.max(0, Math.round(ms / EDGE_FRAME_MS))
+  return {
+    buffer: Buffer.concat(Array.from({ length: frames }, () => EDGE_SILENT_FRAME)),
+    durationMs: frames * EDGE_FRAME_MS,
+  }
+}

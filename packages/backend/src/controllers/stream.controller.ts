@@ -5,6 +5,7 @@ import taskManager from '../utils/taskManager'
 import { EdgeSchema } from '../schema/generate'
 import { generateTTSStream, generateTTSStreamJson } from '../services/tts.stream.service'
 import { generateId, streamWithLimit } from '../utils'
+import { preprocessTextForTts } from '../services/textNormalize'
 function formatBody(body: EdgeSchema & { openaiBaseUrl?: string; openaiKey?: string; openaiModel?: string }) {
   const { text, pitch, voice, volume, rate, useLLM } = body
   const positivePercent = (value: string | undefined) => {
@@ -68,7 +69,8 @@ export async function generateJson(req: Request, res: Response, next: NextFuncti
     const task = taskManager.createTask(taskParams)
     const voice = formatedBody[0].voice
 
-    const segment: Segment = { id: generateId(voice, text), text }
+    const spoken = preprocessTextForTts(text)
+    const segment: Segment = { id: generateId(voice, spoken), text: spoken }
     task.context = { req, res, segment, body: req.body }
     logger.info(`Generated stream task ID: ${task.id}`)
     generateTTSStreamJson(formatedBody, task)

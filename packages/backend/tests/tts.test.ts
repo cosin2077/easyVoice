@@ -7,10 +7,11 @@ import { shouldRejectEnglishVoice } from '../src/utils/langGuard'
 import { assertSafeOpenaiBaseUrl } from '../src/utils/ssrf'
 
 describe('tts prerequisites', () => {
-  test('preprocess keeps Chinese text and expands pause markers', () => {
+  test('preprocess keeps Chinese text and drops pause markers (no filler)', () => {
     const out = preprocessTextForTts('你好(((停顿1秒)))世界')
     expect(out.includes('你好')).toBe(true)
     expect(out.includes('世界')).toBe(true)
+    expect(out).not.toMatch(/停顿|…/)
   })
 
   test('English short text is allowed with en voice', () => {

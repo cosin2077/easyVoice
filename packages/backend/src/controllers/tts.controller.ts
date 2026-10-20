@@ -5,7 +5,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { ALLOWED_EXTENSIONS, AUDIO_DIR } from '../config'
 import { EdgeSchema } from '../schema/generate'
-import taskManager from '../utils/taskManager'
+import taskManager, { publicTask } from '../utils/taskManager'
 function formatBody(body: EdgeSchema & { openaiBaseUrl?: string; openaiKey?: string; openaiModel?: string }) {
   const { text, pitch, voice, volume, rate, useLLM } = body
   const positivePercent = (value: string | undefined) => {
@@ -56,7 +56,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
       })
     const data = {
       success: true,
-      data: { ...task },
+      data: publicTask(task),
       code: 200,
     }
     res.json(data)
@@ -74,7 +74,7 @@ export async function getTask(req: Request, res: Response, next: NextFunction) {
     }
     const data = {
       success: true,
-      data: { ...task },
+      data: publicTask(task),
       code: 200,
     }
     res.json(data)

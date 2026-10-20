@@ -4,9 +4,11 @@ import { AUDIO_DIR, SEGMENT_MAX_RETRIES, SEGMENT_RETRY_BASE_DELAY_MS } from '../
 import { logger } from '../utils/logger'
 import { getPrompt } from '../llm/prompt/generateSegment'
 import { ensureDir, generateId, getLangConfig, safeRunWithRetry, streamToResponse } from '../utils'
-import { preprocessTextForTts } from './textNormalize'
-import { splitText } from './text.service'
+import fs from 'fs/promises'
+import { planSpeech, preprocessTextForTts, SpeechUnit } from './textNormalize'
 import { generateSingleVoiceBuffer, generateSingleVoiceStream } from './edge-tts.service'
+import { silentMp3 } from '../utils/mp3'
+import { toSegmentDoc } from '../utils/subtitle'
 import { EdgeSchema } from '../schema/generate'
 import audioCacheInstance from './audioCache.service'
 import taskManager, { Task } from '../utils/taskManager'
@@ -19,6 +21,7 @@ import {
   formatLlmSegments,
   isEnglishVoiceMismatch,
   LlmConfig,
+  unitsToCast,
 } from './tts.shared'
 
 /** Set KEEP_TTS_TMP=true to keep per-segment subtitle json (debug / sync audits). */
@@ -34,8 +37,10 @@ export async function generateTTSStream(params: StreamParams, task: Task) {
   const res = task.context?.res
   try {
     const { pitch, voice, rate, volume, useLLM } = params
-    const text = preprocessTextForTts(params.text)
-    const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, text), text }
+    // `text` keeps pause markers (part of the cache identity); `spoken` is it without markers
+    const text = params.text
+    const spoken = preprocessTextForTts(text)
+    const segment: Segment = { id: generateId(useLLM ? 'aigen-' : voice, spoken), text: spoken }
     const { lang, voiceList } = await getLangConfig(segment.text)
     task.context!.segment = segment
     task.context!.lang = lang
@@ -62,30 +67,37 @@ export async function generateTTSStream(params: StreamParams, task: Task) {
       return
     }
 
-    const chunks = splitText(segment.text).segments
+    const units = planSpeech(text)
     if (useLLM) {
-      const fallbackVoice = voice && voice.includes('-') ? voice : defaultVoiceFor(lang, text)
+      const fallbackVoice = voice && voice.includes('-') ? voice : defaultVoiceFor(lang, spoken)
       const state: { warning?: string } = {}
       await streamSegments(
         task,
-        castWithLLM(chunks, { lang, voiceList, fallbackVoice, llm: params.llm, task, state }),
+        castWithLLM(units, { lang, voiceList, fallbackVoice, llm: params.llm, task, state }),
         () => state.warning
       )
     } else {
-      await streamSegments(task, fromList(chunks.map((t) => ({ text: t, voice, rate, pitch, volume }))))
+      await streamSegments(task, fromList(unitsToCast(units, { voice, rate, pitch, volume })))
     }
   } catch (err) {
     failStream(task, err as Error)
   }
 }
 
-/** /generateJson: caller supplies the exact segment list. */
+/**
+ * /generateJson: caller supplies the segment list. Each item goes through the same plan
+ * as plain text (pause markers, code-like numbers) and oversized items are split, so one
+ * long item can no longer exceed Edge's 10-minute-per-request limit (#62).
+ */
+export function planJsonItems(items: Required<EdgeSchema>[]): CastSegment[] {
+  return items.flatMap(({ text, voice, rate, pitch, volume }) =>
+    unitsToCast(planSpeech(text), { voice, rate, pitch, volume })
+  )
+}
+
 export async function generateTTSStreamJson(formatedBody: Required<EdgeSchema>[], task: Task) {
   try {
-    await streamSegments(
-      task,
-      fromList(formatedBody.map(({ text, voice, rate, pitch, volume }) => ({ text, voice, rate, pitch, volume })))
-    )
+    await streamSegments(task, fromList(planJsonItems(formatedBody)))
   } catch (err) {
     failStream(task, err as Error)
   }
@@ -101,7 +113,7 @@ async function* fromList(list: CastSegment[]): AsyncGenerator<CastSegment> {
  * instead of aborting the whole stream.
  */
 async function* castWithLLM(
-  chunks: string[],
+  units: SpeechUnit[],
   opts: {
     lang: string
     voiceList: VoiceConfig[]
@@ -111,8 +123,14 @@ async function* castWithLLM(
     state: { warning?: string }
   }
 ): AsyncGenerator<CastSegment> {
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i]
+  const total = units.length
+  for (let i = 0; i < total; i++) {
+    const unit = units[i]
+    if (unit.type === 'break') {
+      yield { text: '', voice: opts.fallbackVoice, rate: '+0%', pitch: '+0Hz', volume: '+0%', silenceMs: unit.ms }
+      continue
+    }
+    const chunk = unit.text
     let cast: CastSegment[] = []
     try {
       const resp = await fetchLLMSegment(getPrompt(opts.lang, opts.voiceList, chunk), opts.llm)
@@ -121,7 +139,7 @@ async function* castWithLLM(
         fallbackVoice: opts.fallbackVoice,
       })
       logger.info(
-        `LLM cast chunk ${i + 1}/${chunks.length}: ${cast.length} segments ` +
+        `LLM cast chunk ${i + 1}/${total}: ${cast.length} segments ` +
           JSON.stringify(cast.map((c) => [c.character || '-', c.voice, c.rate, c.pitch, c.text.slice(0, 24)]))
       )
     } catch (err) {
@@ -132,7 +150,7 @@ async function* castWithLLM(
       cast = [{ text: chunk, voice: opts.fallbackVoice, rate: '+0%', pitch: '+0Hz', volume: '+0%' }]
     }
     for (const s of cast) yield s
-    opts.task.updateProgress?.(opts.task.id, Number((((i + 1) / chunks.length) * 100).toFixed(2)))
+    opts.task.updateProgress?.(opts.task.id, Number((((i + 1) / total) * 100).toFixed(2)))
   }
 }
 
@@ -202,6 +220,15 @@ async function streamSegments(
 
   const jsonPaths: string[] = []
   let index = 0
+  let liveDone = false
+  const writeOut = async (buf: Buffer) => {
+    if (!outputStream.write(buf)) {
+      await Promise.race([
+        new Promise<void>((resolve) => outputStream.once('drain', () => resolve())),
+        cancelledP,
+      ])
+    }
+  }
   try {
     for await (const seg of rest) {
       if (cancelled) break
@@ -212,8 +239,15 @@ async function streamSegments(
         onError: (err: unknown, attempt: number) =>
           logger.warn(`Segment ${index + 1} failed (attempt ${attempt}/${SEGMENT_MAX_RETRIES}): ${(err as Error).message}`),
       }
-      if (index === 0) {
-        // First segment is piped live for low time-to-first-audio. Only connection
+      if (seg.silenceMs) {
+        // Real silence: Edge-format silent frames + an empty cue list whose duration
+        // shifts every later subtitle by exactly the inserted gap.
+        const { buffer, durationMs } = silentMp3(seg.silenceMs)
+        await fs.writeFile(subtitlePath, JSON.stringify(toSegmentDoc([], durationMs)))
+        await writeOut(buffer)
+      } else if (!liveDone) {
+        liveDone = true
+        // First spoken segment is piped live for low time-to-first-audio. Only connection
         // failures are retryable here; once bytes are on the wire a mid-stream drop
         // fails the request (see catch below) instead of silently truncating.
         const pending = safeRunWithRetry(
@@ -250,16 +284,15 @@ async function streamSegments(
           pending.catch(() => {})
           break
         }
-        if (!outputStream.write(buf)) {
-          await Promise.race([
-            new Promise<void>((resolve) => outputStream.once('drain', () => resolve())),
-            cancelledP,
-          ])
-        }
+        await writeOut(buf)
       }
       if (cancelled) break
       jsonPaths.push(subtitlePath)
-      logger.info(`Segment ${index + 1} streamed: ${seg.text.slice(0, 12)}…`)
+      logger.info(
+        seg.silenceMs
+          ? `Segment ${index + 1} streamed: silence ${seg.silenceMs}ms`
+          : `Segment ${index + 1} streamed: ${seg.text.slice(0, 12)}…`
+      )
       index++
     }
   } catch (err) {

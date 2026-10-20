@@ -22,7 +22,7 @@ export interface Task {
   createdAt: Date
   updatedAt?: Date
   updateProgress?: (taskId: string, progress: number) => Task | undefined
-  endTask?: (taskId: string) => void
+  endTask?: (taskId: string) => unknown
   context?: {
     req?: Request
     res?: Response
@@ -33,12 +33,37 @@ export interface Task {
     voiceList?: VoiceConfig[]
   }
 }
+/** JSON-safe view of a task (no request context / bound functions). */
+export function publicTask(task: Task) {
+  const { context: _ctx, updateProgress: _u, endTask: _e, ...rest } = task
+  return rest
+}
+
+/** How long finished/failed tasks stay queryable via GET /task/:id. */
+const TASK_TTL_MS = parseInt(process.env.TASK_TTL_MS || '', 10) || 60 * 60 * 1000
+
 class TaskManager {
   tasks: Map<string, Task>
   MAX_TASKS: number
+  private expiry = new Map<string, ReturnType<typeof setTimeout>>()
   constructor(options?: TaskManagerOptions) {
     this.tasks = new Map()
     this.MAX_TASKS = options?.length || 10
+  }
+
+  /**
+   * A task reached a terminal state: drop the heavy request context (req/res/buffers were
+   * kept forever before — a slow memory leak) and expire the record after TASK_TTL_MS.
+   */
+  private settle(task: Task) {
+    delete task.context
+    clearTimeout(this.expiry.get(task.id))
+    const timer = setTimeout(() => {
+      if (this.tasks.get(task.id) === task) this.tasks.delete(task.id)
+      this.expiry.delete(task.id)
+    }, TASK_TTL_MS)
+    timer.unref?.()
+    this.expiry.set(task.id, timer)
   }
 
   generateTaskId(fields: any, options: Options = {}) {
@@ -89,11 +114,12 @@ class TaskManager {
 
   finishTask(taskId: string) {
     const task = this.tasks.get(taskId)
-    if (!task) throw new Error(`Cannot find task: ${taskId}`)
+    if (!task) return undefined // already expired; ending twice is harmless
+    if (task.status !== 'pending') return task
     task.status = 'completed'
     task.progress = 100
     task.updatedAt = new Date()
-    this.tasks.set(taskId, task)
+    this.settle(task)
     logger.info(`Task ${taskId} completed`)
     return task
   }
@@ -112,7 +138,7 @@ class TaskManager {
     findTask.message = message
     findTask.code = code
     findTask.updatedAt = new Date()
-    this.tasks.set(taskId, findTask)
+    this.settle(findTask)
     return true
   }
   updateProgress(taskId: string, progress: number): Task | undefined {
@@ -139,7 +165,7 @@ class TaskManager {
     findTask.updatedAt = new Date()
     findTask.progress = progress
     findTask.result = result
-    this.tasks.set(taskId, findTask)
+    if (status !== 'pending') this.settle(findTask)
     return findTask
   }
   getTaskLength() {

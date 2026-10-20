@@ -16,7 +16,8 @@ import {
 import { Readable } from 'node:stream'
 import { ensureDir, escapeSSML } from '../../utils'
 import { Mp3FrameCounter } from '../../utils/mp3'
-import { alignCueText, ticksToMs, toSegmentDoc } from '../../utils/subtitle'
+import { alignCueText, restoreCueDisplay, ticksToMs, toSegmentDoc } from '../../utils/subtitle'
+import { toSpeechText } from '../../utils/numberSpeech'
 
 interface SubLine {
   part: string
@@ -210,7 +211,9 @@ class EdgeTTS {
       const { base } = parse(audioPath)
       subPath = await this.getSrtPath(resolve(tmpDir, base))
     }
-    const cues = alignCueText(text, subFile)
+    // `text` is what the user wrote; Edge got its spoken form (code-like digits spelled).
+    const { spoken, spans } = toSpeechText(text)
+    const cues = restoreCueDisplay(alignCueText(spoken, subFile), spoken, spans)
     await writeFile(subPath, JSON.stringify(toSegmentDoc(cues, durationMs), null, 2), {
       encoding: 'utf-8',
     })
@@ -403,7 +406,7 @@ class EdgeTTS {
         <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${this.lang}">
           <voice name="${this.voice}">
             <prosody rate="${this.rate}" pitch="${this.pitch}" volume="${this.volume}">
-              ${escapeSSML(text)}
+              ${escapeSSML(toSpeechText(text).spoken)}
             </prosody>
           </voice>
         </speak>`

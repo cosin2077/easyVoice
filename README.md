@@ -63,7 +63,7 @@ or 将仓库克隆到本地，使用 Docker Compose 一键运行！
 docker-compose up -d
 ```
 
-### 2. 本地运行项目（请先确保已安装 Node.js 环境，参考：[安装 Node.js](https://zhuanlan.zhihu.com/p/442215189)）
+### 2. 本地运行项目（需要 Node.js 20 及以上，参考：[安装 Node.js](https://zhuanlan.zhihu.com/p/442215189)）
 
 ```bash
 # 开启/安装 pnpm
@@ -78,11 +78,11 @@ cd easyVoice
 pnpm i -r
 
 # 开发模式
-pnpm dev:root
+pnpm dev
 
 # 生产模式
-pnpm build:root
-pnpm start:root
+pnpm build
+pnpm start
 ```
 
 ### 3. 生成的音频、字幕保存位置
@@ -91,6 +91,42 @@ pnpm start:root
 - Node.js 运行保存在 `./packages/backend/audio` 目录下
 
 ## 高级
+
+### 插入停顿（静音）
+
+在文本里写停顿标记，会在该位置插入**真实静音**（不是用省略号凑），字幕时间轴会同步顺延，SRT 里也不会出现标记文字。单个停顿最长 30 秒。
+
+```text
+春江潮水连海平，(((停顿3秒)))海上明月共潮生。
+(((暂停1.5秒)))  (((静音2秒)))  (((pause 2s)))  [pause:500ms]  <break time="2s"/>
+```
+
+网页、`/generate`、`/createStream`、`/generateJson`（每个 `text` 里都可以写）均支持。
+
+### 数字读法
+
+数量、金额、小数、年份、日期（如 `300元`、`2000人`、`1.5倍`、`2024年10月20日`）交给 Edge 按正常数字读法朗读。中文里**像编号的数字**会逐位读出：
+
+- 前面有关键字：`股票代码601012`、`手机尾号8888`、`订单号20241020123456`、`验证码4821`
+- 括号里的 5 位以上数字：`隆基绿能（601012）`
+- 以 0 开头的 4 位以上数字：`000001`
+- 7 位以上、后面不跟单位的数字：手机号、单号等
+
+逐位读只影响发音，字幕里仍显示原文数字（`601012`，不会变成 `六零一零一二`）。
+
+### 命令行生成并保存字幕（SRT）
+
+`/generateJson` 和 `/createStream` 直接返回 MP3 流，响应头 `x-generate-tts-id` 是文件名（URL 编码）。把扩展名换成 `.srt` 就能下载对应的字幕：
+
+```bash
+curl -sS -D headers.txt -o output.mp3 -X POST http://localhost:3000/api/v1/tts/createStream \
+  -H "Content-Type: application/json" \
+  -d '{"text":"你好，这是一段命令行生成的语音。(((停顿1秒)))再见。","voice":"zh-CN-XiaoxiaoNeural"}'
+ID=$(grep -i '^x-generate-tts-id' headers.txt | cut -d' ' -f2 | tr -d '\r')
+curl -sS -o output.srt "http://localhost:3000/api/v1/tts/download/${ID%.mp3}.srt"
+```
+
+短文本（不超过 `DIRECT_GEN_LIMIT`）也可以用 `/generate`，返回的 JSON 里直接带 `file` 和 `srt` 文件名。
 
 ### 角色自定义
 
@@ -154,7 +190,7 @@ curl -X POST http://localhost:3000/api/v1/tts/generateJson \
 
 ```
 
-你将看到output.mp3文件的生成，并立即可以播放。
+你将看到output.mp3文件的生成，并立即可以播放。单条 `text` 很长时会自动切成多段合成，不会再触发 Edge 单次 10 分钟的上限；字幕的获取方式见上文「命令行生成并保存字幕」。
 
 #### 参数说明
 
@@ -208,7 +244,9 @@ pnpm dev
 | `RATE_LIMIT_WINDOW`| `1`                           | 速率限制窗口大小（分钟）         |
 | `RATE_LIMIT`       | `10`                          | 速率限制次数                   |
 | `EDGE_API_LIMIT`   | `3`                           | Edge-TTS API 并发数           |
+| `TASK_TTL_MS`      | `3600000`                     | `/create` 任务完成后可查询的保留时长（毫秒） |
 
+- **AI 推荐**：同时配置了 `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`MODEL_NAME` 后，网页的「AI 推荐」里会显示「服务器已配置 AI：模型 · 域名」，Key 留空就能直接用（Key 不会下发到浏览器）。服务端 Key 只会发给 `OPENAI_BASE_URL`；用户自己填了别的 API 地址时，必须同时填自己的 Key。
 - **配置文件**：可在 `.env` 或 `packages/backend/.env` 中设置，优先级为 `packages/backend/.env > .env`。  
 - **Docker 配置**：通过 `-e` 参数传入环境变量，如上文示例。
 
