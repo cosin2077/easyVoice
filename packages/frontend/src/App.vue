@@ -1,29 +1,34 @@
 <template>
-  <div class="home-container">
-    <transition name="el-fade-in-linear">
-      <router-view />
-    </transition>
+  <div class="app-shell">
+    <AppHeader />
+    <main class="app-main">
+      <transition name="el-fade-in-linear">
+        <router-view />
+      </transition>
+    </main>
     <Footer />
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineComponent } from 'vue'
+import AppHeader from '@/components/AppHeader.vue'
 import Footer from '@/components/Footer.vue'
-defineComponent({ name: 'App' })
 </script>
 
-<style scoped>
-.home-container {
+<style scoped lang="less">
+/* The shell owns the page background and the horizontal gutter; pages only lay out content. */
+.app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  padding: 0 20px;
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #333;
+  color: var(--ev-text);
 }
-@media (max-width: 768px) {
-  .home-container {
-    padding: 0 10px;
-  }
+.app-main {
+  flex: 1;
+  width: 100%;
+  padding-left: calc(var(--ev-gutter) + var(--ev-safe-left));
+  padding-right: calc(var(--ev-gutter) + var(--ev-safe-right));
 }
 </style>

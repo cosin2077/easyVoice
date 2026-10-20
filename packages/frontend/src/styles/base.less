@@ -1,0 +1,219 @@
+/* Design tokens: one restrained accent, neutrals for everything else. */
+:root {
+  --ev-bg: #f7f7f8;
+  --ev-accent: #5e6ad2;
+  --ev-accent-hover: #6f7ad8;
+  --ev-accent-active: #4b55a8;
+  --ev-danger: #c9474b;
+
+  /* Element Plus: map primary to the single accent so every primary
+     button / radio / slider / progress / link shares it. */
+  --el-color-primary: var(--ev-accent);
+  --el-color-primary-light-3: #8e97e0;
+  --el-color-primary-light-5: #aeb4e8;
+  --el-color-primary-light-7: #cfd2f2;
+  --el-color-primary-light-8: #dfe1f6;
+  --el-color-primary-light-9: #eff0fa;
+  --el-color-primary-dark-2: var(--ev-accent-active);
+  --el-border-radius-base: 6px;
+}
+
+/* Primary: keep the accent solid on hover/focus (EP default washes it out to light-3). */
+.el-button--primary {
+  --el-button-hover-bg-color: var(--ev-accent-hover);
+  --el-button-hover-border-color: var(--ev-accent-hover);
+  --el-button-active-bg-color: var(--ev-accent-active);
+  --el-button-active-border-color: var(--ev-accent-active);
+  font-weight: 500;
+}
+.el-button--primary.is-text,
+.el-button--primary.is-link {
+  --el-button-hover-bg-color: var(--el-color-primary-light-9);
+  --el-button-hover-text-color: var(--ev-accent-active);
+}
+
+/* Secondary action: neutral ghost. */
+.el-button.ev-ghost {
+  --el-button-text-color: #3a3a3a;
+  --el-button-bg-color: #fff;
+  --el-button-border-color: #e3e3e6;
+  --el-button-hover-text-color: #1a1a1a;
+  --el-button-hover-bg-color: #f4f4f6;
+  --el-button-hover-border-color: #d4d4d8;
+  --el-button-active-bg-color: #ececef;
+  --el-button-active-border-color: #c8c8ce;
+  font-weight: 500;
+}
+/* Destructive: subtle text, red only on intent (hover/focus). */
+.el-button.ev-danger-text {
+  --el-button-text-color: #6b6b6b;
+  --el-button-hover-text-color: var(--ev-danger);
+  --el-button-active-color: var(--ev-danger);
+  --el-button-hover-link-text-color: var(--ev-danger);
+  --el-fill-color-light: #fbeeee;
+  --el-fill-color: #f8e3e3;
+  font-weight: 500;
+}
+
+
+/* Layout + touch tokens (breakpoints live in breakpoints.less). */
+:root {
+  --ev-text: #1a1a1a;
+  --ev-text-2: #3a3a3a;
+  --ev-muted: #6b6b6b;
+  --ev-border: #e8e8e8;
+  --ev-panel: #ffffff;
+  --ev-radius: 10px;
+  --ev-page-max: 1080px;
+  --ev-gutter: clamp(14px, 4vw, 24px);
+  --ev-header-h: 56px;
+  --ev-touch: 44px;
+  --ev-safe-top: env(safe-area-inset-top, 0px);
+  --ev-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ev-safe-left: env(safe-area-inset-left, 0px);
+  --ev-safe-right: env(safe-area-inset-right, 0px);
+
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC',
+    'Noto Sans SC', 'Helvetica Neue', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--ev-text);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--ev-bg);
+  color: var(--ev-text);
+  margin: 0;
+  min-width: 320px;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+a {
+  font-weight: 500;
+  color: var(--ev-accent);
+  text-decoration: inherit;
+}
+a:hover {
+  color: var(--ev-accent-active);
+}
+
+:focus-visible {
+  outline: 2px solid var(--el-color-primary-light-3);
+  outline-offset: 2px;
+}
+
+/* ---------- Element Plus on small screens ---------- */
+
+/* Popups never wider than the viewport (dialogs, toasts, dropdowns, tooltips). */
+.el-message-box {
+  --el-messagebox-width: min(420px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+.el-message {
+  max-width: calc(100vw - 32px);
+  top: calc(var(--ev-header-h) + 8px + var(--ev-safe-top)) !important;
+}
+.el-message .el-message__content {
+  overflow-wrap: anywhere;
+}
+.el-popper,
+.el-select-dropdown {
+  max-width: calc(100vw - 16px);
+}
+.el-select-dropdown__item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media @bp-phone {
+  .el-message-box {
+    padding: 18px 18px 14px;
+  }
+  .el-message-box__btns {
+    gap: 8px;
+  }
+  .el-message-box__btns .el-button {
+    flex: 1;
+    margin-left: 0;
+  }
+}
+
+/* Touch devices: 44px targets and 16px form text (iOS zooms inputs below 16px). */
+@media @bp-touch {
+  /* Element Plus sizes everything from these tokens (inputs, selects, buttons). */
+  :root {
+    --el-component-size-large: 48px;
+    --el-component-size: var(--ev-touch);
+    --el-component-size-small: 36px;
+  }
+  .el-button:not(.is-link) {
+    min-height: var(--ev-touch);
+  }
+  .el-button.is-circle {
+    width: var(--ev-touch);
+    height: var(--ev-touch);
+  }
+  .el-button--small:not(.is-circle):not(.is-link) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .el-input__wrapper,
+  .el-select__wrapper {
+    min-height: var(--ev-touch);
+  }
+  .el-input__inner,
+  .el-select__input,
+  .el-select__selected-item,
+  .el-textarea__inner {
+    font-size: 16px;
+  }
+  .el-radio-button__inner {
+    min-height: var(--ev-touch);
+    display: inline-flex;
+    align-items: center;
+  }
+  .el-slider {
+    --el-slider-button-wrapper-size: var(--ev-touch);
+    --el-slider-button-wrapper-offset: -19px;
+  }
+  .el-select-dropdown__item {
+    height: var(--ev-touch);
+    line-height: var(--ev-touch);
+  }
+  .el-message-box__headerbtn {
+    width: var(--ev-touch);
+    height: var(--ev-touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

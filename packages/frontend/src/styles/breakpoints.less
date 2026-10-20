@@ -1,0 +1,14 @@
+// Shared breakpoints, injected into every <style lang="less"> block by vite.config.ts.
+// Use as `@media @bp-phone { ... }`. Keep this the only place that defines widths.
+//
+//   phone   ≤ 640px   single column, sticky bottom action bar, compact nav
+//   tablet  ≤ 991px   single column (matches Element Plus `md` = 992px used by el-col)
+//   desktop ≥ 992px   two-column generate layout
+//   touch   coarse pointer without hover: 44px targets, 16px inputs (no iOS zoom)
+//   short   landscape phones: keep fixed/sticky chrome small
+@bp-phone: ~'(max-width: 640px)';
+@bp-tablet: ~'(max-width: 991.98px)';
+@bp-desktop: ~'(min-width: 992px)';
+@bp-touch: ~'(hover: none) and (pointer: coarse)';
+@bp-hover: ~'(hover: hover)';
+@bp-short: ~'(max-height: 500px)';

@@ -9,6 +9,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  css: {
+    preprocessorOptions: {
+      less: {
+        // shared breakpoints (@bp-phone, @bp-touch, ...) available in every less block
+        additionalData: `@import "@/styles/breakpoints.less";\n`,
+      },
+    },
+  },
   server: {
     proxy: {
       "/api": {
