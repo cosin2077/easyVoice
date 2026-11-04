@@ -26,6 +26,7 @@ import {
   formatLlmSegments,
   isEnglishVoiceMismatch,
   LlmConfig,
+  publicLlmReason,
   runConcurrentTasks,
   unitsToCast,
 } from './tts.shared'
@@ -76,7 +77,7 @@ export async function generateTTS(params: TaskParams, task?: Task): Promise<TTSR
         cast.push(...list)
       } catch (err) {
         logger.warn(`LLM casting failed for chunk ${i + 1}, fallback voice: ${(err as Error).message}`)
-        warning = `AI 分角失败，已用默认音色朗读（${(err as Error).message.replace(/^Chat completion request failed: /, '')}）`
+        warning = `AI 分角失败，已用默认音色朗读（${publicLlmReason(err)}）`
         cast.push({ text: unit.text, voice: fallbackVoice, rate, pitch, volume })
       }
       task?.updateProgress?.(task.id, Number((((i + 1) / units.length) * 50).toFixed(2)))

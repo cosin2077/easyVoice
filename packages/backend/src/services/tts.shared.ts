@@ -3,7 +3,7 @@
  * Previously each file carried its own copy of these helpers.
  */
 import { logger } from '../utils/logger'
-import { openai } from '../utils/openai'
+import { openai, LlmRequestError } from '../utils/openai'
 import { parseLLMJsonContent, shouldRejectEnglishVoice } from '../utils/langGuard'
 import { normalizeLlmCasting } from '../llm/segmentSchema'
 import { MapLimitController } from '../controllers/concurrency.controller'
@@ -39,6 +39,19 @@ export const DEFAULT_VOICES: Record<string, string> = {
 export function defaultVoiceFor(lang: string, text = ''): string {
   if (DEFAULT_VOICES[lang]) return DEFAULT_VOICES[lang]
   return /[\u3400-\u9fff]/.test(text) ? DEFAULT_VOICES.zh : DEFAULT_VOICES.en
+}
+
+/**
+ * Reason shown to the requester when AI casting falls back. Only fixed strings: upstream
+ * bodies, socket errors and addresses stay in the server log (#87).
+ */
+export function publicLlmReason(err: unknown): string {
+  if (err instanceof LlmRequestError) return err.publicMessage
+  const msg = err instanceof Error ? err.message : ''
+  if (msg === ErrorMessages.INVALID_PARAMS_FORMAT || msg === ErrorMessages.INVALID_API_RESPONSE || msg === 'empty casting') {
+    return 'AI 返回格式无效'
+  }
+  return 'AI 服务异常'
 }
 
 export async function fetchLLMSegment(prompt: string, cfg?: LlmConfig): Promise<any> {

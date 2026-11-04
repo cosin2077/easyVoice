@@ -2,7 +2,15 @@ import { config, DIRECT_GEN_LIMIT, LIMIT_TEXT_LENGTH, LIMIT_TEXT_LENGTH_ERROR_ME
 import { NextFunction, Response, Request } from 'express'
 import { z } from 'zod'
 import { logger } from '../utils/logger'
-import { assertSafeOpenaiBaseUrl } from '../utils/ssrf'
+import {
+  assertSafeOpenaiBaseUrlResolved,
+  isOperatorBaseUrl,
+  policyFromEnv,
+  sameBaseUrl,
+  UnsafeUrlError,
+} from '../utils/ssrf'
+
+export { sameBaseUrl }
 
 export const edgeSchema = z.object({
   text: z.string().trim().min(5, { message: '文本最少 5 字符！' }),
@@ -50,29 +58,29 @@ export type LlmSchema = z.infer<typeof llmSchema>
 
 export type EdgeSchema = z.infer<typeof edgeSchema>
 
+const textTooLong = (req: Request, res: Response): boolean => {
+  if (!LIMIT_TEXT_LENGTH) return false
+  const allTxt = req.body.text
+  if (allTxt?.length > LIMIT_TEXT_LENGTH) {
+    res.status(400).json({
+      code: 400,
+      message: LIMIT_TEXT_LENGTH_ERROR_MESSAGE || `文本内容不能超出 ${LIMIT_TEXT_LENGTH} 字符哦！`,
+      success: false,
+    })
+    return true
+  }
+  return false
+}
+
+const rejectUrl = (res: Response, message: string) =>
+  res.status(400).json({ code: 400, errors: [{ message, path: ['openaiBaseUrl'] }], success: false })
+
 const commonValidate = (req: Request, res: Response, next: NextFunction, schema: z.ZodTypeAny) => {
   try {
     schema.parse(req.body)
-    if (req.body.openaiBaseUrl) {
-      req.body.openaiBaseUrl = assertSafeOpenaiBaseUrl(req.body.openaiBaseUrl, {
-        allowPrivate: process.env.ALLOW_PRIVATE_OPENAI_URL !== 'false',
-      })
-    }
     // NOTE: no global openai.config() here — that leaked one user's key/baseURL into
     // concurrent requests. The per-request config travels with the task params (llm).
-    if (LIMIT_TEXT_LENGTH) {
-      const allTxt = req.body.text
-      if (allTxt?.length > LIMIT_TEXT_LENGTH) {
-        res.status(400).json({
-          code: 400,
-          message:
-            LIMIT_TEXT_LENGTH_ERROR_MESSAGE || `文本内容不能超出 ${LIMIT_TEXT_LENGTH} 字符哦！`,
-          success: false,
-        })
-        return
-      }
-    }
-    next()
+    if (textTooLong(req, res)) return
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ code: 400, errors: error.errors, success: false })
@@ -81,6 +89,25 @@ const commonValidate = (req: Request, res: Response, next: NextFunction, schema:
     res.status(500).json({ code: 500, message: 'Internal server error' })
     return
   }
+  const baseUrl: string | undefined = req.body.useLLM ? req.body.openaiBaseUrl : undefined
+  // The operator's OPENAI_BASE_URL is trusted config; anything else is caller input (#87).
+  if (!baseUrl || isOperatorBaseUrl(baseUrl)) {
+    next()
+    return
+  }
+  assertSafeOpenaiBaseUrlResolved(baseUrl, policyFromEnv())
+    .then((normalized) => {
+      req.body.openaiBaseUrl = normalized
+      next()
+    })
+    .catch((err) => {
+      if (err instanceof UnsafeUrlError) {
+        logger.warn(`rejected openaiBaseUrl: ${err.message}`)
+        rejectUrl(res, err.message)
+        return
+      }
+      res.status(500).json({ code: 500, message: 'Internal server error' })
+    })
 }
 
 export const validateEdge = (req: Request, res: Response, next: NextFunction) => {
@@ -97,8 +124,6 @@ export const validateEdge = (req: Request, res: Response, next: NextFunction) =>
   }
   commonValidate(req, res, next, edgeSchema)
 }
-const normBase = (u?: string) => (u || '').trim().replace(/\/+$/, '').toLowerCase()
-export const sameBaseUrl = (a?: string, b?: string) => !!normBase(a) && normBase(a) === normBase(b)
 
 export const validateLLM = (req: Request, res: Response, next: NextFunction) => {
   const { useLLM, text } = req.body
@@ -114,7 +139,8 @@ export const validateLLM = (req: Request, res: Response, next: NextFunction) => 
   }
   // read from env if not provided in request body
   const { OPENAI_BASE_URL, OPENAI_API_KEY, MODEL_NAME } = process.env
-  if (!req.body?.openaiBaseUrl && OPENAI_BASE_URL) {
+  if (OPENAI_BASE_URL && (!req.body?.openaiBaseUrl || sameBaseUrl(req.body.openaiBaseUrl, OPENAI_BASE_URL))) {
+    // Use the operator's exact URL (not a case/slash variant) whenever it is the target.
     req.body.openaiBaseUrl = OPENAI_BASE_URL
   }
   // Only lend the server key to the server's own endpoint: a client-supplied base URL
