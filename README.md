@@ -245,8 +245,10 @@ pnpm dev
 | `RATE_LIMIT`       | `10`                          | 速率限制次数                   |
 | `EDGE_API_LIMIT`   | `3`                           | Edge-TTS API 并发数           |
 | `TASK_TTL_MS`      | `3600000`                     | `/create` 任务完成后可查询的保留时长（毫秒） |
+| `ALLOW_PRIVATE_OPENAI_URL` | `false`               | 是否允许**用户在网页/API 中填写**的 OpenAI API 地址指向本机/内网（如 `http://127.0.0.1:11434/v1`、`192.168.x.x`）。仅在自托管、服务不对公网开放时设为 `true` |
 
 - **AI 推荐**：同时配置了 `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`MODEL_NAME` 后，网页的「AI 推荐」里会显示「服务器已配置 AI：模型 · 域名」，Key 留空就能直接用（Key 不会下发到浏览器）。服务端 Key 只会发给 `OPENAI_BASE_URL`；用户自己填了别的 API 地址时，必须同时填自己的 Key。
+- **API 地址安全（SSRF 防护）**：用户自己填写的 `openaiBaseUrl` 只能是 http/https 公网地址；指向本机、内网、链路本地、云厂商元数据（如 `169.254.169.254`）等地址会被拒绝（HTTP 400），服务端会先解析域名校验 IP，并把连接固定到校验过的 IP（防 DNS rebinding），且不跟随重定向。服务器自己配置的 `OPENAI_BASE_URL` 不受此限制，本地大模型直接写在 `OPENAI_BASE_URL` 里即可；若确实需要让用户填写内网地址，设置 `ALLOW_PRIVATE_OPENAI_URL=true`（元数据等保留地址仍会被拦截）。
 - **配置文件**：可在 `.env` 或 `packages/backend/.env` 中设置，优先级为 `packages/backend/.env > .env`。  
 - **Docker 配置**：通过 `-e` 参数传入环境变量，如上文示例。
 

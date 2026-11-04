@@ -18,7 +18,8 @@ describe('tts prerequisites', () => {
     expect(shouldRejectEnglishVoice('xho', 'en-US-JennyNeural', 'Hello world')).toBe(false)
   })
 
-  test('openai base url guard allows local proxy by default', () => {
-    expect(() => assertSafeOpenaiBaseUrl('http://127.0.0.1:8317/v1')).not.toThrow()
+  test('openai base url guard blocks local targets by default, allows them on opt-in (#87)', () => {
+    expect(() => assertSafeOpenaiBaseUrl('http://127.0.0.1:8317/v1')).toThrow()
+    expect(() => assertSafeOpenaiBaseUrl('http://127.0.0.1:8317/v1', { allowPrivate: true })).not.toThrow()
   })
 })

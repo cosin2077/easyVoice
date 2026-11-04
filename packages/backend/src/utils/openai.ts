@@ -1,7 +1,7 @@
-import { AxiosError } from 'axios'
+import axios, { AxiosError } from 'axios'
 import { MODEL_NAME, OPENAI_BASE_URL, OPENAI_API_KEY } from '../config'
 import { logger } from './logger'
-import { fetcher } from './request'
+import { llmRequestOptions, UnsafeUrlError } from './ssrf'
 
 // 配置接口定义
 interface OpenAIConfig {
@@ -10,6 +10,38 @@ interface OpenAIConfig {
   timeout: number
   apiKey?: string
 }
+
+/**
+ * Error surfaced to callers. `publicMessage` is safe to show to the (untrusted) requester:
+ * it never contains socket errors, resolved addresses or upstream bodies, so a failing
+ * request cannot be used as an internal-network reachability oracle (#87).
+ */
+export class LlmRequestError extends Error {
+  constructor(
+    readonly publicMessage: string,
+    readonly status?: number
+  ) {
+    super(`Chat completion request failed: ${publicMessage}`)
+    this.name = 'LlmRequestError'
+  }
+}
+
+function toLlmError(error: unknown): LlmRequestError {
+  if (error instanceof UnsafeUrlError) return new LlmRequestError('AI 地址不被允许')
+  if (error instanceof AxiosError) {
+    const status = error.response?.status
+    if (status) return new LlmRequestError(`AI 服务返回 HTTP ${status}`, status)
+    if (error.cause instanceof UnsafeUrlError) return new LlmRequestError('AI 地址不被允许')
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      return new LlmRequestError('AI 服务请求超时')
+    }
+  }
+  return new LlmRequestError('无法连接 AI 服务')
+}
+
+// Dedicated instance: the generic `fetcher` adds JWT_TOKEN as Authorization to every
+// request, which would overwrite the LLM key and hand that token to user-supplied hosts.
+const http = axios.create({ headers: { 'Content-Type': 'application/json' } })
 
 /**
  * 创建 OpenAI 客户端实例
@@ -33,6 +65,16 @@ export function createOpenAIClient() {
     'Content-Type': 'application/json',
   })
 
+  const merge = (customConfig?: Partial<OpenAIConfig>): OpenAIConfig => {
+    const overrides = Object.fromEntries(
+      Object.entries(customConfig || {}).filter(([, v]) => v !== undefined && v !== '')
+    ) as Partial<OpenAIConfig>
+    return { ...currentConfig, ...overrides }
+  }
+
+  const join = (base: string | undefined, path: string) =>
+    `${base}${base?.endsWith('/') ? '' : '/'}${path}`
+
   /**
    * 创建 Chat Completion
    * @param request 请求参数
@@ -42,14 +84,11 @@ export function createOpenAIClient() {
     request: ChatCompletionRequest,
     customConfig?: Partial<OpenAIConfig>
   ): Promise<ChatCompletionResponse> {
+    const mergedConfig = merge(customConfig)
     try {
-      const overrides = Object.fromEntries(
-        Object.entries(customConfig || {}).filter(([, v]) => v !== undefined && v !== '')
-      ) as Partial<OpenAIConfig>
-      const mergedConfig: OpenAIConfig = { ...currentConfig, ...overrides }
-
-      const response = await fetcher.post<ChatCompletionResponse>(
-        `${mergedConfig.baseURL}${mergedConfig.baseURL?.endsWith('/') ? '' : '/'}chat/completions`,
+      const guard = llmRequestOptions(mergedConfig.baseURL)
+      const response = await http.post<ChatCompletionResponse>(
+        join(mergedConfig.baseURL, 'chat/completions'),
         {
           model: request.model || mergedConfig.model,
           temperature: request.temperature ?? 1.0,
@@ -58,41 +97,33 @@ export function createOpenAIClient() {
           stream: request.stream ?? false,
           ...request,
         },
-        {
-          headers: getHeaders(mergedConfig),
-          timeout: mergedConfig.timeout,
-        }
+        { headers: getHeaders(mergedConfig), timeout: mergedConfig.timeout, ...guard }
       )
-
       return response.data
     } catch (error) {
-      if (error instanceof AxiosError) {
-        logger.warn(`createChatCompletion failed: ${error.response?.status} ${JSON.stringify(error.response?.data?.error ?? '').slice(0, 300)}`)
-      }
-      throw new Error(
-        `Chat completion request failed: ${error instanceof Error ? error.message : String(error)}`
+      const err = toLlmError(error)
+      // Server-side log keeps the detail for the operator; the caller only sees publicMessage.
+      logger.warn(
+        `createChatCompletion failed: ${err.publicMessage} (${error instanceof Error ? (error as any).code || error.message : String(error)})`
       )
+      throw err
     }
   }
 
   /**
    * 获取可用模型列表
    */
-  async function getModels(): Promise<{ data: { id: string }[] }> {
+  async function getModels(customConfig?: Partial<OpenAIConfig>): Promise<{ data: { id: string }[] }> {
+    const cfg = merge(customConfig)
     try {
-      const response = await fetcher.get<{ data: { id: string }[] }>(
-        `${currentConfig.baseURL}/models`,
-        {},
-        {
-          headers: getHeaders(),
-          timeout: currentConfig.timeout,
-        }
-      )
+      const response = await http.get<{ data: { id: string }[] }>(join(cfg.baseURL, 'models'), {
+        headers: getHeaders(cfg),
+        timeout: cfg.timeout,
+        ...llmRequestOptions(cfg.baseURL),
+      })
       return response.data
     } catch (error) {
-      throw new Error(
-        `Get models failed: ${error instanceof Error ? error.message : String(error)}`
-      )
+      throw toLlmError(error)
     }
   }
 
