@@ -246,9 +246,34 @@ pnpm dev
 | `EDGE_API_LIMIT`   | `3`                           | Edge-TTS API 并发数           |
 | `TASK_TTL_MS`      | `3600000`                     | `/create` 任务完成后可查询的保留时长（毫秒） |
 | `ALLOW_PRIVATE_OPENAI_URL` | `false`               | 是否允许**用户在网页/API 中填写**的 OpenAI API 地址指向本机/内网（如 `http://127.0.0.1:11434/v1`、`192.168.x.x`）。仅在自托管、服务不对公网开放时设为 `true` |
+| `AUTH_USERNAME`    | -                             | 可选登录用户名。与 `AUTH_PASSWORD_HASH` 同时设置后，网页和 TTS / 音频 / 字幕接口都需要先登录 |
+| `AUTH_PASSWORD_HASH` | -                           | 用 `node scripts/hash-password.mjs` 生成的 scrypt 密码哈希，不要把明文密码写进环境变量 |
+| `AUTH_SESSION_TTL_MS` | `604800000`（7 天）        | 登录会话有效期（毫秒）            |
+| `AUTH_CORS_ORIGINS`| -                             | 额外允许的跨域来源，逗号分隔（同源和开发环境的 Vite 端口已默认允许） |
+| `AUTH_COOKIE_NAME` | `ev_session`                  | 会话 Cookie 名称                 |
 
 - **AI 推荐**：同时配置了 `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`MODEL_NAME` 后，网页的「AI 推荐」里会显示「服务器已配置 AI：模型 · 域名」，Key 留空就能直接用（Key 不会下发到浏览器）。服务端 Key 只会发给 `OPENAI_BASE_URL`；用户自己填了别的 API 地址时，必须同时填自己的 Key。
 - **API 地址安全（SSRF 防护）**：用户自己填写的 `openaiBaseUrl` 只能是 http/https 公网地址；指向本机、内网、链路本地、云厂商元数据（如 `169.254.169.254`）等地址会被拒绝（HTTP 400），服务端会先解析域名校验 IP，并把连接固定到校验过的 IP（防 DNS rebinding），且不跟随重定向。服务器自己配置的 `OPENAI_BASE_URL` 不受此限制，本地大模型直接写在 `OPENAI_BASE_URL` 里即可；若确实需要让用户填写内网地址，设置 `ALLOW_PRIVATE_OPENAI_URL=true`（元数据等保留地址仍会被拦截）。
+- **登录鉴权（可选）**：同时设置 `AUTH_USERNAME` 和 `AUTH_PASSWORD_HASH` 后，生成语音的页面、全部 `/api/v1/tts` 接口，以及音频 / 字幕的直接下载地址都会要求登录。只设置其中一项时服务会拒绝启动，避免在未配好密码的情况下误以为已经上锁。哈希用下面的命令生成（推荐从标准输入读入密码）：
+
+  ```bash
+  printf '%s' 'your-password' | node scripts/hash-password.mjs
+  ```
+
+  网页会跳到登录页；命令行先拿 Cookie，再在后续请求里带上，并且状态变更请求要带本服务的 `Origin`：
+
+  ```bash
+  curl -c cookies.txt -X POST http://localhost:3000/api/v1/auth/login \
+    -H 'Content-Type: application/json' \
+    -H 'Origin: http://localhost:3000' \
+    -d '{"username":"operator","password":"your-password"}'
+  curl -b cookies.txt -H 'Origin: http://localhost:3000' \
+    -sS -D headers.txt -o output.mp3 -X POST http://localhost:3000/api/v1/tts/createStream \
+    -H 'Content-Type: application/json' \
+    -d '{"text":"你好","voice":"zh-CN-XiaoxiaoNeural"}'
+  ```
+
+  不设置这两项时，服务保持原来的公开访问方式。
 - **配置文件**：可在 `.env` 或 `packages/backend/.env` 中设置，优先级为 `packages/backend/.env > .env`。  
 - **Docker 配置**：通过 `-e` 参数传入环境变量，如上文示例。
 

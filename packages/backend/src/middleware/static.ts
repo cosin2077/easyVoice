@@ -1,5 +1,6 @@
 import { Application } from 'express'
 import express from 'express'
+import { requireAuthForAudio } from './auth.middleware'
 
 interface StaticConfig {
   audioDir: string
@@ -10,6 +11,6 @@ export function configureStaticFiles(
   app: Application,
   { audioDir, publicDir }: StaticConfig
 ): void {
-  app.use(express.static(audioDir))
+  app.use(requireAuthForAudio, express.static(audioDir))
   app.use(express.static(publicDir))
 }

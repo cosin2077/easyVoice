@@ -8,6 +8,15 @@
 
       <nav class="nav-inline" aria-label="主导航">
         <router-link v-for="l in links" :key="l.to" :to="l.to" class="nav-link">{{ l.label }}</router-link>
+        <router-link v-if="auth.enabled && !auth.authenticated" to="/login" class="nav-link">登录</router-link>
+        <button
+          v-else-if="auth.enabled && auth.authenticated"
+          type="button"
+          class="nav-link logout-btn"
+          @click="onLogout"
+        >
+          退出
+        </button>
         <a class="nav-link icon-link" :href="repo" target="_blank" rel="noopener" aria-label="GitHub">
           <Github :size="18" :stroke-width="1.75" />
         </a>
@@ -29,6 +38,15 @@
     <transition name="sheet">
       <nav v-if="open" id="ev-mobile-nav" class="nav-sheet" aria-label="主导航">
         <router-link v-for="l in links" :key="l.to" :to="l.to" class="sheet-link">{{ l.label }}</router-link>
+        <router-link v-if="auth.enabled && !auth.authenticated" to="/login" class="sheet-link">登录</router-link>
+        <button
+          v-else-if="auth.enabled && auth.authenticated"
+          type="button"
+          class="sheet-link logout-btn"
+          @click="onLogout"
+        >
+          退出
+        </button>
         <a class="sheet-link" :href="repo" target="_blank" rel="noopener">
           GitHub <ExternalLink :size="14" :stroke-width="1.75" />
         </a>
@@ -40,8 +58,9 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Github, Menu, X, ExternalLink } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
 
 const repo = 'https://github.com/cosin2077/easyVoice'
 const links = [
@@ -51,6 +70,12 @@ const links = [
 ]
 const open = ref(false)
 const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+async function onLogout() {
+  await auth.logout()
+  if (route.path === '/generate') await router.push('/login')
+}
 watch(
   () => route.fullPath,
   () => (open.value = false)
@@ -131,6 +156,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .icon-link {
   padding: 0 9px;
 }
+.logout-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
 @media @bp-touch {
   .nav-link {
     height: var(--ev-touch);
