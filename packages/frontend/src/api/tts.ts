@@ -1,13 +1,13 @@
 import axios from 'axios'
 
-const DEV_URL = 'http://localhost:3000/api/v1/tts'
-const PROD_URL = import.meta.env.VITE_API_URL || '/api/v1/tts'
-const baseURL = import.meta.env.MODE === 'development' ? DEV_URL : PROD_URL
+const baseURL = import.meta.env.VITE_API_URL || '/api/v1/tts'
 
-const api = axios.create({
-  baseURL: baseURL,
+export const ttsApi = axios.create({
+  baseURL,
   timeout: 60000,
+  withCredentials: true,
 })
+const api = ttsApi
 
 export interface GenerateRequest {
   text: string

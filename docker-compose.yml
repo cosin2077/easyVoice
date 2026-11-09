@@ -8,5 +8,9 @@ services:
     environment:
       - DEBUG=true
       - OPENAI_BASE_URL=https://openrouter.ai/api/v1/
+      # Uncomment both to require login. Generate the hash with:
+      #   node scripts/hash-password.mjs
+      # - AUTH_USERNAME=operator
+      # - AUTH_PASSWORD_HASH=scrypt$16384$8$1$32$...
     volumes:
       - ./audio:/app/audio
